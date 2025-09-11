@@ -1,0 +1,15 @@
+body{
+    padding: 0px;
+    margin: 0px;
+    background-color: rgb(231, 231, 231);
+}
+
+html{
+    padding: 0px;
+    margin: 0px;
+}
+
+#app{
+    margin: 0px;
+    padding: 0px;
+}

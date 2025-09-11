@@ -1,0 +1,157 @@
+<script setup>
+import { onMounted, onUnmounted } from "vue";
+import AMapLoader from "@amap/amap-jsapi-loader";
+import { useCounterStore } from '@/stores/counter'
+
+
+// 地图样例
+let map = null;
+
+// pinia store访问函数
+let counter = useCounterStore()
+
+
+onMounted(() => {
+  window._AMapSecurityConfig = {
+    securityJsCode: "09582d73da9c81d93b134caf4e6f173a",
+  };
+
+  AMapLoader.load({
+    key: "84a1985a18fcdb13254b2d85d69885ee",
+    version: "2.0",
+    plugins: ["AMap.Scale", "AMap.ToolBar", "AMap.MoveAnimation"],
+  })
+    .then((AMap) => {
+      map = new AMap.Map("mapContainer", {
+        viewMode: "3D",
+        zoom: 13,
+        center: [104.065861, 30.6574013],
+      });
+
+      map.addControl(new AMap.ToolBar());
+      map.addControl(new AMap.Scale());
+      map.setFitView();
+    })
+    .catch((e) => {
+      console.error("地图加载失败:", e);
+    });
+});
+
+// 组件卸载时清理
+onUnmounted(() => {
+  if (map) {
+    map.destroy(); // 彻底销毁地图实例
+    map = null;
+    console.log("地图已销毁");
+  }
+});
+
+</script>
+
+
+
+<template>
+<div id="border">
+  <div id="mapBox">
+    <div id="mapContainer"></div>
+  </div>
+
+
+  <div id="carImfromBox" :class="{ imformShow: counter.imformIf, imformHide: !counter.imformIf}">
+    <div id="imfromBox" :class="{ show: counter.imformIf, hide: !counter.imformIf}">
+      这里是小车的信息
+    </div>
+  </div>
+</div>
+</template>
+
+<style scoped>
+#border{
+  margin: 0;
+  padding: 0px 5vw;
+  width: 90vw;
+  height: 84vh;
+  display: inline-block;
+  text-align: center;
+
+  z-index: 1;
+}
+
+#mapBox{
+  border-radius: 50px;
+  background: #f4f4f4;
+  box-shadow:  14px 14px 30px #bebebe,
+             -14px -14px 30px #ffffff;
+
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
+  width: 60%;
+
+  display: inline-block;
+  vertical-align: top;
+
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+}
+
+#carImfromBox{
+  display: inline-block;
+  vertical-align: top;
+  height: 100%;
+
+  border-radius: 50px;
+  background: #f7f7f7;
+  box-shadow:  14px 14px 30px #bebebe,
+             -14px -14px 30px #ffffff;
+}
+
+#imformBox{
+  display: inline-block;
+  background-color: aliceblue;
+  height: calc(100% - 20px);
+  width: calc(100% - 10px);
+  margin: 10px 10px 10px 10px;
+}
+
+.imformHide{
+  margin: 0px;
+  padding: 0px;
+  width: 0px;
+  opacity: 0;
+
+  transform: translateX(200px);
+
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
+}
+
+.imformShow{
+  margin: 0px 0px 0px 100px;
+  border-radius: 25px;
+  width: 300px;
+  opacity: 1;
+
+  transform: translateX(0px);
+
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+
+}
+
+.show{
+  transform: translateX(0px);
+  opacity: 1;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
+}
+
+.hide{
+  transform: translateX(50px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+}
+
+#mapContainer{
+  width: 94%;
+  height: 94%;
+
+  margin: 3% 3%;
+}
+</style>
