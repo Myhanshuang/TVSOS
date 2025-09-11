@@ -2,11 +2,19 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useCounterStore = defineStore('counter', () => {
-  const count = ref(0)
-  const doubleCount = computed(() => count.value * 2)
-  function increment() {
-    count.value++
+  const imformIf = ref(false)
+
+  function imformShow(){
+    imformIf.value = true
   }
 
-  return { count, doubleCount, increment }
+  function imformHide(){
+    imformIf.value = false
+  }
+
+  function imformChange(){
+    imformIf.value = !imformIf.value
+    console.log(imformIf.value)
+  }
+  return { imformIf, imformShow, imformHide, imformChange }
 })
