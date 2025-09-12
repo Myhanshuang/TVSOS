@@ -1,14 +1,14 @@
 <script setup>
 import { onMounted, onUnmounted } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { useCounterStore } from '@/stores/counter'
+import { useImformStore } from '@/stores/imform'
 
 
 // 地图样例
 let map = null;
 
 // pinia store访问函数
-let counter = useCounterStore()
+let imform = useImformStore()
 
 
 onMounted(() => {
@@ -51,14 +51,14 @@ onUnmounted(() => {
 
 
 <template>
-<div id="border">
-  <div id="mapBox">
+<div id="firBorder">
+  <div id="mapBox" :class="{ wideMap: !imform.imformIf, shrotMap: imform.imformIf }">
     <div id="mapContainer"></div>
   </div>
 
 
-  <div id="carImfromBox" :class="{ imformShow: counter.imformIf, imformHide: !counter.imformIf}">
-    <div id="imfromBox" :class="{ show: counter.imformIf, hide: !counter.imformIf}">
+  <div id="carImfromBox" :class="{ imformShow: imform.imformIf, imformHide: !imform.imformIf}">
+    <div id="imfromBox" :class="{ show: imform.imformIf, hide: !imform.imformIf}">
       这里是小车的信息
     </div>
   </div>
@@ -66,9 +66,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-#border{
+#firBorder{
   margin: 0;
-  padding: 0px 5vw;
+  padding: 4vh 5vw;
   width: 90vw;
   height: 84vh;
   display: inline-block;
@@ -78,19 +78,28 @@ onUnmounted(() => {
 }
 
 #mapBox{
-  border-radius: 50px;
   background: #f4f4f4;
   box-shadow:  14px 14px 30px #bebebe,
              -14px -14px 30px #ffffff;
-
+  border-radius: 50px;
+  /* 让地图内容跟着裁剪为圆边框 */
+  overflow: hidden;
   margin: 0px;
   padding: 0px;
   height: 100%;
-  width: 60%;
+
 
   display: inline-block;
   vertical-align: top;
+}
 
+.wideMap{
+  width: 80%;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
+}
+
+.shrotMap{
+  width: 65%;
   transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
 }
 
@@ -149,9 +158,9 @@ onUnmounted(() => {
 }
 
 #mapContainer{
-  width: 94%;
-  height: 94%;
+  width: 100%;
+  height: 100%;
 
-  margin: 3% 3%;
+  /* margin: 3% 3%; */
 }
 </style>
