@@ -11,8 +11,9 @@ const target = useTargetStore()
 <template>
 <nav>
     <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
-    <el-button @click="target.targetChange('first')">小车详细信息触发按钮</el-button>
-    <el-button @click="target.targetChange('second')">小车详细信息触发按钮</el-button>
+    <el-button @click="target.targetChange('first')">主页</el-button>
+    <el-button @click="target.targetChange('second')">统计</el-button>
+    <el-button @click="target.targetChange('third')">小车管理</el-button>
 </nav>
     <RouterView></RouterView>
 </template>

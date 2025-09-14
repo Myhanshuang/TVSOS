@@ -1,6 +1,7 @@
 <script setup>
 import MapContainer from '@/components/mapContainer.vue'
 import Statistics from '@/components/statistics.vue';
+import carsManage from '@/components/carsManage.vue';
 
 import { useImformStore } from '@/stores/imform.js'
 import { useTargetStore } from '@/stores/scrollTarget'
@@ -31,6 +32,9 @@ watch(() => target.watchLissoner, async () => {
     </div>
     <div id='second' class="Component">
         <Statistics/>
+    </div>
+    <div id='third' class="Component">
+        <carsManage/>
     </div>
 </template>
 

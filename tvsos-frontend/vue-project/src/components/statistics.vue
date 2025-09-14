@@ -100,7 +100,7 @@ onMounted(() => {
 
 .swiper{
     width: calc(100% - 500px);
-    height: calc(88vh - 400px);
+    height: calc(100% - 400px);
     margin: 0px;
     padding: 50px 250px;
 
