@@ -1,7 +1,8 @@
-<!-- 这是用flex弹性盒子做出来的废稿，v-if无法实现动画的过度 -->
+<!-- 这是第一版的地图代码 -->
+
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
 import { useImformStore } from '@/stores/imform'
 
@@ -9,6 +10,7 @@ import { useImformStore } from '@/stores/imform'
 // 地图样例
 let map = null;
 
+// pinia store访问函数
 let imform = useImformStore()
 
 
@@ -38,108 +40,130 @@ onMounted(() => {
     });
 });
 
+// 组件卸载时清理
+onUnmounted(() => {
+  if (map) {
+    map.destroy(); // 彻底销毁地图实例
+    map = null;
+    console.log("地图已销毁");
+  }
+});
+
 </script>
 
 
 
 <template>
-<div id="border">
-  <div id="mapBox">
+<div id="firBorder">
+  <div id="mapBox" :class="{ wideMap: !imform.imformIf, shrotMap: imform.imformIf }">
     <div id="mapContainer"></div>
   </div>
 
-<transition name="imform">
-  <div id="carImfromBox" v-if="imform.imformIf === 'imformShow'">
 
+  <div id="carImfromBox" :class="{ imformShow: imform.imformIf, imformHide: !imform.imformIf}">
+    <div id="imfromBox" :class="{ show: imform.imformIf, hide: !imform.imformIf}">
+      这里是小车的信息
+    </div>
   </div>
-</transition>
 </div>
 </template>
 
 <style scoped>
-#border{
-  border: 1px solid black;
-
+#firBorder{
   margin: 0;
-  padding: 10px 5vw;
+  padding: 4vh 5vw;
   width: 90vw;
-  height: 85vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 84vh;
+  display: inline-block;
+  text-align: center;
 
   z-index: 1;
 }
 
 #mapBox{
-  border: 1px solid black;
-  border-radius: 25px;
+  background: #f4f4f4;
+  box-shadow:  14px 14px 30px #bebebe,
+             -14px -14px 30px #ffffff;
+  border-radius: 50px;
+  /* 让地图内容跟着裁剪为圆边框 */
+  overflow: hidden;
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
 
-  margin: 0px 0px 0px 3vw;
-  padding: 10px 10px;
-  display: flex;
-  
-  height: calc(100% - 20px);
-  /* flex: 4 500px; */
 
-  transition: all 1s;
+  display: inline-block;
+  vertical-align: top;
 }
 
-#mapBox {
-  flex-basis: 1700px;
-  transition: flex-basis 1s ease;
+.wideMap{
+  width: 80%;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
 }
 
-#mapBox.expand {
-  flex-basis: 2400px;
+.shrotMap{
+  width: 65%;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
 }
 
 #carImfromBox{
-  border: 1px solid black;
-  border-radius: 25px;
-
-  margin: 0px 0px 0px 5vw;
-  /* flex: 200px; */
-    flex-basis: 600px;
+  display: inline-block;
+  vertical-align: top;
   height: 100%;
+
+  border-radius: 50px;
+  background: #f7f7f7;
+  box-shadow:  14px 14px 30px #bebebe,
+             -14px -14px 30px #ffffff;
 }
 
-
-
-
-.imform-enter-from,
-.imform-leave-to {
-  opacity: 0;
-  transform: translateX(100px);
-}
-
-.imform-enter-active,
-.imform-leave-active {
-  transition: all 1s ease;
-}
-
-.imform-enter-to,
-.imform-leave-from {
-  opacity: 1;
-  transform: translateX(0px);
+#imformBox{
+  display: inline-block;
+  background-color: aliceblue;
+  height: calc(100% - 20px);
+  width: calc(100% - 10px);
+  margin: 10px 10px 10px 10px;
 }
 
 .imformHide{
+  margin: 0px;
+  padding: 0px;
+  width: 0px;
   opacity: 0;
 
-  transform: translateX(100px);
-  transition: all 1s;
+  transform: translateX(200px);
+
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
 }
 
 .imformShow{
+  margin: 0px 0px 0px 100px;
+  border-radius: 25px;
+  width: 300px;
+  opacity: 1;
+
   transform: translateX(0px);
+
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+
 }
 
+.show{
+  transform: translateX(0px);
+  opacity: 1;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
+}
 
-
+.hide{
+  transform: translateX(50px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+}
 
 #mapContainer{
   width: 100%;
   height: 100%;
+
+  /* margin: 3% 3%; */
 }
 </style>
