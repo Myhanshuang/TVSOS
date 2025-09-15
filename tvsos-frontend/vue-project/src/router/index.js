@@ -4,6 +4,7 @@ import login from '@/views/login.vue'
 
 import header from '@/views/header.vue'
 import index from '@/views/index.vue'
+import ForgotPassword from '@/views/ForgotPassword.vue'
 
 
 
@@ -13,15 +14,16 @@ const router = createRouter({
     {
       path: '/',
       redirect: '/login',
-      children:[
-        {path: '/login', component: login,},
+      children: [
+        { path: 'login', component: login, },
+        {path:'forgotpassword',component:ForgotPassword}
       ],
-    },{
+    }, {
       path: '/admin',
       component: header,
       redirect: '/admin/home',
       children: [
-        {path: '/admin/home', component: index,},
+        { path: '/admin/home', component: index, },
       ],
 
     },
