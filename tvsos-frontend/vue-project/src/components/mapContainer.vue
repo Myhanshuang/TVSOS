@@ -68,50 +68,41 @@ onUnmounted(() => {
 <style scoped>
 #firBorder{
   margin: 0;
-  padding: 4vh 5vw;
-  width: 90vw;
-  height: 84vh;
+  padding: 0px 0px;
+  width: 100vw;
+  height: 92vh;
   display: inline-block;
-  text-align: center;
+  text-align: left;
 
   z-index: 1;
 }
 
 #mapBox{
-  background: #f4f4f4;
-  box-shadow:  14px 14px 30px #bebebe,
-             -14px -14px 30px #ffffff;
-  border-radius: 50px;
-  /* 让地图内容跟着裁剪为圆边框 */
-  overflow: hidden;
   margin: 0px;
   padding: 0px;
+  width: 100%;
   height: 100%;
-
-
   display: inline-block;
+  position: relative;
   vertical-align: top;
-}
-
-.wideMap{
-  width: 80%;
-  transition: all 0.4s cubic-bezier(.35,.74,.33,.75) 0.4s;
-}
-
-.shrotMap{
-  width: 65%;
-  transition: all 0.4s cubic-bezier(.35,.74,.33,.75);
+  z-index: 2;
 }
 
 #carImfromBox{
   display: inline-block;
+  position: absolute;
+  right: 2vw;
+  top: 13vh;
   vertical-align: top;
-  height: 100%;
+  width: 20vw;
+  height: 80vh;
 
-  border-radius: 50px;
+  border-radius: 20px;
   background: #f7f7f7;
   box-shadow:  14px 14px 30px #bebebe,
              -14px -14px 30px #ffffff;
+
+  z-index: 3;
 }
 
 #imformBox{
