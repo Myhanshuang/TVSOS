@@ -13,3 +13,8 @@ html{
     margin: 0px;
     padding: 0px;
 }
+
+/* 禁止水平方向滚动 */
+html, body {
+  overflow-x: hidden; 
+}

@@ -1,8 +1,9 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-export const useCounterStore = defineStore('counter', () => {
+export const useImformStore = defineStore('imform', () => {
   const imformIf = ref(false)
+
 
   function imformShow(){
     imformIf.value = true

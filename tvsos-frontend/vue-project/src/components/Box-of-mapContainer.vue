@@ -3,13 +3,13 @@
 <script setup>
 import { onMounted } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { useCounterStore } from '@/stores/counter'
+import { useImformStore } from '@/stores/imform'
 
 
 // 地图样例
 let map = null;
 
-let counter = useCounterStore()
+let imform = useImformStore()
 
 
 onMounted(() => {
@@ -49,7 +49,7 @@ onMounted(() => {
   </div>
 
 <transition name="imform">
-  <div id="carImfromBox" v-if="counter.imformIf === 'imformShow'">
+  <div id="carImfromBox" v-if="imform.imformIf === 'imformShow'">
 
   </div>
 </transition>

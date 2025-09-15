@@ -1,13 +1,19 @@
 <script setup>
-import { useCounterStore } from '@/stores/counter'; 
+import { useImformStore } from '@/stores/imform'; 
+import { useTargetStore } from '@/stores/scrollTarget'
 
-const counter = useCounterStore()
+const imform = useImformStore()
+const target = useTargetStore()
+
 </script>
 
 
 <template>
 <nav>
-    <el-button :onclick="counter.imformChange">小车详细信息触发按钮</el-button>
+    <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
+    <el-button @click="target.targetChange('first')">主页</el-button>
+    <el-button @click="target.targetChange('second')">统计</el-button>
+    <el-button @click="target.targetChange('third')">小车管理</el-button>
 </nav>
     <RouterView></RouterView>
 </template>
@@ -24,7 +30,8 @@ nav{
     width: 100%;
 
     /* 使导航栏渲染在其他主件上方 */
-    z-index: 10;
+    /* 高德地图的logo的z-index很高 */
+    z-index: 1000;
 
     background: #ffffff;
 
