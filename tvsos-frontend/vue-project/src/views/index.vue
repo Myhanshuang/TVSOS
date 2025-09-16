@@ -55,6 +55,7 @@ onUnmounted(() => {
   }
 })
 
+
 // 简化版 cubic-bezier 贝塞尔函数生成器
 function cubicBezier(p1x, p1y, p2x, p2y) {
   return function (t) {
@@ -68,6 +69,7 @@ function cubicBezier(p1x, p1y, p2x, p2y) {
 
 
 // watch监测Lissoner是否有点击函数，触发翻页函数
+
 watch(() => target.watchLissoner, async () => {
   if (target.targetId) {
     await nextTick()
