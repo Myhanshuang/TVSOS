@@ -16,7 +16,7 @@ export const useTargetStore = defineStore('target', () => {
       
       watchLissoner.value = true
       // 异步请求等待一秒让滑动动画完成
-      await sleep(1000)   // 
+      await sleep(400)   // 
       // 关闭翻页状态，停止翻页
       watchLissoner.value = false
       // 重置翻页目标，准备二次翻页
