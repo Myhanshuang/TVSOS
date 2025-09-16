@@ -1,9 +1,11 @@
 <script setup>
 import { useImformStore } from '@/stores/imform'; 
 import { useTargetStore } from '@/stores/scrollTarget'
+import { useVisibleStore } from '@/stores/isVisibleComponents'
 
 const imform = useImformStore()
 const target = useTargetStore()
+const visible = useVisibleStore()
 
 </script>
 
@@ -12,11 +14,11 @@ const target = useTargetStore()
 <nav>
     <div class="title">TVSOS</div>
     <div class="space"></div>
-    <el-button @click="target.targetChange('first')" class="scollButton">地图</el-button>
+    <el-button @click="target.targetChange('first')" :class="{scollButton: 1, scollButtonActive: visible.isFirstVisible}">地图</el-button>
     <div class="space"></div>
-    <el-button @click="target.targetChange('second')" class="scollButton">统计</el-button>
+    <el-button @click="target.targetChange('second')" :class="{scollButton: 1, scollButtonActive: visible.isSecondVisible}">统计</el-button>
     <div class="space"></div>
-    <el-button @click="target.targetChange('third')" class="scollButton">小车管理</el-button>
+    <el-button @click="target.targetChange('third')" :class="{scollButton: 1, scollButtonActive: visible.isThirdVisible}">小车管理</el-button>
     <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
     <div class="longSpace"></div>
     <div class="loginOutBox">
@@ -91,6 +93,16 @@ nav{
 
 .scollButton:hover::after{
     width: 55%;
+}
+
+.scollButtonActive{
+    background-color: #ffffff;
+    color: rgb(126, 173, 249);
+}
+
+
+.scollButtonActive::after{
+    width: 50%;
 }
 
 .space{
