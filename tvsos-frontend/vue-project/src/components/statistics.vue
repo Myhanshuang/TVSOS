@@ -6,6 +6,9 @@ import 'swiper/css/navigation' // 导航按钮的样式
 
 import { Navigation } from 'swiper/modules'
 
+import { useVisibleStore } from '@/stores/isVisibleComponents'
+
+const visible = useVisibleStore()
 
 onMounted(() => {
   const swiper = new Swiper('.swiper', {
@@ -27,15 +30,15 @@ onMounted(() => {
 <template>
 <div id="secBorder">
     <div id="cardsBox">
-        <div class="card">
+        <div :class="{card: 1, cardShow: !visible.isSecondVisible}">
             这是一个卡片
         </div>
         <div class="space"></div>
-        <div class="card">
+        <div :class="{card: 1, cardShow: !visible.isSecondVisible}">
             这是一个卡片
         </div>
         <div class="space"></div>
-        <div class="card">
+        <div :class="{card: 1, cardShow: !visible.isSecondVisible}">
             这是一个卡片
         </div>
     </div>
@@ -92,7 +95,13 @@ onMounted(() => {
     background: linear-gradient(145deg, #f6f6f6, #cacaca);
     box-shadow:  15px 15px 26px #c3c3c3,
              -15px -15px 26px #fdfdfd;
+    
+    transition: all 0.5s;
 }
+
+
+
+
 
 .space{
     flex-grow: 1;
@@ -132,6 +141,9 @@ onMounted(() => {
 
 }
 
+
+
+
 .box{
     display: inline-block;
     width: calc(100% - 40px);
@@ -139,5 +151,14 @@ onMounted(() => {
     padding: 10px 20px;
     margin: 0px;
 }
+
+
+
+/* 淡入动画 */
+.cardShow{
+  opacity: 0;
+  transform: translateY(50px);
+}
+
 
 </style>

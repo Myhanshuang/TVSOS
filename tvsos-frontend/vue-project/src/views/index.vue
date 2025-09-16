@@ -55,16 +55,46 @@ onUnmounted(() => {
   }
 })
 
-// 你原本的跳转逻辑
+// 简化版 cubic-bezier 贝塞尔函数生成器
+function cubicBezier(p1x, p1y, p2x, p2y) {
+  return function (t) {
+    const u = 1 - t
+    // 三次贝塞尔公式
+    return (3 * u * u * t * p1y) +
+           (3 * u * t * t * p2y) +
+           (t * t * t)
+  }
+}
+
+
+// watch监测Lissoner是否有点击函数，触发翻页函数
 watch(() => target.watchLissoner, async () => {
   if (target.targetId) {
     await nextTick()
     const el = document.getElementById(target.targetId)
     if (el) {
-      el.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      })
+      const targetTop = el.getBoundingClientRect().top + window.scrollY
+      const startTop = window.scrollY
+      const distance = targetTop - startTop
+      // 动画总时长控制
+      const duration = 350
+      const startTime = performance.now()
+
+      // 应用贝塞尔缓降函数
+      const easing = cubicBezier(1,.01,.99,.01)
+
+      function step(currentTime) {
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = easing(progress)
+        window.scrollTo(0, startTop + distance * eased)
+
+        if (progress < 1) {
+          requestAnimationFrame(step)
+        }
+      }
+
+      requestAnimationFrame(step)
     }
   }
 })
