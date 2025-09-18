@@ -1,5 +1,6 @@
 // 这一个 Pinia Store 是为了监测小车详细信息栏是否显现的
 
+
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
@@ -17,7 +18,6 @@ export const useImformStore = defineStore('imform', () => {
 
   function imformChange(){
     imformIf.value = !imformIf.value
-    console.log(imformIf.value)
   }
   return { 
     imformIf,       // 小车状态栏是否显现

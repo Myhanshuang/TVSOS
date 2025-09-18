@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, onUnmounted } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { useImformStore } from '@/stores/imform'
+
+import { useImformStore } from '@/stores'
 
 
 // 地图样例
