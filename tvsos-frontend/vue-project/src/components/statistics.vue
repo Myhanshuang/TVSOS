@@ -6,7 +6,7 @@ import 'swiper/css/navigation' // 导航按钮的样式
 
 import { Navigation } from 'swiper/modules'
 
-import { useVisibleStore } from '@/stores/isVisibleComponents'
+import { useVisibleStore } from '@/stores'
 
 const visible = useVisibleStore()
 

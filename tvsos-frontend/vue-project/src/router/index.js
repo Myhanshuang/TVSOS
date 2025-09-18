@@ -5,7 +5,7 @@ import login from '@/views/login.vue'
 import header from '@/views/header.vue'
 import index from '@/views/index.vue'
 import ForgotPassword from '@/views/ForgotPassword.vue'
-
+import landing from '@/views/landing.vue'
 
 
 const router = createRouter({
@@ -13,8 +13,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/login',
+      redirect: '/landing',
       children: [
+        { path: 'landing', component: landing, },
         { path: 'login', component: login, },
         {path:'forgotpassword',component:ForgotPassword}
       ],

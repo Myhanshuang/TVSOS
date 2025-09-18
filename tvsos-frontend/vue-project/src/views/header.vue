@@ -1,7 +1,5 @@
 <script setup>
-import { useImformStore } from '@/stores/imform'; 
-import { useTargetStore } from '@/stores/scrollTarget'
-import { useVisibleStore } from '@/stores/isVisibleComponents'
+import { useVisibleStore, useTargetStore, useImformStore, useCounterStore } from '@/stores'
 
 const imform = useImformStore()
 const target = useTargetStore()

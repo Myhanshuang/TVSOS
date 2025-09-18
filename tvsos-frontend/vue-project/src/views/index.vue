@@ -4,10 +4,7 @@ import Statistics from '@/components/statistics.vue';
 import carsManage from '@/components/carsManage.vue';
 
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useImformStore } from '@/stores/imform.js'
-import { useTargetStore } from '@/stores/scrollTarget'
-import { useVisibleStore } from '@/stores/isVisibleComponents'
-
+import { useVisibleStore, useTargetStore, useImformStore } from '@/stores/index.js'
 
 const imform = useImformStore()
 const target = useTargetStore() 
