@@ -1,4 +1,4 @@
-package com.tvsos.dispatchsystem.mapper;
+package com.tvsos.mapper;
 
 import entity.Vehicle;
 

@@ -1,16 +1,17 @@
-package com.tvsos.dispatchsystem.service;
+package com.tvsos.service.impl;
 
-import com.tvsos.dispatchsystem.mapper.VehicleMapper;
+import com.tvsos.mapper.VehicleMapper;
+import com.tvsos.service.VehicleService;
 import entity.Vehicle;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
 @Service
-public class VehicleService {
+public class VehicleServiceImpl implements VehicleService {
 
     private final VehicleMapper vehicleMapper;
 
-    public VehicleService(VehicleMapper vehicleMapper) {
+    public VehicleServiceImpl(VehicleMapper vehicleMapper) {
         this.vehicleMapper = vehicleMapper;
     }
 

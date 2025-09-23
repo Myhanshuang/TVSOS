@@ -1,6 +1,6 @@
-package com.tvsos.dispatchsystem.controller;
+package com.tvsos.controller;
 
-import com.tvsos.dispatchsystem.service.VehicleService;
+import com.tvsos.service.impl.VehicleServiceImpl;
 import dto.LocationReportDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,17 +9,17 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/vehicles") // 所有请求的基础路径
 public class VehicleController {
 
-    private final VehicleService vehicleService;
+    private final VehicleServiceImpl vehicleServiceImpl;
 
-    public VehicleController(VehicleService vehicleService) {
-        this.vehicleService = vehicleService;
+    public VehicleController(VehicleServiceImpl vehicleServiceImpl) {
+        this.vehicleServiceImpl = vehicleServiceImpl;
     }
 
     // 对应我们之前设计的接口：POST /api/vehicles/location/report
     @PostMapping("/location/report")
     public ResponseEntity<?> receiveLocationReport(@RequestBody LocationReportDTO report) {
         try {
-            vehicleService.updateVehicleLocation(
+            vehicleServiceImpl.updateVehicleLocation(
                     report.getLicense(),
                     report.getLon(),
                     report.getLat(),
