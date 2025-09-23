@@ -29,7 +29,7 @@ public class VehicleService {
         }
 
         // 3. 手动设置更新时间！
-        vehicle.setUpdate_time(LocalDateTime.now());
+        vehicle.setUpdateTime(LocalDateTime.now());
 
         // 4. 调用Mapper方法，将更新后的整个对象传入
         vehicleMapper.update(vehicle);

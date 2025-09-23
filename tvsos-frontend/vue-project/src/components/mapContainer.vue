@@ -74,7 +74,6 @@ onUnmounted(() => {
   height: 92vh;
   display: inline-block;
   text-align: left;
-
   z-index: 1;
 }
 
@@ -87,6 +86,8 @@ onUnmounted(() => {
   position: relative;
   vertical-align: top;
   z-index: 2;
+  box-shadow:  15px 15px 26px #c3c3c3,
+             -15px -15px 26px #fdfdfd;
 }
 
 #carImfromBox{

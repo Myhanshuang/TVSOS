@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -18,6 +17,6 @@ public class Vehicle {
     private Double lon;
     private Double lat;
     private Double speed;
-    private LocalDateTime create_time;
-    private LocalDateTime update_time;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
