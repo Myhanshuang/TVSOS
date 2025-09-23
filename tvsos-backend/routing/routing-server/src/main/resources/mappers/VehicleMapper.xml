@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.tvsos.dispatchsystem.mapper.VehicleMapper">
+    <select id="findByLicense" parameterType="java.lang.String" resultType="entity.Vehicle">
+        SELECT
+            id, license, status, lon, lat, speed, create_time, update_time
+        FROM
+            vehicle
+        WHERE
+            license = #{license}
+    </select>
+
+    <update id="update" parameterType="entity.Vehicle">
+        UPDATE vehicle
+        SET
+            lon = #{lon},
+            lat = #{lat},
+            speed = #{speed},
+            status = #{status},
+            update_time = #{update_time}
+        WHERE
+            id = #{id}
+    </update>
+</mapper>
