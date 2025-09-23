@@ -72,7 +72,8 @@ watch(() => target.watchLissoner, async () => {
     await nextTick()
     const el = document.getElementById(target.targetId)
     if (el) {
-      const targetTop = el.getBoundingClientRect().top + window.scrollY
+      const relativePosition = 40
+      const targetTop = el.getBoundingClientRect().top + window.scrollY - relativePosition
       const startTop = window.scrollY
       const distance = targetTop - startTop
       // 动画总时长控制
@@ -103,6 +104,7 @@ watch(() => target.watchLissoner, async () => {
   <div id='first' ref="firstRef" :class="{Component: 1, isVisible: visible.isFirstVisible}">
     <MapContainer/>
   </div>
+
   <div id='second' ref="secondRef" :class="{Component: 1, isVisible: visible.isSecondVisible}">
     <Statistics/>
   </div>
@@ -113,16 +115,24 @@ watch(() => target.watchLissoner, async () => {
 
 <style scoped>
 .Component{
-  margin: 0px 0px 140px 0px;
-  padding: 60px 0px 0px 0px;
+  margin: 0px 0px 0px 0px;
+  padding: 30px 0px 30px 0px;
 
   transform: translateY(10px);
   opacity: 0;
   transition: all 0.6s;
 }
 
+#first{
+  margin: 40px 0px 0px 0px;
+}
+
+
+
 .isVisible{
   transform: translateY(0px);
   opacity: 1;
 }
+
+
 </style>

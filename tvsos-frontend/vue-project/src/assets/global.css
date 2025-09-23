@@ -1,7 +1,7 @@
 body{
     padding: 0px;
     margin: 0px;
-    background-color: rgb(231, 231, 231);
+    background-color: #eceff1;
 }
 
 html{
@@ -17,4 +17,7 @@ html{
 /* 禁止水平方向滚动 */
 html, body {
   overflow-x: hidden; 
+}
+body{
+    overflow-y: hidden;
 }
