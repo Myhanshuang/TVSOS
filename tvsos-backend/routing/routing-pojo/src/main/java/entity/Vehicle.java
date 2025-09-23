@@ -17,4 +17,6 @@ public class Vehicle {
     private Double lon;
     private Double lat;
     private Double speed;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
