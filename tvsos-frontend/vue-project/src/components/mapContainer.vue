@@ -99,7 +99,7 @@ onUnmounted(() => {
   height: 80vh;
 
   border-radius: 20px;
-  background: #f7f7f7;
+  background: white;
   box-shadow:  14px 14px 30px #bebebe,
              -14px -14px 30px #ffffff;
 
