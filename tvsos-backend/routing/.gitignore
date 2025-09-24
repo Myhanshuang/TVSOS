@@ -12,6 +12,7 @@ routing-server/src/main/resources/application-dev.yml
 *.iws
 *.iml
 *.ipr
+.idea
 
 ### VS Code ###
 .vscode/

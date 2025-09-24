@@ -19,9 +19,9 @@ const visible = useVisibleStore()
     <el-button @click="target.targetChange('third')" :class="{scollButton: 1, scollButtonActive: visible.isThirdVisible}">小车管理</el-button>
     <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
     <div class="longSpace"></div>
-    <div class="loginOutBox">
-        <router-link to="/login" class="loginOut">跳转</router-link>
-    </div>
+    
+        <router-link to="/login" class="loginOut">退出登录</router-link>
+    
 </nav>
     <RouterView></RouterView>
 </template>
@@ -115,20 +115,43 @@ nav{
     flex: 100;
 }
 
-.loginOutBox{
-    display: flex;
-    align-items: center;
-    justify-items: center;
-    height: 100%;
-    width: auto;
-    padding: 0px 20px;
-}
+
 
 .loginOut{
+    display: inline-block;
+    width: auto;
+    height: auto;
+    margin: 5px 10px;
+    padding: 5px 10px;
+
     color: rgb(97, 98, 102);
     font-size: 18px;
     font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 
     text-decoration: none;
+    transition: all 0.5s;
+    position: relative;
+    text-align: center;
+}
+
+.loginOut:hover{
+    color: red;
+}
+
+.loginOut::after{
+    content: " ";
+    position: absolute;
+    display: inline-block;
+    width: 0px;
+    height: 3px;
+    background-color: red;
+    bottom: 0px;
+    left: 50%; 
+    transform: translateX(-50%);
+    transition: all 0.3s;
+}
+
+.loginOut:hover::after{
+    width: 70%;
 }
 </style>
