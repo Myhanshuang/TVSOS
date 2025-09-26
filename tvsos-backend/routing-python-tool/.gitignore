@@ -6,4 +6,4 @@
 dist/*.json
 
 # 忽略与 .gitignore 同级的 Json 文件夹及其所有内容
-Json/
+Json/*.json
