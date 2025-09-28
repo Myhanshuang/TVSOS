@@ -5,13 +5,11 @@ target/
 routing-server/src/main/resources/application-dev.yml
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+.idea
 *.iws
 *.iml
 *.ipr
+.idea
 
 ### VS Code ###
 .vscode/

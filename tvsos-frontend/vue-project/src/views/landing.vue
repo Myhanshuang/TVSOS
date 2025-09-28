@@ -76,7 +76,7 @@ const handleClick = () => {
 <style scoped>
 .guide-page {
     height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -114,17 +114,17 @@ h1 {
     margin-bottom: 15px;
     font-weight: 700;
     background: linear-gradient(135deg,
-        #ffffff 0%,
-        #f8f8f8 15%,
-        #e6e6e6 25%,
-        #d0d0d0 35%,
-        #c0c0c0 45%,
-        #b0b0b0 50%,
-        #c0c0c0 55%,
-        #d0d0d0 65%,
-        #e6e6e6 75%,
-        #f8f8f8 85%,
-        #ffffff 100%);
+            #ffffff 0%,
+            #f8f8f8 15%,
+            #e6e6e6 25%,
+            #d0d0d0 35%,
+            #c0c0c0 45%,
+            #b0b0b0 50%,
+            #c0c0c0 55%,
+            #d0d0d0 65%,
+            #e6e6e6 75%,
+            #f8f8f8 85%,
+            #ffffff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -136,28 +136,25 @@ h1 {
     position: relative;
     display: inline-block;
     padding: 5px 0;
+    animation: shine 1s ease-in infinite;
+    font-family: 'Courier New', Courier, monospace;;
+}
+ 
+
+@keyframes shine {
+    0% {
+        text-shadow: 0 0 4px white
+    }
+
+    50% {
+        text-shadow: 0 0 10px white
+    }
+
+    100% {
+        text-shadow: 0 0 4px white
+    }
 }
 
-h1::before {
-    content: '';
-    position: absolute;
-    top: -3px;
-    left: -10px;
-    right: -10px;
-    bottom: -3px;
-    background: linear-gradient(45deg, 
-        rgba(255,255,255,0) 0%, 
-        rgba(255,255,255,0.4) 50%, 
-        rgba(255,255,255,0) 100%);
-    z-index: -1;
-    transform: skewX(-15deg);
-    animation: shine 3s infinite;
-    opacity: 0.7;
-}
-@keyframes shine {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
 p {
     font-size: 1.4rem;
     opacity: 0.95;

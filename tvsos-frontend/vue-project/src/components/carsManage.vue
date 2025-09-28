@@ -7,7 +7,7 @@ import 'swiper/css/navigation'
 import 'swiper/css/grid'
 
 onMounted(() => {
-  const swiper  = new Swiper('.my-swiper', {
+  const swiper = new Swiper('.my-swiper', {
     modules: [Navigation, Grid],
     slidesPerView: 3,      // 每行显示 3 个
     grid: {
@@ -29,89 +29,91 @@ onMounted(() => {
 </script>
 
 <template>
-<div id="thiBorder">
-  <div class="hang">
-        <div class="space"></div>
+  <div id="thiBorder">
+    <div class="hang">
+      <div class="space"></div>
       <div class="filterBox"></div>
-        <div class="space"></div>
+      <div class="space"></div>
       <div class="searchBox"></div>
-        <div class="space"></div>
-  </div>
+      <div class="space"></div>
+    </div>
 
-  <div class="swiperBox">
-    <div class="swiper my-swiper">
-      <div class="swiper-wrapper">
-        <div class="swiper-slide" v-for="i in 20" :key="i">
-          <div class="box">{{ i }}号元素</div>
+    <div class="swiperBox">
+      <div class="swiper my-swiper">
+        <div class="swiper-wrapper">
+          <div class="swiper-slide" v-for="i in 20" :key="i">
+            <div class="box">{{ i }}号元素</div>
+          </div>
         </div>
+
+        <!-- 左右按钮 -->
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
       </div>
-    
-      <!-- 左右按钮 -->
-      <div class="swiper-button-prev"></div>
-      <div class="swiper-button-next"></div>
     </div>
   </div>
-</div>
 </template>
 
 <style scoped>
-#thiBorder{
-    margin: 0px;
-    padding: 0px;
-    width: 99vw;
-    height: 88vh;
-    /* border: 1px solid black; */
-    overflow: hidden;
+#thiBorder {
+  margin: 0px;
+  padding: 0px;
+  width: 99vw;
+  height: 88vh;
+  /* border: 1px solid black; */
+  overflow: hidden;
+  background: #ffffff;
+  font-family: 'Segoe UI', 'Arial', 'PingFang SC', 'Hiragino Sans GB', '微软雅黑', sans-serif;
+  color: #2c3e50;
 }
 
-.hang{
+.hang {
   display: flex;
   width: calc(100% - 500px);
   height: 200px;
   margin: 0px;
   padding: 25px 250px;
-  /* border: 1px solid black; */
+  font-family: inherit;
 }
 
-.filterBox{
+.filterBox {
   flex: 300px 3;
   height: 100%;
-
+  background: #f1f7ff;
   border-radius: 25px;
   overflow: hidden;
 
-  box-shadow:  15px 15px 26px #c3c3c3,
-         -15px -15px 26px #fdfdfd;
+  box-shadow: 5px 5px 6px #a8a8a8, -5px -5px 6px #ffffff;
 }
 
-.searchBox{
+.searchBox {
   flex: 200px 2;
   height: 100%;
 
   border-radius: 25px;
   overflow: hidden;
-
-  box-shadow:  15px 15px 26px #c3c3c3,
-               -15px -15px 26px #fdfdfd;
+  background: #e4f9f5;
+  box-shadow: 5px 5px 6px #a8a8a8, -5px -5px 6px #ffffff;
 }
 
-.space{
+.space {
   flex: 1;
   height: 100%;
 }
 
-.swiperBox{
+.swiperBox {
   display: inline-block;
   width: calc(100% - 300px);
   height: calc(100% - 250px);
   margin: 0px;
   padding: 0px 150px;
   /* border: 1px solid black; */
+
 }
 
 
 .my-swiper {
-  width: calc(100% - 100px) ;
+  width: calc(100% - 100px);
   height: calc(100% - 50px);
   padding: 25px 50px;
 }
@@ -121,28 +123,30 @@ onMounted(() => {
   height: 150px;
   justify-content: center;
   align-items: center;
+  font-family: inherit;
 }
 
 .box {
   width: calc(100% - 60px);
   height: calc(100% - 10px);
   margin: 0px 30px 0px 30px;
-  /* background: lightblue; */
+  background: aliceblue;
   border-radius: 10px;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow:  15px 15px 26px #c3c3c3,
-               -15px -15px 26px #fdfdfd;
+  box-shadow: 5px 5px 6px #a8a8a8, -5px -5px 6px #ffffff;
+  font-size: 17px;
+  color: #355174;
+  font-family: 'Segoe UI', 'Arial', 'PingFang SC', 'Hiragino Sans GB', '微软雅黑', sans-serif;
 }
 
 .swiper-slide {
   opacity: 0;
-  transition: all 1.2s cubic-bezier(.35,.74,.33,.75);
+  transition: all 1.2s cubic-bezier(.35, .74, .33, .75);
 }
 
 .swiper-slide-visible {
   opacity: 1;
 }
-
 </style>
