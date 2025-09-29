@@ -10,3 +10,6 @@
 
 #### 注意：在保存数据库账密配置时会自动在当前目录生成一个db_config.json文件，该文件不会被跟踪。在用工具JSONGenerator.exe生成数据库信息更新josn文件时，请把不想被跟踪的文件保存在Json文件中。
 
+
+
+补充：run mock_data_generater 生成模拟数据，生成 mock.json，run mocker data importer 导入mock.json。run pois importer 导入抓下来的pois。直接导入进数据库的。

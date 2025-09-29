@@ -7,3 +7,5 @@ dist/*.json
 
 # 忽略与 .gitignore 同级的 Json 文件夹内的.json 文件
 Json/*.json
+
+db_config.json
