@@ -12,7 +12,7 @@ from requests.exceptions import ConnectionError, Timeout, RequestException
 # ----------------------- 配置后端系统信息 -----------------------------  
 BACKEND_HOST = '192.168.3.23'                       # 后端服务器地址  
 BACKEND_PORT = 8080                                 # 后端服务器端口  
-API_ENDPOINT = '/api/gps_data'                      # 后端API端点  
+API_ENDPOINT = '/api/vehicles/location/report'                      # 后端API端点  
 HEADERS = {'Content-Type': 'application/json'}      # 请求头  
   
 # ----------------------- 串口配置 ------------------------------------  
@@ -61,7 +61,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
   
-# -----------------全局Modbus客户端实例，供每个Gunicorn worker使用--------------------  
+#------------------------------------------------------------------------------------ 
   
 _modbus_client_instance = None  
   
@@ -223,13 +223,13 @@ def process_gps_request_in_thread():
     #print(f"读取到的GPS数据 - 纬度: {lat}, 经度: {lon}, 速度: {spd} km/h")
     if lat is not None and lon is not None:  
         # 构建json数据  
-        payload = {  
-            "latitude": round(lat, 6),  
-            "longitude": round(lon, 6),  
-            "speed": round(spd, 2),  
-            "vehicle_id": "001",  
-            "timestamp": time.time()  
-        }  
+        payload = {
+                "license": "川A12345",
+                "lon": round(lon, 6),
+                "lat": round(lat, 6),
+                "speed": round(spd, 2),
+                "timestamp": time.time()
+        }
         send_to_backend(payload)  
     else:  
         logger.warning("未获取到有效的GPS数据，跳过发送到后端。")  
@@ -263,6 +263,7 @@ if __name__ == "__main__":
         if not if_http_isconnected:    
             logger.error(f"与后端的http连接失败，请检查网络设置或后端服务状态，\n错误信息：{http_msg}")    
             break  # 连接失败则退出主循环，结束程序
+        
     # 关闭Modbus客户端连接  
     if _modbus_client_instance and _modbus_client_instance.connected:    
         _modbus_client_instance.close()    
