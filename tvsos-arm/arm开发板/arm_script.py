@@ -2,26 +2,18 @@ import time
 import datetime
 import sys  
 import os  
-import requests  
-import threading  
+import requests    
 import logging  
 from pymodbus.client import ModbusSerialClient  
 from pymodbus.constants import Endian 
 from pymodbus.payload import BinaryPayloadDecoder  
 from requests.exceptions import ConnectionError, Timeout, RequestException  
-from flask import Flask, jsonify, request  
-from waitress import serve # 新增导入
   
 # ----------------------- 配置后端系统信息 -----------------------------  
 BACKEND_HOST = '192.168.3.23'                       # 后端服务器地址  
 BACKEND_PORT = 8080                                 # 后端服务器端口  
-API_ENDPOINT = '/api/gps_data'                      # 后端API端点  
+API_ENDPOINT = '/api/vehicles/location/report'                      # 后端API端点  
 HEADERS = {'Content-Type': 'application/json'}      # 请求头  
-  
-# ----------------------- 本地监听端口配置 -----------------------------  
-LOCAL_HOST = '192.168.3.10'                       # 本地监听地址  
-LOCAL_PORT = 5000                                  # 本地监听端口  
-LOCAL_ROUTE = '/notify_request_received'  # 本地监听路由  
   
 # ----------------------- 串口配置 ------------------------------------  
 PORT = '/dev/ttyUSB0'                               # 串口设备路径  
@@ -69,7 +61,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
   
-# -----------------全局Modbus客户端实例，供每个Gunicorn worker使用--------------------  
+#------------------------------------------------------------------------------------ 
   
 _modbus_client_instance = None  
   
@@ -222,37 +214,25 @@ def send_to_backend(data):
         logger.error(f"发送数据时发生异常: {e}")  
   
   
-#-----------------------------Flask应用及路由--------------------------------------  
 
-app = Flask(__name__)  
   
 #-----------------------------处理GPS请求的线程-------------------------------------  
 
 def process_gps_request_in_thread():  
     lat, lon, spd = read_gps_data_modbus() # 获取GPS数据  
-   
+    #print(f"读取到的GPS数据 - 纬度: {lat}, 经度: {lon}, 速度: {spd} km/h")
     if lat is not None and lon is not None:  
         # 构建json数据  
-        payload = {  
-            "latitude": round(lat, 6),  
-            "longitude": round(lon, 6),  
-            "speed": round(spd, 2),  
-            "device_id": "MyGPS_Device",  
-            "timestamp": time.time()  
-        }  
+        payload = {
+                "license": "川A12345",
+                "lon": round(lon, 6),
+                "lat": round(lat, 6),
+                "speed": round(spd, 2),
+                "timestamp": time.time()
+        }
         send_to_backend(payload)  
     else:  
         logger.warning("未获取到有效的GPS数据，跳过发送到后端。")  
-  
-  
-#-----------------------------Flask路由定义--------------------------------------  
-@app.route(LOCAL_ROUTE, methods=['POST', 'GET']) # 后端请求GPS数据的路由  
-def listen_and_send():  
-    logger.info("收到后端请求，将在后台线程中处理GPS数据...")  
-    # 启动一个新线程来处理GPS数据读取和发送  
-    thread = threading.Thread(target=process_gps_request_in_thread)  
-    thread.start()  
-    return jsonify({"status": "acknowledged", "message": "请求已接收，GPS数据正在后台处理并发送中。"}), 200  
   
   
 #-----------------------------主程序入口--------------------------------------   
@@ -276,10 +256,14 @@ if __name__ == "__main__":
             logger.info("与后端连接成功，本地服务将监听后端位置获取请求。")    
             break    
     
-    logger.info(f"本地服务正在 {LOCAL_HOST}:{LOCAL_PORT} 上启动...")
-    # 使用 Waitress 运行 Flask 应用
-    serve(app, host=LOCAL_HOST, port=LOCAL_PORT)
-      
+    while True:
+        process_gps_request_in_thread()    
+        time.sleep(10)  # 每10秒读取一次GPS数据并发送到后端
+        if_http_isconnected, http_msg = test_http_connection() 
+        if not if_http_isconnected:    
+            logger.error(f"与后端的http连接失败，请检查网络设置或后端服务状态，\n错误信息：{http_msg}")    
+            break  # 连接失败则退出主循环，结束程序
+        
     # 关闭Modbus客户端连接  
     if _modbus_client_instance and _modbus_client_instance.connected:    
         _modbus_client_instance.close()    
