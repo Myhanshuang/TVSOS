@@ -2,8 +2,6 @@
 .venv/
 .idea/
 
-# 忽略 dist 文件夹中的所有 .json 文件
-dist/*.json
+dist/db_config.json
 
-# 忽略与 .gitignore 同级的 Json 文件夹内的.json 文件
-Json/*.json
+db_config.json
