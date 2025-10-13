@@ -9,6 +9,9 @@ dist/
 build/
 out/
 
+# Vite 缓存文件
+.vite
+
 # 本地环境配置
 .env
 .env.local
