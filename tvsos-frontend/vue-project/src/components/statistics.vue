@@ -30,11 +30,11 @@ onMounted(() => {
 <template>
   <div id="secBorder">
     <div id=""></div>
-    <svg xmlns="@/assets/images/wave" viewBox="0 0 1440 320">
+    <!-- <svg xmlns="@/assets/images/wave" viewBox="0 0 1440 320">
       <path fill="#a2d9ff" fill-opacity="1"
         d="M0,32L48,80C96,128,192,224,288,224C384,224,480,128,576,122.7C672,117,768,203,864,202.7C960,203,1056,117,1152,90.7C1248,64,1344,96,1392,112L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z">
       </path>
-    </svg>
+    </svg> -->
     <div id="cardsBox">
       <div :class="{ card: 1, cardShow: !visible.isSecondVisible, hoverBox: 1 }">
         这是一个卡片
