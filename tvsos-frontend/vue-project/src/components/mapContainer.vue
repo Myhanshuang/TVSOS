@@ -8,6 +8,10 @@ import { getPOIList } from '@/api/poi'
 import gasStationIcon from '@/assets/images/加油站.png'
 import gasIcon from '@/assets/images/加气站.png'
 import energyIcon from '@/assets/images/其他能源站.png'
+import factoryIcon from '@/assets/images/工厂.png'
+import companyEnterpriseIcon from '@/assets/images/公司企业.png'
+import shoppingCenterIcon from '@/assets/images/购物中心.png'
+import furnitureBuildingMaterialsMarketIcon from '@/assets/images/家具建材市场.png'
 // 地图样例
 let map = null;
 let labelsLayer = null;
@@ -77,9 +81,20 @@ function createLabelMarkers(data, AMap) {
       case 3: // 其它能源站
         iconUrl = energyIcon;
         break;
+      case 4: // 工厂
+        iconUrl = factoryIcon;
+        break;
+      case 5: // 公司企业
+        iconUrl = companyEnterpriseIcon;
+        break;
+      case 6: // 购物中心
+        iconUrl = shoppingCenterIcon;
+        break;
+      case 7: // 家具建材市场
+        iconUrl = furnitureBuildingMaterialsMarketIcon;
+        break;
       default:
         iconUrl = gasStationIcon;
-
     }
 
     // 设置图标对象

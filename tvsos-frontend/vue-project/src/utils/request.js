@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useUserStore } from '@/stores';
 import { ElMessage } from 'element-plus';
 import router from '@/router';
-const baseURL='http://127.0.0.1:4523/m1/7124866-6847792-6235619'
+const baseURL='/api'
 const instance = axios.create({
   baseURL,
   timeout: 10000
