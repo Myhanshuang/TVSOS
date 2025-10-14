@@ -5,13 +5,13 @@ import AMapLoader from "@amap/amap-jsapi-loader";
 import { useImformStore } from '@/stores'
 import { getPOIList } from '@/api/poi'
 
-import gasStationIcon from '@/assets/images/加油站.png'
-import gasIcon from '@/assets/images/加气站.png'
-import energyIcon from '@/assets/images/其他能源站.png'
-import factoryIcon from '@/assets/images/工厂.png'
-import companyEnterpriseIcon from '@/assets/images/公司企业.png'
-import shoppingCenterIcon from '@/assets/images/购物中心.png'
-import furnitureBuildingMaterialsMarketIcon from '@/assets/images/家具建材市场.png'
+import gasStationIcon from '@/assets/images/加油站.webp'
+import gasIcon from '@/assets/images/加气站.webp'
+import energyIcon from '@/assets/images/其他能源站.webp'
+import factoryIcon from '@/assets/images/工厂.webp'
+import companyEnterpriseIcon from '@/assets/images/公司企业.webp'
+import shoppingCenterIcon from '@/assets/images/购物中心.webp'
+import furnitureBuildingMaterialsMarketIcon from '@/assets/images/家具建材市场.webp'
 // 地图样例
 let map = null;
 let labelsLayer = null;
