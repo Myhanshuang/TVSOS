@@ -11,7 +11,7 @@ export default pinia
 
 //  Pinia Stores 集成
 export * from './modules/user'
-export * from './modules/counter'
+// export * from './modules/counter'
 export * from './modules/imform'
 export * from './modules/isVisibleComponents'
 export * from './modules/scrollTarget'

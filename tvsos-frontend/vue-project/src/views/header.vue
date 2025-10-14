@@ -1,5 +1,5 @@
 <script setup>
-import { useVisibleStore, useTargetStore, useImformStore, useCounterStore } from '@/stores'
+import { useVisibleStore, useTargetStore, useImformStore } from '@/stores'
 
 const imform = useImformStore()
 const target = useTargetStore()
