@@ -102,7 +102,7 @@ create table vehicle
     id      bigint unsigned auto_increment comment 'id'
         primary key,
     license varchar(32) null comment '车牌号',
-    status  int         null comment '车辆状态 1可用 2运输中 3卸货中 4保养中',
+    status  int         null comment '车辆状态 1接单行驶 2装货 3运货行驶 4卸货 5停留等待 6空闲 7加油 8维修保养',
     lon     double      null comment '经度',
     lat     double      null comment '纬度',
     speed   double      null comment '速度 单位：km/h',
