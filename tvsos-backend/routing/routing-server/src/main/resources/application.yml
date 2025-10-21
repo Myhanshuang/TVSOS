@@ -3,7 +3,7 @@ server:
 
 spring:
   profiles:
-    active: dev
+    active: prod
   datasource:
     driver-class-name: ${routing.datasource.driver-class-name}
     url: jdbc:mysql://${routing.datasource.host}:${routing.datasource.port}/${routing.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true

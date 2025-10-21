@@ -3,6 +3,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 routing-server/src/main/resources/application-dev.yml
+routing-server/src/main/resources/application-prod.yml
 
 ### IntelliJ IDEA ###
 .idea
