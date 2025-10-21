@@ -22,7 +22,7 @@ class JSONGeneratorApp:
             "route": ["id", "begin_poi_id", "end_poi_id", "distance", "type"],
             "transport_order": ["id", "order_number", "begin_poi_id", "end_poi_id", "est_begin_time", "est_end_time",
                                 "act_begin_time", "act_end_time", "create_time", "status"],
-            "vehicle": ["id", "license", "status", "lon", "lat", "speed"]
+            "vehicle": ["id", "license", "status", "lon", "lat", "speed", "category_id"]
         }
 
         self.notebook = ttk.Notebook(master)

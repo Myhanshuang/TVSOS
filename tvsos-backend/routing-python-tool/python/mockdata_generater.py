@@ -116,12 +116,17 @@ class MockDataGenerator:
         now = datetime.datetime.now()
         for i in range(1, count + 1):
             vehicles.append({
-                "id": i, "license": self.generate_license_plate(), "status": random.choice([0, 1, 2]),
-                "lon": round(random.uniform(103.8, 104.2), 6), "lat": round(random.uniform(30.5, 30.8), 6),
+                "id": i,
+                "license": self.generate_license_plate(),
+                "status": random.choice([0, 1, 2]),
+                "lon": round(random.uniform(103.8, 104.2), 6),
+                "lat": round(random.uniform(30.5, 30.8), 6),
                 "speed": round(random.uniform(0, 80), 2),
                 "createTime": (now - datetime.timedelta(days=random.randint(30, 365))).isoformat(),
-                "updateTime": now.isoformat()
+                "updateTime": now.isoformat(),
+                "categoryId": random.choice(self.id_pools["category"]) if self.id_pools["category"] else None
             })
+
             self.id_pools["vehicle"].append(i)
         self.mock_data["vehicle"] = vehicles
         self.log(f"-> 生成了 {len(vehicles)} 条 [vehicle] 数据")
@@ -213,8 +218,8 @@ class MockDataGenerator:
         if not self.read_pois_from_db(): return False
 
         self.generate_drivers(quantities["drivers"])
-        self.generate_vehicles(quantities["vehicles"])
         self.generate_cargos_and_categories(quantities["cargos"], quantities["categories"])
+        self.generate_vehicles(quantities["vehicles"])
         self.generate_routes(quantities["routes"])
         self.generate_orders_and_related(quantities["orders"])
         self.log("所有模拟数据生成完毕。")
