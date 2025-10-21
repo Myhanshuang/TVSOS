@@ -5,7 +5,7 @@ a = Analysis(
     ['mock_data_importer.py'],
     pathex=[],
     binaries=[],
-    datas=[('db_config.json', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
