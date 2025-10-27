@@ -5,7 +5,7 @@ a = Analysis(
     ['mockdata_generater.py'],
     pathex=[],
     binaries=[],
-    datas=[('db_config.json', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

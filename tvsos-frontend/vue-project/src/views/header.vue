@@ -1,7 +1,9 @@
 <script setup>
+
 import { useVisibleStore, useTargetStore, useImformStore, useCounterStore } from '@/stores'
 import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
+
 const imform = useImformStore()
 const target = useTargetStore()
 const visible = useVisibleStore()
