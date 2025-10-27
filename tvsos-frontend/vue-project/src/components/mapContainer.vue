@@ -118,13 +118,14 @@ function createLabelMarkers(data, AMap) {
     });
 
     // 添加点击事件
+
     labelMarker.on('click', function (e) {
       console.log('点击了标记:', item);
       // 可以在这里触发显示详细信息的面板
-      // imform.showInfo(item);
+// imform.showInfo(item);
 
-      // 地图视口移动居中
-      map.setZoomAndCenter(15,[item.lon, item.lat]);
+// 地图视口移动居中
+map.setZoomAndCenter(15,[item.lon, item.lat]);
     });
 
     // 添加鼠标悬停事件
