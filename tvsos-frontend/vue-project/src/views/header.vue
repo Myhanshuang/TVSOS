@@ -1,6 +1,6 @@
 <script setup>
 
-import { useVisibleStore, useTargetStore, useImformStore, useCounterStore } from '@/stores'
+import { useVisibleStore, useTargetStore, useImformStore } from '@/stores'
 import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
 
