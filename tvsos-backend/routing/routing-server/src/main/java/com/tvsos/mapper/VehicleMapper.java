@@ -1,8 +1,11 @@
 package com.tvsos.mapper;
 
+import dto.VehicleDTO;
 import entity.Vehicle;
 
 import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
 import java.util.Optional;
 
 @Mapper // 告诉Spring Boot这是一个MyBatis的Mapper接口
@@ -21,4 +24,11 @@ public interface VehicleMapper {
      * @return 受影响的行数
      */
     int update(Vehicle vehicle);
+
+    /**
+     * 筛选/获取车辆列表
+     * @param vehicleDTO
+     * @return
+     */
+    List<Vehicle> list(VehicleDTO vehicleDTO);
 }
