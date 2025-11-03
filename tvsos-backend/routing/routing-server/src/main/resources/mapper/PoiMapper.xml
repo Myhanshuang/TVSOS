@@ -9,7 +9,7 @@
                 type = #{type}
             </if>
             <if test="status != null">
-                status = #{status}
+                and status = #{status}
             </if>
         </where>
     </select>

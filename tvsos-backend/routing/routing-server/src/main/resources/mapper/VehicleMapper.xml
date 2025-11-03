@@ -10,14 +10,37 @@
             license = #{license}
     </select>
 
+    <select id="list" resultType="entity.Vehicle">
+        select * from vehicle
+        <where>
+            <if test="status != null">
+                status = #{status}
+            </if>
+            <if test="license != null">
+                and license = #{license}
+            </if>
+        </where>
+    </select>
+
     <update id="update" parameterType="entity.Vehicle">
         UPDATE vehicle
-        SET
-            lon = #{lon},
-            lat = #{lat},
-            speed = #{speed},
-            status = #{status},
-            update_time = #{updateTime}
+        <set>
+            <if test="lon != null">
+                lon = #{lon},
+            </if>
+            <if test="lat != null">
+                lat = #{lat},
+            </if>
+            <if test="speed != null">
+                speed = #{speed},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime}
+            </if>
+        </set>
         WHERE
             id = #{id}
     </update>

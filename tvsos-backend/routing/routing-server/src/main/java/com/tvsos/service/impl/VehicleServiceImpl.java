@@ -2,9 +2,11 @@ package com.tvsos.service.impl;
 
 import com.tvsos.mapper.VehicleMapper;
 import com.tvsos.service.VehicleService;
+import dto.VehicleDTO;
 import entity.Vehicle;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class VehicleServiceImpl implements VehicleService {
@@ -34,5 +36,16 @@ public class VehicleServiceImpl implements VehicleService {
 
         // 4. 调用Mapper方法，将更新后的整个对象传入
         vehicleMapper.update(vehicle);
+    }
+
+    /**
+     * 筛选/获取车辆列表
+     * @param vehicleDTO
+     * @return
+     */
+    @Override
+    public List<Vehicle> list(VehicleDTO vehicleDTO) {
+        List<Vehicle> vehicleList = vehicleMapper.list(vehicleDTO);
+        return vehicleList;
     }
 }

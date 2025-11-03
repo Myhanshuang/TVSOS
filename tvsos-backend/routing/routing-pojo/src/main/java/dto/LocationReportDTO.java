@@ -13,5 +13,4 @@ public class LocationReportDTO {
     private Double lon;
     private Double lat;
     private Double speed;
-    private Long timestamp;
 }
