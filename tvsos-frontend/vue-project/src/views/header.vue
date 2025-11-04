@@ -30,7 +30,7 @@ const openDrawer = () => {
         <el-button type="primary" @click="openDrawer"> poi列表</el-button>
         <div class="longSpace"></div>
         <div class="loginOutBox">
-            <router-link to="/login" class="loginOut">跳转</router-link>
+            <router-link to="/login" class="loginOut">退出登录</router-link>
         </div>
     </nav>
     <poi-list :visible="drawerVisible" @update:visible="drawerVisible = $event" />
@@ -142,5 +142,10 @@ nav {
     font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
 
     text-decoration: none;
+    transition: all 0.5s;
+}
+
+.loginOut:hover {
+    color: rgb(255, 0, 0);
 }
 </style>
