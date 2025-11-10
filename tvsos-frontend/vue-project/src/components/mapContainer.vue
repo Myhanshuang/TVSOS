@@ -1,9 +1,9 @@
 <script setup>
 import { onMounted, onUnmounted, watch } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { useImformStore, usePoiBoxStore } from "@/stores";
+import { useImformStore, usePoiBoxStore, useMapStore } from "@/stores";
 import { getPOIList } from "@/api/poi";
-
+import { storeToRefs } from 'pinia'
 const imform = useImformStore();
 const poiBox = usePoiBoxStore()
 
@@ -285,6 +285,11 @@ function createWebGLLayer(AMap, map, initialPoiList) {
   };
 }
 
+//mapStore
+const mapStore = useMapStore()
+const { center, zoom, blinkingPoi } = storeToRefs(mapStore)
+
+
 // ===== 生命周期 =====
 onMounted(() => {
   window._AMapSecurityConfig = { securityJsCode: "09582d73da9c81d93b134caf4e6f173a" };
@@ -295,14 +300,80 @@ onMounted(() => {
   }).then((AMap) => {
     map = new AMap.Map("mapContainer", {
       viewMode: "3D",
-      zoom: 13,
-      center: [104.065861, 30.6574013],
+      zoom: zoom.value,
+      center: center.value,
       mapStyle: "amap://styles/whitesmoke",
     });
 
     map.addControl(new AMap.ToolBar());
     map.addControl(new AMap.Scale());
 
+
+    const startBlinkAnimation = (poi) => {
+      if (!map) return
+
+      // 清除之前的闪烁标记
+      if (window.blinkMarker) {
+        map.remove(window.blinkMarker)
+        clearInterval(window.blinkInterval)
+      }
+
+      // 创建闪烁标记
+      const marker = new AMap.Marker({
+        position: [poi.lon, poi.lat],
+        content: createBlinkContent(poi.type),
+        offset: new AMap.Pixel(-12, -12),
+        zIndex: 9999
+      })
+
+      map.add(marker)
+      window.blinkMarker = marker
+
+      // 闪烁动画（闪烁6次后自动停止）
+      let blinkTimes = 0
+      const maxBlinks = 6
+      let visible = true
+
+      window.blinkInterval = setInterval(() => {
+        visible = !visible
+        // 使用正确的方法来控制标记显示/隐藏
+        if (visible) {
+          marker.show()  // 显示标记
+        } else {
+          marker.hide()  // 隐藏标记
+        }
+        blinkTimes++
+
+        if (blinkTimes >= maxBlinks * 2) { // *2 因为每次切换可见性算半次
+          clearInterval(window.blinkInterval)
+          map.remove(marker)
+          window.blinkMarker = null
+          mapStore.setBlinkingPoi(null)
+        }
+      }, 300)
+    }
+    // 创建闪烁标记内容
+    const createBlinkContent = (type) => {
+      const iconUrl = iconMap[type] || iconMap[1]
+      return `
+    <div style="
+      width: 24px; 
+      height: 24px; 
+      background-image: url('${iconUrl}');
+      background-size: cover;
+      border: 2px solid #ff0000;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(255,0,0,0.8);
+    "></div>
+  `
+    }
+
+    // 监听闪烁POI变化
+    watch(blinkingPoi, (newPoi) => {
+      if (newPoi) {
+        startBlinkAnimation(newPoi)
+      }
+    })
     getPOIList().then((res) => {
       if (res.data?.code === 1 && res.data.data?.length) {
         webglLayerObj = createWebGLLayer(AMap, map, res.data.data);
@@ -318,6 +389,20 @@ onUnmounted(() => {
   if (webglLayerObj?.cleanup) webglLayerObj.cleanup();
   if (map) map.destroy();
 });
+
+// 添加监听，当仓库中心点变化时更新地图
+watch(center, (newCenter) => {
+  if (map) {
+    map.setCenter(newCenter)
+  }
+})
+
+// 添加监听，当仓库缩放变化时更新地图
+watch(zoom, (newZoom) => {
+  if (map) {
+    map.setZoom(newZoom)
+  }
+})
 </script>
 
 <template>
@@ -355,6 +440,7 @@ onUnmounted(() => {
   text-align: left;
   z-index: 1;
 }
+
 #mapBox {
   margin: 0px;
   padding: 0px;
@@ -365,6 +451,7 @@ onUnmounted(() => {
   vertical-align: top;
   z-index: 2;
 }
+
 #carImfromBox {
   display: inline-block;
   position: absolute;
@@ -378,6 +465,7 @@ onUnmounted(() => {
   box-shadow: 14px 14px 30px #bebebe, -14px -14px 30px #ffffff;
   z-index: 3;
 }
+
 #imformBox {
   display: inline-block;
   background-color: aliceblue;
@@ -387,6 +475,7 @@ onUnmounted(() => {
 
   position: relative;
 }
+
 .imformHide {
   margin: 0px;
   padding: 0px;
@@ -395,6 +484,7 @@ onUnmounted(() => {
   transform: translateX(200px);
   transition: all 0.4s cubic-bezier(.35, .74, .33, .75) 0.4s;
 }
+
 .imformShow {
   margin: 0px 0px 0px 100px;
   border-radius: 25px;
@@ -403,27 +493,30 @@ onUnmounted(() => {
   transform: translateX(0px);
   transition: all 0.4s cubic-bezier(.35, .74, .33, .75);
 }
+
 .show {
   transform: translateX(0px);
   opacity: 1;
   transition: all 0.4s cubic-bezier(.35, .74, .33, .75) 0.4s;
 }
+
 .hide {
   transform: translateX(50px);
   opacity: 0;
   transition: all 0.4s cubic-bezier(.35, .74, .33, .75);
 }
+
 #mapContainer {
   width: 100%;
   height: 100%;
 }
 
-.detailedInformation{
+.detailedInformation {
   display: inline-block;
   margin: 15px 10px 5px 15px;
 }
 
-.imformOut{
+.imformOut {
   display: inline-block;
   margin: 0px;
   padding: 0px;
@@ -442,7 +535,7 @@ onUnmounted(() => {
   transition: all 0.5s;
 }
 
-.imformOut:hover{
+.imformOut:hover {
   color: rgb(255, 14, 14);
   background-color: white;
 }
