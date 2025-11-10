@@ -1,7 +1,7 @@
 <template>
   <el-drawer title="poi列表" direction="rtl" size="50%" :model-value="visible"
     @update:model-value="$emit('update:visible', $event)">
-    <page-container>
+     
       <el-form inline>
         <el-form-item label="城市">
           <el-select placeholder="请选择" style="width: 100px" v-model="selectedCity">
@@ -25,7 +25,7 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-      <el-table :data="poiList">
+      <el-table :data="poiList"  @row-click="handleRowClick">
         <el-table-column label="名字" prop="name">
           <template #default="{ row }">
             <el-link type="primary" :underline="false">{{ row.name }}</el-link>
@@ -49,12 +49,13 @@
       <el-pagination v-model:current-page="params.pagenum" v-model:page-size="params.pagesize"
         :page-sizes="[2, 3, 5, 10]" :background="true" layout="jumper,total, sizes,prev, pager, next" :total="total"
         @size-change="onSizeChange" @current-change="onCurrentChange" style="margin-top: 20px; justify-content: end;" />
-    </page-container>
+   
   </el-drawer>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useMapStore } from '@/stores'
 
 defineProps({
   visible: {
@@ -63,8 +64,20 @@ defineProps({
   }
 })
 
-defineEmits(['update:visible'])
+const emit = defineEmits(['update:visible'])
 
+const mapStore = useMapStore()
+
+// 修改表格点击事件
+const handleRowClick = (row) => {
+  // 设置地图中心点到选中的POI
+  mapStore.setCenter([row.lon, row.lat])
+  mapStore.setZoom(15)
+  // 设置闪烁的POI
+  mapStore.setBlinkingPoi(row)
+  // 关闭抽屉
+  emit('update:visible', false)
+}
 // 选中的城市和类型
 const selectedCity = ref('')
 const selectedType = ref('')
