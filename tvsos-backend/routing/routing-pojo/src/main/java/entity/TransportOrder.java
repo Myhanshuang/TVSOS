@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TransportOrder {
-    private Integer id;
-    private String orderNumber;
+    private Long id;
+    private String orderNumber;// 订单编号
     private Long beginPoiId;
     private Long endPoiId;
     private LocalDate estBeginTime;

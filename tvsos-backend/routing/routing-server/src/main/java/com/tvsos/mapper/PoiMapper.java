@@ -14,4 +14,11 @@ public interface PoiMapper {
      * @return
      */
     List<Poi> list(PoiQueryDTO poiQueryDTO);
+
+    /**
+     * 通过 ID 获取 POI
+     * @param id
+     * @return
+     */
+    Poi findById(Long id);
 }

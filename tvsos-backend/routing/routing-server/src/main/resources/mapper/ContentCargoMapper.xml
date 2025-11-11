@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.tvsos.mapper.ContentCargoMapper">
+
+    <insert id="insert" parameterType="entity.ContentCargo">
+        INSERT INTO content_cargo
+            (transport_order_id, cargo_id, quantity, create_time)
+        VALUES
+            (#{transportOrderId}, #{cargoId}, #{quantity}, #{createTime})
+    </insert>
+
+    <select id="findByTransportOrderId" resultType="entity.ContentCargo">
+        SELECT * FROM content_cargo WHERE transport_order_id = #{transportOrderId}
+    </select>
+
+</mapper>

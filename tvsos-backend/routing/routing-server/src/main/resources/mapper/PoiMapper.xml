@@ -14,4 +14,7 @@
         </where>
     </select>
 
+    <select id="findById" parameterType="long" resultType="entity.Poi">
+        select * from poi where id = #{id}
+    </select>
 </mapper>
