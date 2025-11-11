@@ -66,7 +66,7 @@ public class DispatchServiceImpl implements DispatchService {
                 assignTaskToVehicle(job, bestVehicle, reqs.startPoi, reqs.endPoi);
 
                 availableVehicles.remove(bestVehicle);
-//                log.info("task finished");
+                log.info("task finished");
             }
         }
     }
@@ -80,18 +80,26 @@ public class DispatchServiceImpl implements DispatchService {
         // String routeJson = HttpUtils.doGet("YOUR_GIS_API_URL", params); // [!] 静态调用
 
 
-        // 查找车辆-司机的持久化绑定
-        Optional<Assign> assignOpt = assignMapper.findByVehicleId(vehicle.getId());
-        if (assignOpt.isEmpty()) {
+        // [!] 核心修改：查找车辆-司机的持久化绑定
+        // 您的 List<Assign> assignOpt 已更名为 assigns
+        List<Assign> assigns = assignMapper.findByVehicleId(vehicle.getId());
+
+        if (assigns.isEmpty()) {
             log.error("【阶段3】分配失败: 车辆 Id={} 缺少在 assign 表中的绑定记录", vehicle.getId());
             return; // 跳过此任务
         }
 
-        Assign assign = assignOpt.get();
+        log.info("arrive"); // 您的日志
 
-        assign.setTransportOrderId(job.getTransportOrderId());
-        // assign.setOrderDetailId(job.getId()); // (如果 Assign 表有此字段)
-        assignMapper.update(assign);
+        // [!] 核心修改：遍历 "所有" 匹配的分配记录
+        for (Assign assign : assigns) {
+
+            assign.setOrderDetailId(job.getId());
+
+            // 执行更新
+            assignMapper.update(assign);
+            log.info(" -> 已更新 Assign 表 Id: {}，绑定到 orderDetailId: {}", assign.getId(), job.getId());
+        }
 
         // 4. 更新 子任务(Job) 状态 -> "已分配" (2)
         job.setStatus(StatusConstant.TASK_ASSIGNED);

@@ -4,9 +4,9 @@
 
     <insert id="insert" parameterType="entity.Assign" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO assign
-            (vehicle_id, driver_id, transport_order_id)
+            (vehicle_id, driver_id, order_detail_id)
         VALUES
-            (#{vehicleId}, #{driverId}, #{transportOrderId})
+            (#{vehicleId}, #{driverId}, #{orderDetailId})
     </insert>
 
     <select id="findByVehicleId" parameterType="java.lang.Long" resultType="entity.Assign">
@@ -19,8 +19,8 @@
             <if test="driverId != null">
                 driver_id = #{driverId},
             </if>
-            <if test="transportOrderId != null">
-                transport_order_id = #{transportOrderId}
+            <if test="orderDetailId != null">
+                order_detail_id = #{orderDetailId}
             </if>
         </set>
         WHERE id = #{id}

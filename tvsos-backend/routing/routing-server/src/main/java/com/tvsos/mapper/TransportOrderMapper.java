@@ -15,8 +15,6 @@ public interface TransportOrderMapper {
      * 根据状态查询任务列表
      */
     List<TransportOrder> findByStatus(Integer status);
-
-    //
     
     /**
      * 更新任务信息（例如：状态）

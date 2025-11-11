@@ -11,5 +11,5 @@ public class Assign {
     private Long id;
     private Long vehicleId;
     private Long driverId;
-    private Long transportOrderId;
+    private Long orderDetailId;
 }
