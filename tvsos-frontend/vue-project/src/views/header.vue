@@ -1,9 +1,9 @@
 <script setup>
 
-import { useVisibleStore, useTargetStore, useImformStore , useMapStore} from '@/stores'
+import { useMapAnimationStore ,useVisibleStore, useTargetStore, useImformStore , useMapStore} from '@/stores'
 import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
-
+import { storeToRefs } from 'pinia'; // 引入 storeToRefs
 const imform = useImformStore()
 const target = useTargetStore()
 const visible = useVisibleStore()
@@ -11,6 +11,9 @@ const drawerVisible = ref(false)
 const openDrawer = () => {
     drawerVisible.value = true
 }
+
+const mapAnimationStore = useMapAnimationStore();
+const { isPollingActive } = storeToRefs(mapAnimationStore);
 </script>
 
 
@@ -29,6 +32,10 @@ const openDrawer = () => {
         <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
         <el-button type="primary" @click="openDrawer"> poi列表</el-button>
         <div class="longSpace"></div>
+
+        <el-button @click="mapAnimationStore.startPolling" :disabled="isPollingActive">开始动画</el-button>
+        <el-button @click="mapAnimationStore.pausePolling" :disabled="!isPollingActive">暂停动画</el-button>
+
         <div class="loginOutBox">
             <router-link to="/login" class="loginOut">退出登录</router-link>
         </div>
