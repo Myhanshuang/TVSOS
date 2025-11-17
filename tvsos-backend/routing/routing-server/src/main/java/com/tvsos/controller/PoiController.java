@@ -34,6 +34,7 @@ public class PoiController {
      * @param id
      * @return
      */
+    @GetMapping("/{id}")
     public Result getById(@PathVariable("id") Long id){
         log.info("根据id获取poi");
         Poi poi = poiService.getById(id);
