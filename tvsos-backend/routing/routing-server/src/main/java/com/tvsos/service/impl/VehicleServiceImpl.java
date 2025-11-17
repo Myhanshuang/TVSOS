@@ -48,4 +48,15 @@ public class VehicleServiceImpl implements VehicleService {
         List<Vehicle> vehicleList = vehicleMapper.list(vehicleDTO);
         return vehicleList;
     }
+
+    /**
+     * 根据id获取车辆信息
+     * @param id
+     * @return
+     */
+    @Override
+    public Vehicle getById(Long id) {
+        Vehicle vehicle = vehicleMapper.getById(id);
+        return vehicle;
+    }
 }

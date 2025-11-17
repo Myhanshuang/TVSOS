@@ -7,7 +7,7 @@
         FROM
             cargo
         WHERE
-            type = #{type}
+            tybe = #{tybe}
     </select>
 
     <select id="list" resultType="entity.Cargo">

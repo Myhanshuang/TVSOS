@@ -12,5 +12,5 @@ public class Route {
     private Long beginPoiId;
     private Long endPoiId;
     private Double distance;
-    private Integer type;
+    private Integer tybe;
 }

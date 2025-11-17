@@ -4,6 +4,7 @@ import dto.VehicleDTO;
 import entity.Vehicle;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,4 +32,12 @@ public interface VehicleMapper {
      * @return
      */
     List<Vehicle> list(VehicleDTO vehicleDTO);
+
+    /**
+     * 根据id获取车辆信息
+     * @param id
+     * @return
+     */
+    @Select("select * from vehicle where vehicle.id = #{id}")
+    Vehicle getById(Long id);
 }

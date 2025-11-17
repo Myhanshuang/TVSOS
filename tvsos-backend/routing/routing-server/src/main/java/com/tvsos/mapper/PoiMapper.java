@@ -3,6 +3,7 @@ package com.tvsos.mapper;
 import dto.PoiQueryDTO;
 import entity.Poi;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -16,9 +17,10 @@ public interface PoiMapper {
     List<Poi> list(PoiQueryDTO poiQueryDTO);
 
     /**
-     * 通过 ID 获取 POI
+     * 根据id获取poi
      * @param id
      * @return
      */
-    Poi findById(Long id);
+    @Select("select * from poi where id = #{id}")
+    Poi getById(Long id);
 }

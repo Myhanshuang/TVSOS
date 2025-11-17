@@ -40,6 +40,7 @@ public class VehicleController {
 
     /**
      * 筛选/获取车辆列表
+     * @param vehicleDTO
      * @return
      */
     @GetMapping
@@ -49,4 +50,15 @@ public class VehicleController {
         return Result.success(vehicleList);
     }
 
+    /**
+     * 根据id获取车辆信息
+     * @param id
+     * @return
+     */
+    @GetMapping("/{id}")
+    public Result getById(@PathVariable("id") Long id){
+        log.info("根据id获取车辆信息");
+        Vehicle vehicle = vehicleService.getById(id);
+        return Result.success(vehicle);
+    }
 }

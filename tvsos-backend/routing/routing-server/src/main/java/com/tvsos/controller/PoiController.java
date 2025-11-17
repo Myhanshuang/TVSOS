@@ -5,10 +5,7 @@ import dto.PoiQueryDTO;
 import entity.Poi;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import result.Result;
 
 import java.util.List;
@@ -21,7 +18,8 @@ public class PoiController {
     private PoiService poiService;
 
     /**
-     * 获取/筛选所有poi
+     * 筛选/获取poi列表
+     * @param poiDTO
      * @return
      */
     @GetMapping
@@ -30,4 +28,16 @@ public class PoiController {
         List<Poi> poiList = poiService.list(poiDTO);
         return Result.success(poiList);
     }
+
+    /**
+     * 根据id获取poi
+     * @param id
+     * @return
+     */
+    public Result getById(@PathVariable("id") Long id){
+        log.info("根据id获取poi");
+        Poi poi = poiService.getById(id);
+        return Result.success(poi);
+    }
+
 }

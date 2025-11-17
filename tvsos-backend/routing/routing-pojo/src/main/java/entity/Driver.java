@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class Driver {
     private Long id;
     private String name;
-    private Integer type;
+    private Integer tybe;
     private Integer status;
 }
