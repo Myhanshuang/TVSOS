@@ -15,6 +15,6 @@ public class Category {
     private Double width;
     private Double height;
     private Double capacity;
-    private Integer type;
+    private Integer tybe;
     private Integer scope;
 }
