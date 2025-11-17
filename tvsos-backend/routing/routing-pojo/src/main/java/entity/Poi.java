@@ -12,6 +12,6 @@ public class Poi {
     private String name;
     private Double lon;
     private Double lat;
-    private Integer type;
+    private Integer tybe;
     private Integer status;
 }

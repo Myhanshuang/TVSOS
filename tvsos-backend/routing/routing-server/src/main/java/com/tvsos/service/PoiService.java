@@ -12,4 +12,11 @@ public interface PoiService {
      * @return
      */
     List<Poi> list(PoiQueryDTO poiQueryDTO);
+
+    /**
+     * 根据id获取poi
+     * @param id
+     * @return
+     */
+    Poi getById(Long id);
 }

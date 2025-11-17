@@ -120,8 +120,8 @@ public class DispatchServiceImpl implements DispatchService {
         double totalWeight = job.getQuantity();
         TransportOrder order = transportOrderMapper.findById(job.getTransportOrderId());
         if(order == null) return null;
-        Poi startPoi = poiMapper.findById(order.getBeginPoiId());
-        Poi endPoi = poiMapper.findById(order.getEndPoiId());
+        Poi startPoi = poiMapper.getById(order.getBeginPoiId());
+        Poi endPoi = poiMapper.getById(order.getEndPoiId());
         if (startPoi == null || endPoi == null) return null;
         return new TaskRequirements(totalWeight, startPoi, endPoi);
     }

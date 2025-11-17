@@ -23,4 +23,15 @@ public class PoiServiceImpl implements PoiService {
         List<Poi> poiList = poiMapper.list(poiQueryDTO);
         return poiList;
     }
+
+    /**
+     * 根据id获取poi
+     * @param id
+     * @return
+     */
+    @Override
+    public Poi getById(Long id) {
+        Poi poi = poiMapper.getById(id);
+        return poi;
+    }
 }

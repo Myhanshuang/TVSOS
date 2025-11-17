@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 public class Cargo {
     private Long id;
     private String name;
-    private Integer type;
+    private Integer tybe;
 }

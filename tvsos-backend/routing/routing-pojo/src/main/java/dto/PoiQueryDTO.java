@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PoiQueryDTO {
-    private Integer type;
+    private Integer tybe;
     private Integer status;
 }

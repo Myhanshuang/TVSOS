@@ -21,4 +21,11 @@ public interface VehicleService {
      * @return
      */
     List<Vehicle> list(VehicleDTO vehicleDTO);
+
+    /**
+     * 根据id获取车辆信息
+     * @param id
+     * @return
+     */
+    Vehicle getById(Long id);
 }

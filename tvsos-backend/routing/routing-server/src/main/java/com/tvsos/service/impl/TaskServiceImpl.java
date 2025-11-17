@@ -104,7 +104,7 @@ public class TaskServiceImpl implements TaskService {
     private Poi getRandomPoiByType(List<Integer> types) {
         Integer type = types.get(random.nextInt(types.size()));
         PoiQueryDTO filter = new PoiQueryDTO();
-        filter.setType(type);
+        filter.setTybe(type);
         List<Poi> pois = poiMapper.list(filter);
         if (pois == null || pois.isEmpty()) return null;
         return pois.get(random.nextInt(pois.size()));

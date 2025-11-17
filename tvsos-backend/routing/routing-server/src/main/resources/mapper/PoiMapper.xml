@@ -5,8 +5,8 @@
     <select id="list" resultType="entity.Poi">
         select * from poi
         <where>
-            <if test="type != null">
-                type = #{type}
+            <if test="tybe != null">
+                tybe = #{tybe}
             </if>
             <if test="status != null">
                 and status = #{status}
@@ -14,7 +14,4 @@
         </where>
     </select>
 
-    <select id="findById" parameterType="long" resultType="entity.Poi">
-        select * from poi where id = #{id}
-    </select>
 </mapper>
