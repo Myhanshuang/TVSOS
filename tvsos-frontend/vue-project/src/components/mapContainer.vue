@@ -23,7 +23,7 @@ let AMapInstance = null; // 用于存储AMap全局对象，方便在定时器中
 const DEFAULT_VEHICLE_ICON = "https://a.amap.com/jsapi_demos/static/demo-center-v2/car.png";
 const VEHICLE_FULL_PATH_COLOR = "#28F";    // 车辆完整规划路径颜色
 const VEHICLE_PASSED_PATH_COLOR = "#AF5"; // 车辆实时运动轨迹颜色 (Passed Path Color)
-const updateFrequencyMs = 1000; // 每秒更新一次数据，即1000毫秒
+const updateFrequencyMs = 2000; // 更新一次数据的时间
 
 // 控制轮询状态的变量，用于控制按钮的禁用状态
 const mapAnimationStore = useMapAnimationStore();
@@ -473,10 +473,9 @@ watch(zoom, (newZoom) => {
                     <h3>车辆详细信息</h3>
                     <div class="detailedInformation">ID：{{ recentVehicle.id }}</div><br>
                     <div class="detailedInformation">位置：{{ recentVehicle.currentPosition?.[0]?.toFixed(5) }}, {{ recentVehicle.currentPosition?.[1]?.toFixed(5) }}</div><br>
-                    <div class="detailedInformation">速度：?? km/h</div><br> <!-- 示例：你可以添加更多车辆属性 -->
+                    <div class="detailedInformation">速度：{{ recentVehicle.speed }} km/h</div><br> <!-- 示例：你可以添加更多车辆属性 -->
                     <div class="detailedInformation">方向：?? 度</div><br>
-                    <div class="detailedInformation">当前状态：运行中</div><br>
-                    <div class="detailedInformation">路径数据点数量：{{ recentVehicle.path?.length || 0 }}</div><br>
+                    <div class="detailedInformation">当前状态：{{ recentVehicle.status === 1 ? '行驶中' : '停运' }}</div><br>
                     <!-- 你需要根据实际的 vehicle 数据结构添加更多字段 -->
                 </div>
             </div>
