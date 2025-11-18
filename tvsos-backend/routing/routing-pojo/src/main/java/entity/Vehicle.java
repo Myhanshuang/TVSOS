@@ -19,4 +19,5 @@ public class Vehicle {
     private Double speed;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Long categoryId;
 }

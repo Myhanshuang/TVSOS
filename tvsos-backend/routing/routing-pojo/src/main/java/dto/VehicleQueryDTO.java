@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class VehicleDTO {
+public class VehicleQueryDTO {
     private Integer status;
     private String license;
+    private Long categoryId;
 }
