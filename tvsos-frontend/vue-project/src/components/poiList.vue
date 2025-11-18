@@ -81,7 +81,7 @@ const handleRowClick = (row) => {
   // 设置列表点击点为最近点击的POI
   poiBox.recentPoiChange(row)
   // 设置信息框内容为POI，并显示
-  imform.imformChange("poi", null)
+  imform.imformShow("poi", null)
   // 关闭抽屉
   emit('update:visible', false)
 }
