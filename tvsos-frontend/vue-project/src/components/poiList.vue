@@ -55,7 +55,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useMapStore } from '@/stores'
+import { useMapStore, useImformStore, usePoiBoxStore } from '@/stores'
+
+const poiBox = usePoiBoxStore()
+const imform = useImformStore()
 
 defineProps({
   visible: {
@@ -75,6 +78,10 @@ const handleRowClick = (row) => {
   mapStore.setZoom(15)
   // 设置闪烁的POI
   mapStore.setBlinkingPoi(row)
+  // 设置列表点击点为最近点击的POI
+  poiBox.recentPoiChange(row)
+  // 设置信息框内容为POI，并显示
+  imform.imformChange("poi", null)
   // 关闭抽屉
   emit('update:visible', false)
 }
