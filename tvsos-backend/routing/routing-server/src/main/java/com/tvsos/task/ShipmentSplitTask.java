@@ -22,6 +22,7 @@ public class ShipmentSplitTask {
 
     /**
      * 每隔 SCHEDULE_MINUTE 分钟执行一次
+     * 自动拆分订单 -> 任务
      */
     @Scheduled(fixedDelayString = "#{T(java.util.concurrent.TimeUnit).MINUTES.toMillis(T(constant.ShipmentConstant).SCHEDULE_MINUTE)}")
     public void splitPendingShipments() {
