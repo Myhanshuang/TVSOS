@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderRoute {
+public class ShipmentCargo {
     private Long id;
-    private Long transportOrderId;
-    private Long routeId;
-    private Integer sequence;
-    private Long status;
+    private Long shipmentId;
+    private Long cargoId;
+    private Integer quantity;
+    private Double weight; // kg
 }

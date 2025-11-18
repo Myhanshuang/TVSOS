@@ -28,6 +28,7 @@
         <mybatis.spring>3.0.5</mybatis.spring>
         <httpcomponents.client5>5.5</httpcomponents.client5>
         <fastjson>2.0.52</fastjson>
+        <swagger>2.8.14</swagger>
     </properties>
 
     <dependencyManagement>
@@ -56,6 +57,11 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>
                 <version>${fastjson}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${swagger}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

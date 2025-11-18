@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.tvsos.mapper.VehicleMapper">
-    <select id="findByLicense" parameterType="java.lang.String" resultType="entity.Vehicle">
-        SELECT
-            id, license, status, lon, lat, speed, create_time, update_time
-        FROM
-            vehicle
-        WHERE
-            license = #{license}
-    </select>
 
     <select id="list" resultType="entity.Vehicle">
         select * from vehicle
@@ -19,29 +11,9 @@
             <if test="license != null">
                 and license = #{license}
             </if>
+            <if test="categoryId != null">
+                and category_id = #{categoryId}
+            </if>
         </where>
     </select>
-
-    <update id="update" parameterType="entity.Vehicle">
-        UPDATE vehicle
-        <set>
-            <if test="lon != null">
-                lon = #{lon},
-            </if>
-            <if test="lat != null">
-                lat = #{lat},
-            </if>
-            <if test="speed != null">
-                speed = #{speed},
-            </if>
-            <if test="status != null">
-                status = #{status},
-            </if>
-            <if test="updateTime != null">
-                update_time = #{updateTime}
-            </if>
-        </set>
-        WHERE
-            id = #{id}
-    </update>
 </mapper>

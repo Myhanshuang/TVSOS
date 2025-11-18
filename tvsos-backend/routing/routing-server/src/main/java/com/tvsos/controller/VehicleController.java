@@ -1,13 +1,14 @@
 package com.tvsos.controller;
 
 import com.tvsos.service.VehicleService;
-import com.tvsos.service.impl.VehicleServiceImpl;
-import dto.LocationReportDTO;
-import dto.VehicleDTO;
+import dto.VehicleQueryDTO;
 import entity.Vehicle;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import result.Result;
 
@@ -16,37 +17,22 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/vehicles") // 所有请求的基础路径
+@Tag(name = "Vehicle")
 public class VehicleController {
 
     @Autowired
     private VehicleService vehicleService;
 
     /**
-     * 获取硬件发送的地理位置信息
-     * @param report
-     * @return
-     */
-    @PostMapping("/location/report")
-    public Result receiveLocationReport(@RequestBody LocationReportDTO report){
-        log.info("获取硬件发送的地理位置信息...");
-        vehicleService.updateVehicleLocation(
-                report.getLicense(),
-                report.getLon(),
-                report.getLat(),
-                report.getSpeed()
-        );
-        return Result.success();
-    }
-
-    /**
      * 筛选/获取车辆列表
-     * @param vehicleDTO
+     * @param vehicleQueryDTO
      * @return
      */
     @GetMapping
-    public Result list(VehicleDTO vehicleDTO){
+    @Operation(summary = "筛选/获取车辆列表")
+    public Result list(@ParameterObject VehicleQueryDTO vehicleQueryDTO){
         log.info("筛选/获取车辆列表");
-        List<Vehicle> vehicleList = vehicleService.list(vehicleDTO);
+        List<Vehicle> vehicleList = vehicleService.list(vehicleQueryDTO);
         return Result.success(vehicleList);
     }
 
@@ -56,7 +42,8 @@ public class VehicleController {
      * @return
      */
     @GetMapping("/{id}")
-    public Result getById(@PathVariable("id") Long id){
+    @Operation(summary = "根据id获取车辆信息")
+    public Result getById(@Parameter @PathVariable("id") Long id){
         log.info("根据id获取车辆信息");
         Vehicle vehicle = vehicleService.getById(id);
         return Result.success(vehicle);

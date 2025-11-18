@@ -7,10 +7,15 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderDetail {
+public class Task {
     private Long id;
-    private Long transportOrderId;
+    private Long shipmentId;
     private Long cargoId;
     private Integer quantity;
+    private Double beginLon;
+    private Double beginLat;
+    private Double endLon;
+    private Double endLat;
     private Integer status;
+    private Double weight;
 }
