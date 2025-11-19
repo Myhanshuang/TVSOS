@@ -18,3 +18,4 @@ export * from './modules/scrollTarget'
 export * from './modules/poiBox'
 export * from './modules/mapStore'
 export * from './modules/mapAnimationStore'
+export * from './modules/vehicle';
