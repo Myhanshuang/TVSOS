@@ -3,14 +3,20 @@
 import { useMapAnimationStore ,useVisibleStore, useTargetStore, useImformStore , useMapStore} from '@/stores'
 import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
+import VehicleList from '@/components/vehicleList.vue';
 import { storeToRefs } from 'pinia'; // 引入 storeToRefs
 const imform = useImformStore()
 const target = useTargetStore()
 const visible = useVisibleStore()
 const drawerVisible = ref(false)
+const vehicleDrawerVisible = ref(false)
 const openDrawer = () => {
     drawerVisible.value = true
 }
+
+const openVehicleDrawer = () => { // 👈 新增：打开货车列表抽屉
+  vehicleDrawerVisible.value = true;
+};
 
 const mapAnimationStore = useMapAnimationStore();
 const { isPollingActive } = storeToRefs(mapAnimationStore);
@@ -29,7 +35,7 @@ const { isPollingActive } = storeToRefs(mapAnimationStore);
         <div class="space"></div>
         <el-button @click="target.targetChange('third')"
             :class="{ scollButton: 1, scollButtonActive: visible.isThirdVisible }">小车管理</el-button>
-        <el-button @click="imform.imformChange">小车详细信息触发按钮</el-button>
+        <el-button @click="openVehicleDrawer">货车列表</el-button>
         <el-button type="primary" @click="openDrawer"> poi列表</el-button>
         <div class="longSpace"></div>
 
@@ -41,6 +47,7 @@ const { isPollingActive } = storeToRefs(mapAnimationStore);
         </div>
     </nav>
     <poi-list :visible="drawerVisible" @update:visible="drawerVisible = $event" />
+    <vehicle-list :visible="vehicleDrawerVisible" @update:visible="vehicleDrawerVisible = $event" />
     <!-- 监听 poi-list 组件触发的 update:visible 事件，当事件触发时，将事件传递的值（$event）赋值给父组件的 drawerVisible 变量 -->
     <RouterView></RouterView>
 </template>

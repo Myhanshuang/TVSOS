@@ -1,78 +1,43 @@
 // src/utils/vehiclePolling.js
 import { getVehiclesData } from '@/api/vehicle'; // <--- 导入车辆API
+import { useVehicleStore } from '@/stores';
 let pollingIntervalId = null;
-let mockTick = 0; // 用于模拟数据的计数器，需要保留在服务中
 
 // 模拟从JSON文件读取车辆数据的函数
 // 此函数也被移到服务中，因为它是updateVehiclesOnMapLogic的依赖
 //------------------------后续需要与后端对接-------------------------------------------------------
 const fetchVehicleData = async () => {
-    // 模拟网络延迟
-//     await new Promise(resolve => setTimeout(resolve, 50));
-//     mockTick++;
-//     // 假设的第一辆车的固定路径
-//     const car1FullPath = [
-//         [104.065861, 30.6574013], // 天府广场附近
-//         [104.066500, 30.658000],
-//         [104.067000, 30.657500],
-//         [104.067500, 30.658200],
-//         [104.068000, 30.657800],
-//         [104.068500, 30.658500],
-//         [104.069000, 30.657900],
-//     ];
-//     // 模拟 car1 沿着路径移动 (循环)
-//     const pathIndex1 = mockTick % car1FullPath.length;
-//     const currentPos1 = car1FullPath[pathIndex1];
-//     // 模拟 car2 的位置随机小范围移动
-//     const baseCar2Pos = [104.070000, 30.650000];
-//     let currentPos2 = [
-//         baseCar2Pos[0] + Math.sin(mockTick * 0.2) * 0.001,
-//         baseCar2Pos[1] + Math.cos(mockTick * 0.15) * 0.0005
-//     ];
-//     let car2Path = car1FullPath; // car2 先使用 car1 的路径做 fullPath 演示
-//     // 模拟 car3 在一段时间后出现，并沿圆周运动
-//     let car3Data = null;
-//     if (mockTick > 10) { // 假设10秒后出现
-//         const baseCar3Pos = [104.061000, 30.660500];
-//         car3Data = {
-//             id: 'car3',
-//             // fullPath 示例，即使实时更新只用 currentPosition，这里也可以显示完整路径
-//             path: [[104.060000, 30.660000], [104.061000, 30.660500], [104.062000, 30.660000]],
-//             currentPosition: [
-//                 baseCar3Pos[0] + Math.sin(mockTick * 0.3) * 0.0005,
-//                 baseCar3Pos[1] + Math.cos(mockTick * 0.25) * 0.0003
-//             ],
-//         };
-//     }
-//     const vehicles = [
-//         {
-//             id: 'car1',
-//             path: car1FullPath, // 完整路径数组
-//             currentPosition: currentPos1, // 当前位置
-//             //......如果还有其他信息字段，接着添加
-//         },
-//         {
-//             id: 'car2',
-//             path: car2Path,
-//             currentPosition: currentPos2
-//         }
-//     ];
-//     if (car3Data) {
-//         vehicles.push(car3Data);
-//     }
-//     return vehicles;
 
 try {
         const response = await getVehiclesData(); // 直接调用封装的 API 函数
         console.log(response.data);
         if (response.data.code === 1 && response.data.data) {
-            return response.data.data.map(backendCar => ({
-                id: backendCar.license, 
-                currentPosition: [backendCar.lon, backendCar.lat],
-                path: backendCar.fullPath || null,
-                status: backendCar.status,
-                speed: backendCar.speed
-            }));
+             const cleanedVehicleList = response.data.data
+              .filter(backendCar => {
+                  const lon = parseFloat(backendCar.lon);
+                  const lat = parseFloat(backendCar.lat);
+                  // 过滤掉坐标无效的数据 (可以根据需要调整范围)
+                  const isValidCoord = !isNaN(lon) && !isNaN(lat) &&
+                                       lon >= 70 && lon <= 140 &&
+                                       lat >= 3 && lat <= 55;
+                  if (!isValidCoord) {
+                      console.warn(`车辆 ${backendCar.license || backendCar.id} 坐标无效 (${lon}, ${lat})，已过滤。`);
+                  }
+                  return isValidCoord;
+              })
+              .map(backendCar => ({
+                  id: backendCar.license || backendCar.id?.toString(),
+                  license: backendCar.license,
+                  currentPosition: [parseFloat(backendCar.lon), parseFloat(backendCar.lat)],
+                  path: Array.isArray(backendCar.fullPath) ? backendCar.fullPath.map(p => [parseFloat(p[0]), parseFloat(p[1])]) : [],
+                  status: backendCar.status,
+                  speed: backendCar.speed,
+                  createTime: backendCar.createTime,
+                  updateTime: backendCar.updateTime
+                  // ... 其他你需要的字段
+              }));
+              console.log(cleanedVehicleList);
+            return cleanedVehicleList;
             
         } else {
             console.error("后端返回错误或数据为空:", response.data.message);
@@ -102,6 +67,12 @@ const updateVehiclesOnMapLogic = async ({
     if (!AMapInstance || !map) return;
 
     const newVehicleDataList = await fetchVehicleData();
+
+    // 新增：获取 vehicleStore 实例
+    const vehicleStore = useVehicleStore();
+    // 新增：将数据同步到 Pinia Store
+    vehicleStore.setVehicles(newVehicleDataList);
+
     const currentCarIds = new Set();
 
     // 更新或添加车辆

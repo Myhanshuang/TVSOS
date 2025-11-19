@@ -405,8 +405,12 @@ onMounted(() => {
 
         getPOIList().then((res) => {
           if (res.data?.code === 1 && res.data.data?.length) {
-          webglLayerObj = createWebGLLayer(AMap, map.value, res.data.data);
-          console.log("初始POI:", res.data.data.length);
+            const formattedPoiList = res.data.data.map(poi => ({
+                ...poi,
+                type: poi.tybe // 将 tybe 的值赋给 type
+            }));
+          webglLayerObj = createWebGLLayer(AMap, map.value, formattedPoiList);
+          console.log("初始POI:", formattedPoiList.length);
           }
         });
         // 将地图上下文信息传递给 Store
