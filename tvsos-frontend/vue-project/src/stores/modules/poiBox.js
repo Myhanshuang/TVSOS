@@ -21,19 +21,27 @@ export const usePoiBoxStore = defineStore('poiBox', () => {
       recentPoiStatus.value = "异常"
     }
     
-    if (recentPoi.value.type === 1){
+    var val = recentPoi.value.type;
+
+    if (val === 1){
       recentPoiKind.value = "加油站"
-    } else if (recentPoi.value.type === 2){
+    } else if (val === 2){
       recentPoiKind.value = "加气站"
-    } else if (recentPoi.value.type === 3){
+    } else if (val === 3){
       recentPoiKind.value = "其他能源站"
-    } else if (recentPoi.value.type === 4){
+    } else if (val === 4){
       recentPoiKind.value = "工厂"
-    } else if (recentPoi.value.type === 5){
-      recentPoiKind.value = "公司企业"
-    } else if (recentPoi.value.type === 6){
+    } else if (val === 5){
+      recentPoiKind.value = "汽修厂"
+    } else if (val === 6){
+      recentPoiKind.value = "物流园"
+    } else if (val === 7){
+      recentPoiKind.value = "火车站"
+    } else if (val === 8){
+      recentPoiKind.value = "机场"
+    } else if (val === 9){
       recentPoiKind.value = "购物中心"
-    } else if (recentPoi.value.type === 7){
+    } else if (val === 10){
       recentPoiKind.value = "家具建材市场"
     } else {
       recentPoiKind.value = "加油站"

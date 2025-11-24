@@ -11,9 +11,13 @@ import gasStationIcon from '@/assets/images/加油站.webp'
 import gasIcon from '@/assets/images/加气站.webp'
 import energyIcon from '@/assets/images/其他能源站.webp'
 import factoryIcon from '@/assets/images/工厂.webp'
-import companyEnterpriseIcon from '@/assets/images/公司企业.webp'
+//import companyEnterpriseIcon from '@/assets/images/公司企业.webp'
 import shoppingCenterIcon from '@/assets/images/购物中心.webp'
 import furnitureBuildingMaterialsMarketIcon from '@/assets/images/家具建材市场.webp'
+import carfixIcon from '@/assets/images/汽修厂.webp'
+import airportIcon from '@/assets/images/机场.webp'
+import trainstationIcon from '@/assets/images/火车站.webp'
+import logisticsIcon from '@/assets/images/物流园.webp'
 // 地图样例
 let map = null;
 let labelsLayer = null;
@@ -73,7 +77,7 @@ function createLabelMarkers(data, AMap) {
   data.forEach((item, index) => {
     // 根据类型设置不同的图标和颜色
     let iconUrl;
-    switch (item.type) {
+    switch (item.tybe) {
       case 1: // 加油站
         iconUrl = gasStationIcon;
         break;
@@ -84,15 +88,40 @@ function createLabelMarkers(data, AMap) {
         iconUrl = energyIcon;
         break;
       case 4: // 工厂
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+      case 9:
         iconUrl = factoryIcon;
         break;
-      case 5: // 公司企业
-        iconUrl = companyEnterpriseIcon;
+      case 10:
+      case 11:
+      case 12:
+      case 13:
+      case 14:
+      case 15:
+        iconUrl = carfixIcon;
         break;
-      case 6: // 购物中心
+
+      case 16:
+      case 17:
+      case 18:
+        iconUrl = logisticsIcon;
+        break;
+      case 19:
+        iconUrl = trainstationIcon;
+        break;
+      case 20:
+        iconUrl = airportIcon;
+        break;
+      case 21:
+      case 22:
         iconUrl = shoppingCenterIcon;
         break;
-      case 7: // 家具建材市场
+      case 23: // 家具建材市场
+      case 24:
+      case 25:
         iconUrl = furnitureBuildingMaterialsMarketIcon;
         break;
       default:

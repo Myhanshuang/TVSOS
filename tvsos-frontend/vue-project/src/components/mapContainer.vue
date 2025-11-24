@@ -41,9 +41,6 @@ const getServiceOptions = () => ({
     imformStore: imform
 });
 
-
-
-
 //------------------------------------feature end-----------------------------------------
 
 // 图标路径（public/images） (这个部分是POI点的图标，与车辆无关，所以保持不变)
@@ -52,9 +49,34 @@ const iconMap = {
     2: "/images/加气站.webp",
     3: "/images/其他能源站.webp",
     4: "/images/工厂.webp",
-    5: "/images/公司企业.webp",
-    6: "/images/购物中心.webp",
-    7: "/images/家具建材市场.webp",
+    5: "/images/汽修厂.webp",
+    6: "/images/物流园.webp",
+    7: "/images/火车站.webp",
+    8: "/images/机场.webp",
+    9: "/images/购物中心.webp",
+    10: "/images/家具建材市场.webp",
+};
+
+// **新增：POI类型映射函数**
+const mapPoiType = (originalType) => {
+    if (originalType >= 1 && originalType <= 3) {
+        return originalType;
+    } else if (originalType >= 4 && originalType <= 9) {
+        return 4; // 工厂
+    } else if (originalType >= 10 && originalType <= 15) {
+        return 5; // 汽修厂
+    } else if (originalType >= 16 && originalType <= 18) {
+        return 6; // 物流园
+    } else if (originalType === 19) {
+        return 7; // 火车站
+    } else if (originalType === 20) {
+        return 8; // 机场
+    } else if (originalType >= 21 && originalType <= 22) {
+        return 9; // 购物中心
+    } else if (originalType >= 23 && originalType <= 25) {
+        return 10; // 家具建材市场
+    }
+    return 1; // 默认值，以防出现未知类型
 };
 
 // ===== WebGL Layer 工厂函数 (保持不变) =====
@@ -97,6 +119,10 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
     uniform sampler2D tex5;
     uniform sampler2D tex6;
     uniform sampler2D tex7;
+    uniform sampler2D tex8;
+    uniform sampler2D tex9;
+    uniform sampler2D tex10;
+
     uniform sampler2D texDefault;
     void main() {
       vec2 uv = gl_PointCoord;
@@ -109,6 +135,10 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
       else if (t == 5) color = texture2D(tex5, uv);
       else if (t == 6) color = texture2D(tex6, uv);
       else if (t == 7) color = texture2D(tex7, uv);
+      else if (t == 8) color = texture2D(tex8, uv);
+      else if (t == 9) color = texture2D(tex9, uv);
+      else if (t == 10) color = texture2D(tex10, uv);
+
       else color = texture2D(texDefault, uv);
       if (color.a < 0.1) discard;
       gl_FragColor = color;
@@ -156,7 +186,8 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
         };
     }
 
-    for (let i = 1; i <= 7; i++) loadTexture(iconMap[i], i, `tex${i}`);
+    // **修改：只加载 iconMap 中存在的 10 种类型的纹理**
+    for (let i = 1; i <= 10; i++) loadTexture(iconMap[i], i, `tex${i}`);
     loadTexture(iconMap[1], 0, "texDefault");
 
     const bufferPos = gl.createBuffer();
@@ -407,7 +438,8 @@ onMounted(() => {
           if (res.data?.code === 1 && res.data.data?.length) {
             const formattedPoiList = res.data.data.map(poi => ({
                 ...poi,
-                type: poi.tybe // 将 tybe 的值赋给 type
+                // **修改：应用类型映射函数**
+                type: mapPoiType(poi.tybe)
             }));
           webglLayerObj = createWebGLLayer(AMap, map.value, formattedPoiList);
           console.log("初始POI:", formattedPoiList.length);
