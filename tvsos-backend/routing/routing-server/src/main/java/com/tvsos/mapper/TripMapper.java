@@ -2,9 +2,7 @@ package com.tvsos.mapper;
 
 import entity.Trip;
 import entity.TripDriverAssign;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface TripMapper {
@@ -19,4 +17,7 @@ public interface TripMapper {
     void insertTripDriverAssign(TripDriverAssign assign);
 
     void update(Trip trip);
+
+    @Select("select * from trip where vehicle_id = #{vehicleId} and status = #{status}")
+    Trip getByVehicleIdAndStatus(@Param("vehicleId") Long vehicleId,@Param("status") Integer status);
 }

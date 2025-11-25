@@ -8,7 +8,10 @@
                 status = #{status},
             </if>
             <if test="cargoSize != null">
-                cargo_size = #{cargoSize}
+                cargo_size = #{cargoSize},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime}
             </if>
         </set>
         where id = #{id}

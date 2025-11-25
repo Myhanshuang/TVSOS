@@ -28,4 +28,7 @@ public interface VehicleMapper {
 
 
     void update(Vehicle vehicle);
+
+    @Select("select * from vehicle order by update_time limit #{vehicleBatchSize}")
+    List<Vehicle> getPendingVehicles(Integer vehicleBatchSize);
 }
