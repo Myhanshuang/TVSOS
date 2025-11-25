@@ -1,6 +1,5 @@
 package entity;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,15 +9,15 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Vehicle {
+public class Trip {
     private Long id;
-    private String license;
+    private Long vehicleId;
     private Integer status;
-    private Double lon;
-    private Double lat;
-    private Double speed;
+    private LocalDateTime beginTime;
+    private LocalDateTime endTime;
     private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-    private Long categoryId;
-    private Double cargoSize;
+    private Double beginLat;
+    private Double endLat;
+    private Double beginLon;
+    private Double endLon;
 }

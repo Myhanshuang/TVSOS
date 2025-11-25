@@ -4,21 +4,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Task {
+public class TripSegment {
     private Long id;
-    private Long shipmentId;
-    private Long cargoId;
-    private Integer quantity;
+    private Long tripId;
     private Double beginLon;
     private Double beginLat;
     private Double endLon;
     private Double endLat;
+    private Double distance;
+    private Integer sequence;
     private Integer status;
-    private Double weight;
-    private LocalDateTime createTime;
+    private Double duration;
 }

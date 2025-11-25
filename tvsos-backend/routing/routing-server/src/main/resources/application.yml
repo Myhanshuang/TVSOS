@@ -31,6 +31,9 @@ logging:
         service: info
         controller: info
 
+amap:
+  key: ${routing.amap.key}
+
 #routing:
 #  jwt:
 #    # 设置jwt签名的加密密钥
