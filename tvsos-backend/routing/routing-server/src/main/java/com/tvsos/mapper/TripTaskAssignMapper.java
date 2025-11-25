@@ -1,9 +1,12 @@
 package com.tvsos.mapper;
 
+import entity.Task;
 import entity.TripTaskAssign;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 @Mapper
 public interface TripTaskAssignMapper {
@@ -14,4 +17,7 @@ public interface TripTaskAssignMapper {
     @Insert("insert into trip_task_assign (trip_id, task_id, sequence) VALUE " +
             "(#{tripId}, #{taskId}, #{sequence})")
     void insert(TripTaskAssign tta);
+
+    @Select("select tta.task_id from trip_task_assign tta where trip_id = #{tripId}")
+    List<Long> getByTripId(Long tripId);
 }

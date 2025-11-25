@@ -28,4 +28,19 @@ public interface VehicleService {
      * @return
      */
     Vehicle getById(Long id);
+
+
+    /**
+     * 获取要更新的车辆列表
+     * @param vehicleBatchSize
+     * @return
+     */
+    List<Vehicle> getPendingVehicles(Integer vehicleBatchSize);
+
+    /**
+     * 更新车辆状态
+     * @param vehicle
+     * @return
+     */
+    void updateVehicle(Vehicle vehicle);
 }

@@ -258,9 +258,9 @@ public class TaskServiceImpl implements TaskService {
         taskMapper.update(task);
 
         // 7. 车辆更新
-        double cur = vehicle.getCargoSize() == null ? 0.0 : vehicle.getCargoSize();
-        double add = task.getWeight() == null ? 0.0 : task.getWeight();
-        vehicle.setCargoSize(cur + add);
+//        double cur = vehicle.getCargoSize() == null ? 0.0 : vehicle.getCargoSize();
+//        double add = task.getWeight() == null ? 0.0 : task.getWeight();
+//        vehicle.setCargoSize(cur + add);
         vehicle.setStatus(2);
         vehicleMapper.update(vehicle);
 
@@ -285,6 +285,7 @@ public class TaskServiceImpl implements TaskService {
 
         // --- 第一段：空驶 A->B ---
         double deadheadDist = getRouteDistance(routeToPickup);
+        double deadheadDuration = getRouteDuration(routeToPickup);
         TripSegment seg1 = new TripSegment();
         seg1.setTripId(tripId);
         seg1.setSequence(seq++);
@@ -294,10 +295,12 @@ public class TaskServiceImpl implements TaskService {
         seg1.setEndLat(task.getBeginLat());
         seg1.setDistance(deadheadDist);
         seg1.setStatus(2);
+        seg1.setDuration(deadheadDuration);
         tripSegmentMapper.insert(seg1);
 
         // --- 第二段：运货 B->C ---
         double deliverDist = getRouteDistance(routeDeliver);
+        double deliverDuration = getRouteDuration(routeDeliver);
         TripSegment seg2 = new TripSegment();
         seg2.setTripId(tripId);
         seg2.setSequence(seq);
@@ -307,21 +310,25 @@ public class TaskServiceImpl implements TaskService {
         seg2.setEndLat(task.getEndLat());
         seg2.setDistance(deliverDist);
         seg2.setStatus(2);
+        seg2.setDuration(deliverDuration);
         tripSegmentMapper.insert(seg2);
     }
 
     /** 高德路线的 steps 里距离相加（单位 km） */
     private double getRouteDistance(Map<String, Object> route) {
-        Object stepsObj = route.get("steps");
-        if (!(stepsObj instanceof JSONArray)) return 0.0;
+        Object dist = route.get("distance");
+        if (dist == null) return 0.0;
+        return Double.parseDouble(dist.toString()); // 单位：km
+    }
 
-        JSONArray steps = (JSONArray) stepsObj;
-        double sum = 0.0;
-
-        for (int i = 0; i < steps.size(); i++) {
-            JSONObject s = steps.getJSONObject(i);
-            sum += s.getDoubleValue("distance");
-        }
-        return sum / 1000.0;
+    /**
+     * 根据高德地图 api 判断预估时间 (单位：h)
+     * @param route
+     * @return
+     */
+    private double getRouteDuration(Map<String, Object> route) {
+        Object dur = route.get("duration");
+        if (dur == null) return 0.0;
+        return Double.parseDouble(dur.toString()); // 单位：小时 h
     }
 }
