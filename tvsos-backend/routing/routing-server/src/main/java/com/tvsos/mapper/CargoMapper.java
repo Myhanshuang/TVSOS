@@ -11,4 +11,7 @@ public interface CargoMapper {
 
     @Select("select * from cargo")
     List<Cargo> findAll();
+
+    @Select("select * from cargo where id = #{cargoId}")
+    Cargo getById(Long cargoId);
 }

@@ -181,6 +181,7 @@ public class ShipmentServiceImpl implements ShipmentService {
                 task.setBeginLat(shipment.getBeginLat());
                 task.setEndLon(shipment.getEndLon());
                 task.setEndLat(shipment.getEndLat());
+                task.setCreateTime(LocalDateTime.now());
                 task.setStatus(1); // 待调度
 
                 taskMapper.insert(task);
@@ -193,7 +194,6 @@ public class ShipmentServiceImpl implements ShipmentService {
         shipment.setStatus(2);
         shipmentMapper.update(shipment);
 
-        // TODO: 后续调用高德地图API，将任务分配给车辆
     }
 }
 

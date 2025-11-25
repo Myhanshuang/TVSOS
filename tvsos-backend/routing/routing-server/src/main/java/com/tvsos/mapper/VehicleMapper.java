@@ -25,4 +25,7 @@ public interface VehicleMapper {
      */
     @Select("select * from vehicle where vehicle.id = #{id}")
     Vehicle getById(Long id);
+
+
+    void update(Vehicle vehicle);
 }
