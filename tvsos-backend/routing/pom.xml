@@ -26,6 +26,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok>1.18.38</lombok>
         <mybatis.spring>3.0.5</mybatis.spring>
+        <httpcomponents.client5>5.5</httpcomponents.client5>
+        <fastjson>2.0.52</fastjson>
+        <swagger>2.8.14</swagger>
     </properties>
 
     <dependencyManagement>
@@ -44,6 +47,21 @@
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter-test</artifactId>
                 <version>${mybatis.spring}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpcomponents.client5}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>${fastjson}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${swagger}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

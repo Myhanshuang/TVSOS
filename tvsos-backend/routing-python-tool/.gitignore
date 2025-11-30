@@ -1,0 +1,7 @@
+# 环境配置文件
+.venv/
+.idea/
+
+dist/db_config.json
+
+db_config.json

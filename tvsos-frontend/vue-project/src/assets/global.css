@@ -1,0 +1,20 @@
+body{
+    padding: 0px;
+    margin: 0px;
+    background-color:white;
+}
+
+html{
+    padding: 0px;
+    margin: 0px;
+}
+
+#app{
+    margin: 0px;
+    padding: 0px;
+}
+
+/* 禁止水平方向滚动 */
+html, body {
+  overflow-x: hidden; 
+}

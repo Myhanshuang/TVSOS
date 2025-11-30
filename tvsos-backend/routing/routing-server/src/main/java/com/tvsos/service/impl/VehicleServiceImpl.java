@@ -1,0 +1,199 @@
+package com.tvsos.service.impl;
+
+import com.tvsos.mapper.*;
+import com.tvsos.service.VehicleService;
+import com.tvsos.utils.MarkovStatusUtils;
+import com.tvsos.utils.TripUtils;
+import dto.VehicleQueryDTO;
+import entity.Task;
+import entity.Trip;
+import entity.TripSegment;
+import entity.Vehicle;
+import exception.ServiceException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+
+@Service
+public class VehicleServiceImpl implements VehicleService {
+
+    @Autowired
+    private VehicleMapper vehicleMapper;
+    @Autowired
+    private TripMapper tripMapper;
+    @Autowired
+    private TaskMapper taskMapper;
+    @Autowired
+    private TripSegmentMapper tripSegmentMapper;
+    @Autowired
+    private TripTaskAssignMapper tripTaskAssignMapper;
+
+    /**
+     * 筛选/获取车辆列表
+     * @param vehicleQueryDTO
+     * @return
+     */
+    @Override
+    public List<Vehicle> list(VehicleQueryDTO vehicleQueryDTO) {
+        List<Vehicle> vehicleList = vehicleMapper.list(vehicleQueryDTO);
+        return vehicleList;
+    }
+
+    /**
+     * 根据id获取车辆信息
+     * @param id
+     * @return
+     */
+    @Override
+    public Vehicle getById(Long id) {
+        Vehicle vehicle = vehicleMapper.getById(id);
+        return vehicle;
+    }
+
+    /**
+     * 获取要更新的车辆列表
+     * @param vehicleBatchSize
+     * @return
+     */
+    @Override
+    public List<Vehicle> getPendingVehicles(Integer vehicleBatchSize) {
+        List<Vehicle> vehicleList = vehicleMapper.getPendingVehicles(vehicleBatchSize);
+        return vehicleList;
+    }
+
+    /**
+     * 更新车辆状态
+     * @param vehicle
+     * @return
+     */
+    @Override
+    public void updateVehicle(Vehicle vehicle) {
+
+        Long vehicleId = vehicle.getId();
+        // 1. 查该车当前的 trip（status = 2 的）
+        Trip trip = tripMapper.getByVehicleIdAndStatus(vehicleId, 2);
+        if (trip == null || vehicle.getStatus() == 1) {
+            // 没任务，车辆空闲，只更新更新时间
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            return;
+        }
+
+        // 2. 查该 trip 的两个 segment，按顺序排好
+        List<TripSegment> segments = tripSegmentMapper.getByTripId(trip.getId());
+        if (segments == null || segments.isEmpty()) {
+            // 不合法数据，只更新时间
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            return;
+        }
+
+        // 找出尚未完成的 segment
+        TripSegment currentSeg = segments.stream()
+                .filter(s -> s.getStatus() == 2)
+                .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                .findFirst()
+                .orElse(null);
+
+        if (currentSeg == null) {
+            // 所有 segment 完成 → trip 要完成
+            trip.setStatus(3);
+            trip.setEndTime(LocalDateTime.now());
+            tripMapper.update(trip);
+
+            // 该 trip 的所有 task 也要完成
+            List<Long> taskIdList = tripTaskAssignMapper.getByTripId(trip.getId());
+            for(Long taskId : taskIdList){
+                Task task = new Task();
+                task.setId(taskId);
+                task.setStatus(3);
+                taskMapper.update(task);
+            }
+            // 车辆回到空闲
+            vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            return;
+        }
+
+        // ========== 关键逻辑：是否到达 segment 终点？ ==========
+        LocalDateTime segBegin = getSegmentBeginTime(trip, currentSeg, segments);
+        LocalDateTime shouldArriveTime =
+                segBegin.plusSeconds((long) (currentSeg.getDuration() * 3600));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (now.isBefore(shouldArriveTime)) {
+            // ---- 未到时间：只更新 update_time ----
+            vehicle.setUpdateTime(now);
+            vehicleMapper.update(vehicle);
+            return;
+        }
+
+        // ========== 已到达 segment 终点：做状态流转 ==========
+        // 1) 当前 segment 完成
+        currentSeg.setStatus(3);
+        tripSegmentMapper.update(currentSeg);
+
+        // 2) 更新车辆位置到 segment 终点
+        vehicle.setLat(currentSeg.getEndLat());
+        vehicle.setLon(currentSeg.getEndLon());
+
+        // 3) 使用 Markov 决定车辆状态
+        int nextState = MarkovStatusUtils.nextState(vehicle.getStatus());
+        vehicle.setStatus(nextState);
+
+        // 4) 如果是最后一个 segment 结束 → trip 结束
+        if (currentSeg.getSequence() == 2) {
+            trip.setStatus(3);
+            trip.setEndTime(now);
+            tripMapper.update(trip);
+
+            // 所有 task 结束
+            List<Long> taskIdList = tripTaskAssignMapper.getByTripId(trip.getId());
+            for(Long taskId : taskIdList){
+                Task task = new Task();
+                task.setId(taskId);
+                task.setStatus(3);
+                taskMapper.update(task);
+            }
+
+            // 车辆回到空闲
+            vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
+        }
+
+        // 5) 更新时间
+        vehicle.setUpdateTime(now);
+
+        vehicleMapper.update(vehicle);
+    }
+
+    // 获取当前 segment 的实际开始时间
+    private LocalDateTime getSegmentBeginTime(Trip trip, TripSegment currentSeg, List<TripSegment> allSegs) {
+        // 第 1 段：使用 trip 的 beginTime 或 createTime
+        if (currentSeg.getSequence() == 1) {
+            LocalDateTime begin = trip.getBeginTime();
+            if (begin == null) begin = trip.getCreateTime();
+            return begin;
+        }
+
+        // 第 2 段：开始时间 = 第 1 段结束时间
+        // 找到 seq = 1 的 segment
+        TripSegment seg1 = allSegs.stream()
+                .filter(s -> s.getSequence() == 1)
+                .findFirst()
+                .orElse(null);
+
+        if (seg1 == null) throw new ServiceException("Segment 数据异常");
+
+        LocalDateTime seg1Begin = trip.getBeginTime();
+        if (seg1Begin == null) seg1Begin = trip.getCreateTime();
+
+        long seg1Seconds = (long) (seg1.getDuration() * 3600);
+
+        return seg1Begin.plusSeconds(seg1Seconds);
+    }
+}
