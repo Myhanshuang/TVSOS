@@ -77,6 +77,10 @@ public class VehicleServiceImpl implements VehicleService {
                     vehicleVO.setDistance((Double) planMap.get("distance"));
                     vehicleVO.setDuration((Double) planMap.get("duration"));
                     vehicleVO.setPolyline((List<Double[]>) planMap.get("polyline"));
+                    Double speed = vehicleVO.getDistance() / vehicleVO.getDuration();
+                    vehicle.setSpeed(speed);
+                    vehicleMapper.update(vehicle);
+                    vehicleVO.setSpeed(speed);
 //                    vehicleVO.setSteps((JSONArray) planMap.get("steps"));
 //                    vehicleVO.setRaw((JSONObject) planMap.get("raw"));
                 }

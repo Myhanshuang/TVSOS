@@ -10,6 +10,9 @@
             <if test="cargoSize != null">
                 cargo_size = #{cargoSize},
             </if>
+            <if test="speed != null">
+                speed = #{speed},
+            </if>
             <if test="updateTime != null">
                 update_time = #{updateTime}
             </if>
