@@ -2,6 +2,7 @@ package com.tvsos.service;
 
 import dto.VehicleQueryDTO;
 import entity.Vehicle;
+import vo.VehicleVO;
 
 import java.util.List;
 
@@ -20,7 +21,7 @@ public interface VehicleService {
      * @param vehicleQueryDTO
      * @return
      */
-    List<Vehicle> list(VehicleQueryDTO vehicleQueryDTO);
+    List<VehicleVO> list(VehicleQueryDTO vehicleQueryDTO);
 
     /**
      * 根据id获取车辆信息

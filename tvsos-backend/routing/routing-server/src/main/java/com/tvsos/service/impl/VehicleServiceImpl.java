@@ -1,5 +1,7 @@
 package com.tvsos.service.impl;
 
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.tvsos.mapper.*;
 import com.tvsos.service.VehicleService;
 import com.tvsos.utils.MarkovStatusUtils;
@@ -10,12 +12,16 @@ import entity.Trip;
 import entity.TripSegment;
 import entity.Vehicle;
 import exception.ServiceException;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import vo.VehicleVO;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class VehicleServiceImpl implements VehicleService {
@@ -30,6 +36,8 @@ public class VehicleServiceImpl implements VehicleService {
     private TripSegmentMapper tripSegmentMapper;
     @Autowired
     private TripTaskAssignMapper tripTaskAssignMapper;
+    @Autowired
+    private TripUtils tripUtils;
 
     /**
      * 筛选/获取车辆列表
@@ -37,9 +45,45 @@ public class VehicleServiceImpl implements VehicleService {
      * @return
      */
     @Override
-    public List<Vehicle> list(VehicleQueryDTO vehicleQueryDTO) {
+    public List<VehicleVO> list(VehicleQueryDTO vehicleQueryDTO) {
         List<Vehicle> vehicleList = vehicleMapper.list(vehicleQueryDTO);
-        return vehicleList;
+        List<VehicleVO> vehicleVOList = new ArrayList<>();
+        for(Vehicle vehicle : vehicleList) {
+            VehicleVO vehicleVO = new VehicleVO();
+            BeanUtils.copyProperties(vehicle, vehicleVO);
+
+            Trip trip =  tripMapper.getByVehicleId(vehicle.getId());
+
+            if(trip != null) {
+                List<TripSegment> tripSegmentList = tripSegmentMapper.getByTripId(trip.getId());
+                if(tripSegmentList != null && !tripSegmentList.isEmpty()) {
+                    String origin = vehicle.getLon().toString() + "," + vehicle.getLat().toString();
+                    TripSegment currSegment = null;
+                    if(vehicle.getStatus() == 1 || vehicle.getStatus() == 2) {
+                        currSegment = tripSegmentList.stream()
+                                .filter(s -> s.getSequence() == 1)
+                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                                .findFirst()
+                                .orElse(null);
+                    }else {
+                        currSegment = tripSegmentList.stream()
+                                .filter(s -> s.getSequence() == 2)
+                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                                .findFirst()
+                                .orElse(null);
+                    }
+                    String destination = currSegment.getEndLon().toString() + "," + currSegment.getEndLat().toString();
+                    Map<String, Object> planMap = tripUtils.planTrip(origin, destination, null);
+                    vehicleVO.setDistance((Double) planMap.get("distance"));
+                    vehicleVO.setDuration((Double) planMap.get("duration"));
+                    vehicleVO.setPolyline((List<Double[]>) planMap.get("polyline"));
+//                    vehicleVO.setSteps((JSONArray) planMap.get("steps"));
+//                    vehicleVO.setRaw((JSONObject) planMap.get("raw"));
+                }
+            }
+            vehicleVOList.add(vehicleVO);
+        }
+        return vehicleVOList;
     }
 
     /**
@@ -119,6 +163,45 @@ public class VehicleServiceImpl implements VehicleService {
             return;
         }
 
+        Integer status = vehicleMapper.getById(vehicleId).getStatus();
+        // 装货逻辑
+        if(status == 3){
+            vehicle.setStatus(MarkovStatusUtils.nextState(status));
+            TripSegment nextSeg = segments.stream()
+                    .filter(s -> s.getStatus() == 1)
+                    .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                    .findFirst()
+                    .orElse(null);
+            if(nextSeg == null){
+                throw new ServiceException("运货路线为空");
+            }
+            vehicle.setUpdateTime(LocalDateTime.now());
+            nextSeg.setStatus(2);
+            vehicleMapper.update(vehicle);
+            tripSegmentMapper.update(nextSeg);
+            return;
+        }
+        //卸货逻辑
+        if (status == 5) {
+            // 状态流转（卸货 -> 空闲）
+            vehicle.setStatus(MarkovStatusUtils.nextState(status));  // 5 -> 1
+
+            // 当前卸货段（status = 2）
+            TripSegment currentSeg2 = segments.stream()
+                    .filter(s -> s.getStatus() == 2)
+                    .findFirst()
+                    .orElse(null);
+
+            if (currentSeg2 != null) {
+                currentSeg2.setStatus(3);        // 卸货段完成
+                tripSegmentMapper.update(currentSeg2);
+            }
+
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            return;
+        }
+
         // ========== 关键逻辑：是否到达 segment 终点？ ==========
         LocalDateTime segBegin = getSegmentBeginTime(trip, currentSeg, segments);
         LocalDateTime shouldArriveTime =
@@ -134,6 +217,7 @@ public class VehicleServiceImpl implements VehicleService {
         }
 
         // ========== 已到达 segment 终点：做状态流转 ==========
+
         // 1) 当前 segment 完成
         currentSeg.setStatus(3);
         tripSegmentMapper.update(currentSeg);
