@@ -11,6 +11,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import result.Result;
+import vo.VehicleVO;
 
 import java.util.List;
 
@@ -30,10 +31,10 @@ public class VehicleController {
      */
     @GetMapping
     @Operation(summary = "筛选/获取车辆列表")
-    public Result list(@ParameterObject VehicleQueryDTO vehicleQueryDTO){
+    public Result<List<VehicleVO>> list(@ParameterObject VehicleQueryDTO vehicleQueryDTO){
         log.info("筛选/获取车辆列表");
-        List<Vehicle> vehicleList = vehicleService.list(vehicleQueryDTO);
-        return Result.success(vehicleList);
+        List<VehicleVO> vehicleVOList = vehicleService.list(vehicleQueryDTO);
+        return Result.success(vehicleVOList);
     }
 
     /**
@@ -43,7 +44,7 @@ public class VehicleController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据id获取车辆信息")
-    public Result getById(@Parameter @PathVariable("id") Long id){
+    public Result<Vehicle> getById(@Parameter @PathVariable("id") Long id){
         log.info("根据id获取车辆信息");
         Vehicle vehicle = vehicleService.getById(id);
         return Result.success(vehicle);

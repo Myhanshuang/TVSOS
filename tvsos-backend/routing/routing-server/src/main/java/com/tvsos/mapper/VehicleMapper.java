@@ -5,6 +5,7 @@ import entity.Vehicle;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import vo.VehicleVO;
 
 import java.util.List;
 
