@@ -1,5 +1,6 @@
 <script setup>
-
+import request from '@/utils/request.js'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMapAnimationStore ,useVisibleStore, useTargetStore, useImformStore , useMapStore} from '@/stores'
 import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
@@ -20,6 +21,48 @@ const openVehicleDrawer = () => { // 👈 新增：打开货车列表抽屉
 
 const mapAnimationStore = useMapAnimationStore();
 const { isPollingActive } = storeToRefs(mapAnimationStore);
+
+const mockCount = ref(5) // 默认值
+
+const handleMockShipments = async () => {
+  if (mockCount.value <= 0 || !Number.isInteger(mockCount.value)) {
+    ElMessage.warning('请输入一个有效的正整数')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要生成 ${mockCount.value} 条模拟订单数据吗？`,
+      '确认操作',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    const res = await request.post(`/shipments/mock/${mockCount.value}`)
+    // 假设后端成功返回 code == 1
+    if (res.data.code === 1) {
+       ElMessage.success(`成功生成 ${res.data.data?.length || mockCount.value} 条订单数据`)
+       console.log('生成的订单数据：', res.data.data)
+       // 可选：触发某些刷新操作，如果需要的话
+    } else {
+       ElMessage.error(res.data.message || 'Mock 订单失败')
+    }
+  } catch (err) {
+    // 用户点击取消也会进入 catch，但 err 是 undefined 或特定对象，可以区分
+    if (err && typeof err === 'object' && err.message) {
+       ElMessage.error(err.message)
+    } else if (err === undefined) {
+       // 用户取消操作，通常不需要提示
+    } else {
+       ElMessage.error('请求失败')
+    }
+  }
+}
+
+
+
 </script>
 
 
@@ -41,7 +84,10 @@ const { isPollingActive } = storeToRefs(mapAnimationStore);
 
         <el-button @click="mapAnimationStore.startPolling" :disabled="isPollingActive">开始动画</el-button>
         <el-button @click="mapAnimationStore.pausePolling" :disabled="!isPollingActive">暂停动画</el-button>
-
+        <div class="mock-section">
+            <el-input-number v-model="mockCount" :min="1" size="small" style="width: 100px; margin-right: 10px;"></el-input-number>
+            <el-button type="warning" @click="handleMockShipments">Mock 订单</el-button>
+        </div>
         <div class="loginOutBox">
             <router-link to="/login" class="loginOut">退出登录</router-link>
         </div>
@@ -53,6 +99,12 @@ const { isPollingActive } = storeToRefs(mapAnimationStore);
 </template>
 
 <style scoped>
+.mock-section {
+  display: flex;
+  align-items: center;
+  margin: 0 20px; /* 可根据需要调整间距 */
+}
+
 nav {
     /* 使导航栏固定于页面上边框 */
     position: fixed;

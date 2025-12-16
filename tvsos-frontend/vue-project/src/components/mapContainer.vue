@@ -41,7 +41,79 @@ const getServiceOptions = () => ({
     imformStore: imform
 });
 
+// 新增：车辆状态映射函数
+const getVehicleStatusText = (status) => {
+  const statusMap = {
+    1: '空闲',
+    2: '接单行驶',
+    3: '装货',
+    4: '运货行驶',
+    5: '卸货中',
+    6: '停留等待',
+    7: '加油',
+    8: '维修'
+  };
+  return statusMap[status] || '未知状态'; // 如果没有匹配的状态，显示'未知状态'
+};
+
+const getVehicleCategoryText = (category) => {
+  const statusMap = {
+    1: '平板货车',
+    2: '高护栏货车',
+    3: '厢式货车',
+    4: '冷链运输车',
+    5: '危化品运输车',
+  };
+  return statusMap[category] || '未知类型'; // 如果没有匹配的状态，显示'未知类型'
+};
+
 //------------------------------------feature end-----------------------------------------
+
+
+
+// 【新增】用于在信息面板中显示车辆实时位置的 ref
+const displayPosition = ref(null);
+// 【新增】用于存储位置更新定时器的变量
+let positionInterval = null;
+
+// 【新增】使用 watch 监听当前选中的车辆
+watch(recentVehicle, (newVehicle) => {
+  // 1. 首先清除上一个定时器，防止内存泄漏或冲突
+  if (positionInterval) {
+    clearInterval(positionInterval);
+    positionInterval = null;
+  }
+
+  // 2. 如果有新选中的车辆，并且当前显示的就是车辆信息
+  if (newVehicle && currentInfoType.value === 'vehicle') {
+    // 从 map 中找到这个车辆的完整实例（包含 marker）
+    const vehicle = vehiclesMap.value.get(newVehicle.id);
+    
+    if (vehicle && vehicle.marker) {
+      const updateDisplayPosition = () => {
+        const currentPos = vehicle.marker.getPosition();
+        if (currentPos) {
+          // AMap 的 getPosition() 返回的是一个对象，我们需要经纬度数组
+          displayPosition.value = [currentPos.getLng(), currentPos.getLat()];
+        }
+      };
+
+      // 立即执行一次，确保点击后立刻显示正确位置
+      updateDisplayPosition();
+      
+      // 启动一个定时器，高频更新位置（例如每 100 毫秒）
+      positionInterval = setInterval(updateDisplayPosition, 100);
+    }
+  } else {
+    // 3. 如果没有选中车辆（例如关闭了信息面板），则清空位置信息
+    displayPosition.value = null;
+  }
+}, { deep: true });
+
+
+
+
+
 
 // 图标路径（public/images） (这个部分是POI点的图标，与车辆无关，所以保持不变)
 const iconMap = {
@@ -353,6 +425,7 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
 
 // ===== 生命周期 =====
 onMounted(() => {
+    
     window._AMapSecurityConfig = { securityJsCode: "09582d73da9c81d93b134caf4e6f173a" };
     AMapLoader.load({
         key: "84a1985a18fcdb13254b2d85d69885ee",
@@ -452,6 +525,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     // 调用服务中的停止轮询函数
+    if (positionInterval) clearInterval(positionInterval);
     stopPolling();
     mapAnimationStore.globalStopPolling();
     // 清理WebGL图层
@@ -508,10 +582,14 @@ watch(zoom, (newZoom) => {
                 <div v-else-if="currentInfoType === 'vehicle' && recentVehicle">
                     <h3>车辆详细信息</h3>
                     <div class="detailedInformation">ID：{{ recentVehicle.id }}</div><br>
-                    <div class="detailedInformation">位置：{{ recentVehicle.currentPosition?.[0]?.toFixed(5) }}, {{ recentVehicle.currentPosition?.[1]?.toFixed(5) }}</div><br>
-                    <div class="detailedInformation">速度：{{ recentVehicle.speed }} km/h</div><br> <!-- 示例：你可以添加更多车辆属性 -->
-                    <div class="detailedInformation">方向：?? 度</div><br>
-                    <div class="detailedInformation">当前状态：{{ recentVehicle.status === 1 ? '行驶中' : '停运' }}</div><br>
+                    <div class="detailedInformation">车牌号：{{ recentVehicle.license }}</div><br>
+                    <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div><br>
+                    <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{ displayPosition?.[1]?.toFixed(5) }}</div><br>
+                    <div class="detailedInformation">速度：{{ recentVehicle.speed }} km/h</div><br> 
+                    <div class="detailedInformation">当前状态：{{ getVehicleStatusText(recentVehicle.status) }}</div><br>
+                    <div class="detailedInformation">运输距离：{{ recentVehicle.distance==null?"NaN": recentVehicle.distance.toFixed(2) }}（km）</div><br>
+                    <div class="detailedInformation">预计到达时间：{{ recentVehicle.duration==null?"NaN":recentVehicle.duration.toFixed(2) }}（小时）</div><br>
+                    <div class="detailedInformation">最后更新时间：{{ recentVehicle.updateTime }}</div><br>
                     <!-- 你需要根据实际的 vehicle 数据结构添加更多字段 -->
                 </div>
             </div>

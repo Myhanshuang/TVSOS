@@ -3,20 +3,14 @@ import { getVehiclesData } from '@/api/vehicle'; // <--- 导入车辆API
 import { useVehicleStore } from '@/stores';
 let pollingIntervalId = null;
 
-// 模拟从JSON文件读取车辆数据的函数
-// 此函数也被移到服务中，因为它是updateVehiclesOnMapLogic的依赖
-//------------------------后续需要与后端对接-------------------------------------------------------
 const fetchVehicleData = async () => {
-
-try {
-        const response = await getVehiclesData(); // 直接调用封装的 API 函数
-        console.log(response.data);
+    try {
+        const response = await getVehiclesData();
         if (response.data.code === 1 && response.data.data) {
              const cleanedVehicleList = response.data.data
               .filter(backendCar => {
-                  const lon = parseFloat(backendCar.lon);
+                  const lon = parseFloat(backendCar.lon)
                   const lat = parseFloat(backendCar.lat);
-                  // 过滤掉坐标无效的数据 (可以根据需要调整范围)
                   const isValidCoord = !isNaN(lon) && !isNaN(lat) &&
                                        lon >= 70 && lon <= 140 &&
                                        lat >= 3 && lat <= 55;
@@ -26,17 +20,19 @@ try {
                   return isValidCoord;
               })
               .map(backendCar => ({
-                  id: backendCar.license || backendCar.id?.toString(),
+                  id: backendCar.id,
                   license: backendCar.license,
                   currentPosition: [parseFloat(backendCar.lon), parseFloat(backendCar.lat)],
-                  path: Array.isArray(backendCar.fullPath) ? backendCar.fullPath.map(p => [parseFloat(p[0]), parseFloat(p[1])]) : [],
+                  path: Array.isArray(backendCar.polyline) ? backendCar.polyline.map(p => [parseFloat(p[0]), parseFloat(p[1])]) : [], 
                   status: backendCar.status,
                   speed: backendCar.speed,
                   createTime: backendCar.createTime,
-                  updateTime: backendCar.updateTime
-                  // ... 其他你需要的字段
+                  updateTime: backendCar.updateTime,
+                  categoryId: backendCar.categoryId,
+                  cargoSize: backendCar.cargoSize,
+                  distance: backendCar.distance,
+                  duration: backendCar.duration
               }));
-              console.log(cleanedVehicleList);
             return cleanedVehicleList;
             
         } else {
@@ -47,18 +43,12 @@ try {
         console.error("从后端获取车辆数据失败:", error);
         return [];
     }
-
 };
 
-//-----------------------------------------------------------------------------
-
-
-// 根据新数据更新地图上的车辆，实现平滑移动的核心逻辑
 const updateVehiclesOnMapLogic = async ({
     AMapInstance,
     map,
     vehiclesMap,
-    updateFrequencyMs,
     DEFAULT_VEHICLE_ICON,
     VEHICLE_FULL_PATH_COLOR,
     VEHICLE_PASSED_PATH_COLOR,
@@ -67,168 +57,94 @@ const updateVehiclesOnMapLogic = async ({
     if (!AMapInstance || !map) return;
 
     const newVehicleDataList = await fetchVehicleData();
-
-    // 新增：获取 vehicleStore 实例
     const vehicleStore = useVehicleStore();
-    // 新增：将数据同步到 Pinia Store
     vehicleStore.setVehicles(newVehicleDataList);
 
     const currentCarIds = new Set();
-
-    // 更新或添加车辆
+    
     for (const carData of newVehicleDataList) {
         currentCarIds.add(carData.id);
-        let vehicle = vehiclesMap.value.get(carData.id); // vehiclesMap 是一个 Ref，需要 .value
+        let vehicle = vehiclesMap.value.get(carData.id);
 
         const newPosition = carData.currentPosition;
-        if (!newPosition) continue; // 如果没有当前位置，则跳过
+        if (!newPosition) continue;
 
         if (!vehicle) {
-            // 新增车辆
             vehicle = {
                 id: carData.id,
                 marker: null,
-                fullPolyline: null, // 表示车辆的完整规划路径
-                realTimeTrackPolyline: null, // 表示车辆实际实时移动的轨迹
-                lastPosition: newPosition, // 记录上一次的位置
-                passedAnimationPolyline: null, // 用于moveAlong动画的已走过路径
+                fullPolyline: null,
+                passedPolyline: null, 
+                currentPath: null,    
             };
 
             vehicle.marker = new AMapInstance.Marker({
-                map: map, // 使用传递进来的 map 实例
-                position: newPosition, // 初始化位置
-                icon: DEFAULT_VEHICLE_ICON, // 使用全局定义图标
-                offset: new AMapInstance.Pixel(-13, -26), // 调整图标偏移量
-                autoRotation: true // 开启自动旋转
+                map: map,
+                position: newPosition,
+                icon: DEFAULT_VEHICLE_ICON,
+                offset: new AMapInstance.Pixel(-13, -26),
+                autoRotation: true
             });
-
-            // 为小车 Marker 添加点击事件，显示详细信息
+            
+            // === 核心修正点 ===
+            // 定义点击事件处理器
             const handleVehicleMarkerClick = () => {
-                imformStore.imformShow('vehicle', carData); // 传递类型和车辆数据
-                // 点击小车时，将地图中心移到小车当前位置
-                if (map && newPosition) {
-                    map.setCenter(newPosition);
+                // 注意：这里 imformStore.imformShow 使用的 carData 是闭包中的，可能不是最新的。
+                // 如果需要显示最新的车辆信息，应从 store 中根据 vehicle.id 或 carData.license 重新获取。
+                imformStore.imformShow('vehicle', carData);
+
+                // 从 marker 对象实时获取当前位置来设置地图中心
+                const currentMarkerPosition = vehicle.marker.getPosition(); 
+                if (map && currentMarkerPosition) {
+                    map.setCenter(currentMarkerPosition);
                 }
             };
+            // 绑定点击事件
             vehicle.marker.on('click', handleVehicleMarkerClick);
 
+            // 绑定移动事件
+            vehicle.marker.on('moving', (e) => {
+                if (vehicle.passedPolyline) vehicle.passedPolyline.setPath(e.passedPath);
+            });
 
-            // 初始化实时轨迹线 (仅当carData.path不为空时才创建)
-            if (carData.path && carData.path.length > 0) {
-                 vehicle.realTimeTrackPolyline = new AMapInstance.Polyline({
-                    map: map,
-                    path: [newPosition], // 轨迹线从当前位置开始
-                    strokeColor: VEHICLE_PASSED_PATH_COLOR, // 使用全局定义的实时轨迹线颜色
-                    strokeWeight: 4,
-                    strokeStyle: "solid",
-                    lineJoin: "round",
-                    zIndex: 100 // 确保轨迹线在marker之下但高于基础地图
-                });
-            }
-
-            // 如果提供了完整路径，则初始化完整路径线
-            if (carData.path && carData.path.length > 0) {
-                vehicle.fullPolyline = new AMapInstance.Polyline({
-                    map: map,
-                    path: carData.path,
-                    showDir: true,
-                    strokeColor: VEHICLE_FULL_PATH_COLOR, // 使用全局定义的完整路径颜色
-                    strokeWeight: 6,
-                    zIndex: 90 // 完整路径线在实时轨迹线之下
-                });
-            }
             vehiclesMap.value.set(carData.id, vehicle);
-
-        } else {
-            // 更新现有车辆
-            const lastPosition = vehicle.lastPosition;
-
-            // 只有当位置发生变化时才进行动画
-            if (lastPosition && (lastPosition[0] !== newPosition[0] || lastPosition[1] !== newPosition[1])) {
-                // 使用moveAlong实现从上一个点到当前点的平滑移动
-                vehicle.marker.moveAlong([lastPosition, newPosition], {
-                    duration: updateFrequencyMs, // 动画时长与更新频率一致=============================================<<
-                    autoRotation: true,
-                });
-
-                // 更新实时轨迹线
-                // 如果carData.path存在且有数据，就更新轨迹线
-                if (carData.path && carData.path.length > 0) {
-                    if (!vehicle.realTimeTrackPolyline) { // 如果不存在则创建
-                        vehicle.realTimeTrackPolyline = new AMapInstance.Polyline({
-                            map: map,
-                            path: [newPosition], // 轨迹线从当前位置开始
-                            strokeColor: VEHICLE_PASSED_PATH_COLOR, // 使用全局定义的实时轨迹线颜色
-                            strokeWeight: 4,
-                            strokeStyle: "solid",
-                            lineJoin: "round",
-                            zIndex: 100
-                        });
-                    } else { // 存在就更新
-                        const currentTrackPath = vehicle.realTimeTrackPolyline.getPath();
-                        // 避免重复添加同一个点
-                        if (currentTrackPath.length === 0 ||
-                            currentTrackPath[currentTrackPath.length - 1][0] !== newPosition[0] ||
-                            currentTrackPath[currentTrackPath.length - 1][1] !== newPosition[1]) {
-                                // 停止当前moveAlong，清空其已走过的路径，然后设置新路径
-                                // vehicle.marker.stopMove(true); // 停止当前moveAlong，并定位到停止点
-                                currentTrackPath.push(newPosition);
-                                vehicle.realTimeTrackPolyline.setPath(currentTrackPath);
-                        }
-                    }
-                } else if (vehicle.realTimeTrackPolyline) { // 如果 carData.path 为空或 null，且轨迹线存在，则移除
-                    vehicle.realTimeTrackPolyline.setMap(null);
-                    vehicle.realTimeTrackPolyline = null;
-                }
-
-            } else if (!lastPosition) { // 如果lastPosition是空的（首次获取到），直接定位
-                vehicle.marker.setPosition(newPosition);
-                // 此时也检查是否需要初始化或清除实时轨迹线
-                if (carData.path && carData.path.length > 0) {
-                     if (!vehicle.realTimeTrackPolyline) {
-                         vehicle.realTimeTrackPolyline = new AMapInstance.Polyline({
-                            map: map,
-                            path: [newPosition],
-                            strokeColor: VEHICLE_PASSED_PATH_COLOR, // 使用全局定义的实时轨迹线颜色
-                            strokeWeight: 4,
-                            strokeStyle: "solid",
-                            lineJoin: "round",
-                            zIndex: 100
-                        });
-                    } else { // 如果已经存在，更新路径为当前位置
-                        vehicle.realTimeTrackPolyline.setPath([newPosition]);
-                    }
-                } else if (vehicle.realTimeTrackPolyline) {
-                    vehicle.realTimeTrackPolyline.setMap(null);
-                    vehicle.realTimeTrackPolyline = null;
-                }
+        }
+        
+        const hasNewPath = carData.path && carData.path.length > 1; 
+        const isPathChanged = hasNewPath && (JSON.stringify(vehicle.currentPath) !== JSON.stringify(carData.path));
+        
+        if (isPathChanged) {
+            if (vehicle.fullPolyline) {
+                vehicle.fullPolyline.setPath(carData.path);
+            } else {
+                vehicle.fullPolyline = new AMapInstance.Polyline({ map, path: carData.path, showDir: true, strokeColor: VEHICLE_FULL_PATH_COLOR, strokeWeight: 6, zIndex: 90 });
             }
 
-            // 更新lastPosition以供下一次更新使用
-            vehicle.lastPosition = newPosition;
-
-            // 如果fullPolyline (完整路径) 是动态变化的，这里需要更新
-            if (carData.path && carData.path.length > 0) {
-                const currentFullPath = vehicle.fullPolyline ? vehicle.fullPolyline.getPath() : [];
-                // 简单的判断路径是否改变，更严谨的应该深比较
-                if (!vehicle.fullPolyline || JSON.stringify(currentFullPath) !== JSON.stringify(carData.path)) {
-                    if (vehicle.fullPolyline) {
-                        vehicle.fullPolyline.setMap(null); // 移除旧路径
-                    }
-                    vehicle.fullPolyline = new AMapInstance.Polyline({
-                        map: map,
-                        path: carData.path,
-                        showDir: true,
-                        strokeColor: VEHICLE_FULL_PATH_COLOR, // 使用全局定义的完整路径颜色
-                        strokeWeight: 6,
-                        zIndex: 90
-                    });
-                }
-            } else if (vehicle.fullPolyline) {
-                // 如果新数据没有路径，但旧车辆有路径，则移除旧路径
-                vehicle.fullPolyline.setMap(null);
-                vehicle.fullPolyline = null;
+            if (vehicle.passedPolyline) {
+                vehicle.passedPolyline.setPath([]); 
+            } else {
+                vehicle.passedPolyline = new AMapInstance.Polyline({ map, strokeColor: VEHICLE_PASSED_PATH_COLOR, strokeWeight: 4, strokeStyle: "solid", lineJoin: "round", zIndex: 100 });
             }
+           
+            vehicle.currentPath = carData.path; 
+            vehicle.marker.stopMove(); 
+            vehicle.marker.moveAlong(carData.path, {
+                duration: carData.duration ? carData.duration * 1000 : (AMapInstance.GeometryUtil.distanceOfLine(carData.path) / (carData.speed || 50) * 3.6 * 1000),
+                autoRotation: true,
+            });
+
+        } else if (!hasNewPath) {
+             vehicle.marker.stopMove();
+             vehicle.marker.setPosition(newPosition);
+             if (vehicle.fullPolyline) {
+                 vehicle.fullPolyline.setMap(null);
+                 vehicle.fullPolyline = null;
+             }
+             if (vehicle.passedPolyline) {
+                 vehicle.passedPolyline.setMap(null);
+                 vehicle.passedPolyline = null;
+             }
+             vehicle.currentPath = null;
         }
     }
 
@@ -236,19 +152,14 @@ const updateVehiclesOnMapLogic = async ({
     for (const [id, vehicle] of vehiclesMap.value.entries()) {
         if (!currentCarIds.has(id)) {
             if (vehicle.marker) {
-                vehicle.marker.stopMove(); // 停止可能的动画
-                vehicle.marker.setMap(null); // 移除marker
+                vehicle.marker.stopMove();
+                vehicle.marker.off('click');
+                vehicle.marker.off('moving');
+                vehicle.marker.setMap(null);
             }
-            if (vehicle.fullPolyline) {
-                vehicle.fullPolyline.setMap(null); // 移除完整路径
-            }
-            if (vehicle.realTimeTrackPolyline) {
-                vehicle.realTimeTrackPolyline.setMap(null); // 移除实时轨迹线
-            }
-            if (vehicle.passedAnimationPolyline) {
-                vehicle.passedAnimationPolyline.setMap(null); // 移除动画轨迹线
-            }
-            vehiclesMap.value.delete(id); // 从Map中删除
+            if (vehicle.fullPolyline) vehicle.fullPolyline.setMap(null);
+            if (vehicle.passedPolyline) vehicle.passedPolyline.setMap(null);
+            vehiclesMap.value.delete(id);
         }
     }
 };
@@ -257,9 +168,7 @@ const updateVehiclesOnMapLogic = async ({
 export const startPollingAndAnimation = (options) => {
     const {
         AMapInstance, map, vehiclesMap, updateFrequencyMs,
-        DEFAULT_VEHICLE_ICON, VEHICLE_FULL_PATH_COLOR, VEHICLE_PASSED_PATH_COLOR,
-        isPollingActiveRef, // Reactive ref from component to update UI state
-        imformStore
+        isPollingActiveRef
     } = options;
 
     if (!AMapInstance || !map) {
@@ -267,26 +176,22 @@ export const startPollingAndAnimation = (options) => {
         return;
     }
     if (pollingIntervalId) {
-        clearInterval(pollingIntervalId); // 清除现有定时器，避免重复启动
+        clearInterval(pollingIntervalId); 
     }
 
-    // 绑定参数到 updateVehiclesOnMapLogic
-    const boundUpdateVehicles = () => updateVehiclesOnMapLogic({
-        AMapInstance, map, vehiclesMap, updateFrequencyMs,
-        DEFAULT_VEHICLE_ICON, VEHICLE_FULL_PATH_COLOR, VEHICLE_PASSED_PATH_COLOR,
-        imformStore
-    });
+    const boundUpdateVehicles = () => updateVehiclesOnMapLogic(options);
 
     pollingIntervalId = setInterval(boundUpdateVehicles, updateFrequencyMs);
-    isPollingActiveRef.value = true; // 更新组件中的状态
-    boundUpdateVehicles(); // 立即获取并更新一次数据以显示初始状态
+    isPollingActiveRef.value = true; 
+    boundUpdateVehicles(); 
 
-    // 恢复所有现有小车的 moveAlong 动画（如果它们被暂停了）
+    // 恢复所有现有小车的 moveAlong 动画
     vehiclesMap.value.forEach(car => {
         if (car.marker) {
             car.marker.resumeMove();
         }
     });
+
     console.log("Polling and animation started.");
 };
 
@@ -298,7 +203,7 @@ export const pausePollingAndAnimation = (options) => {
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
     }
-    isPollingActiveRef.value = false; // 更新组件中的状态
+    isPollingActiveRef.value = false;
 
     // 暂停所有现有小车的 moveAlong 动画
     vehiclesMap.value.forEach(car => {
@@ -315,5 +220,4 @@ export const stopPolling = () => {
         clearInterval(pollingIntervalId);
         pollingIntervalId = null;
     }
-    mockTick = 0; // 重置模拟数据计数器，确保下次启动时数据从头开始
 };

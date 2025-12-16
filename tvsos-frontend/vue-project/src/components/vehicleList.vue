@@ -16,9 +16,14 @@
           v-model="selectedStatus"
         >
           <el-option label="全部" value=""></el-option>
-          <el-option label="停运" :value="0"></el-option>
-          <el-option label="待命" :value="1"></el-option>
-          <el-option label="行驶中" :value="2"></el-option>
+          <el-option label="空闲" :value="1"></el-option>
+          <el-option label="接单行驶" :value="2"></el-option>
+          <el-option label="装货" :value="3"></el-option>
+          <el-option label="运货行驶" :value="4"></el-option>
+          <el-option label="卸货中" :value="5"></el-option>
+          <el-option label="停留等待" :value="6"></el-option>
+          <el-option label="加油" :value="7"></el-option>
+          <el-option label="维修" :value="8"></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="车牌号">
