@@ -63,14 +63,14 @@ public class TripUtils {
         }
 
         JSONObject p0 = paths.getJSONObject(0);
-        double distance = p0.getDoubleValue("distance") / 1000; // km
-        int duration = p0.getIntValue("duration") / 3600; // h
+        Double distance = p0.getDoubleValue("distance") / 1000; // km
+        Double duration = p0.getIntValue("duration") / 3600.0; // h
         JSONArray steps = p0.getJSONArray("steps");
 
         // 抽取 polyline（整条路线的点，转换为 List<double[]>）
-        List<double[]> polyline = new ArrayList<>();
+        List<Double[]> polyline = new ArrayList<>();
 
-        double[] lastPoint = null;
+        Double[] lastPoint = null;
 
         for (int i = 0; i < steps.size(); i++) {
             JSONObject step = steps.getJSONObject(i);
@@ -92,8 +92,8 @@ public class TripUtils {
                     continue;
                 }
 
-                double lon;
-                double lat;
+                Double lon;
+                Double lat;
                 try {
                     lon = Double.parseDouble(xy[0]);
                     lat = Double.parseDouble(xy[1]);
@@ -101,7 +101,7 @@ public class TripUtils {
                     continue;
                 }
 
-                double[] point = new double[]{lon, lat};
+                Double[] point = new Double[]{lon, lat};
 
                 // 去掉连续重复点（step 的末尾经常和下一 step 的开头重复）
                 if (lastPoint == null || lastPoint[0] != lon || lastPoint[1] != lat) {

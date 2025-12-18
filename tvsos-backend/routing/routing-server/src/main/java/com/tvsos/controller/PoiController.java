@@ -29,7 +29,7 @@ public class PoiController {
      */
     @GetMapping
     @Operation(summary = "筛选/获取poi列表")
-    public Result list(@ParameterObject PoiQueryDTO poiDTO){
+    public Result<List<Poi>> list(@ParameterObject PoiQueryDTO poiDTO){
         log.info("获取/筛选所有poi");
         List<Poi> poiList = poiService.list(poiDTO);
         return Result.success(poiList);
@@ -42,7 +42,7 @@ public class PoiController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "根据id获取poi")
-    public Result getById(@Parameter @PathVariable("id") Long id){
+    public Result<Poi> getById(@Parameter @PathVariable("id") Long id){
         log.info("根据id获取poi");
         Poi poi = poiService.getById(id);
         return Result.success(poi);

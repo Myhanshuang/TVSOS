@@ -30,7 +30,7 @@ public class ShipmentController {
      */
     @PostMapping("/mock/{count}")
     @Operation(summary = "mock用户订单")
-    public Result mockShipments(@Parameter @PathVariable("count") int count) {
+    public Result<List<Shipment>> mockShipments(@Parameter @PathVariable("count") int count) {
         List<Shipment> shipmentList = shipmentService.mockShipments(count);
         return Result.success(shipmentList);
     }

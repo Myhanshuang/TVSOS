@@ -20,4 +20,7 @@ public interface TripMapper {
 
     @Select("select * from trip where vehicle_id = #{vehicleId} and status = #{status}")
     Trip getByVehicleIdAndStatus(@Param("vehicleId") Long vehicleId,@Param("status") Integer status);
+
+    @Select("select * from trip where vehicle_id = #{vehicleId}")
+    Trip getByVehicleId(Long vehicleId);
 }
