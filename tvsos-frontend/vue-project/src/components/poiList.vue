@@ -3,10 +3,10 @@
     @update:model-value="$emit('update:visible', $event)">
      
       <el-form inline>
-        <el-form-item label="城市">
-          <el-select placeholder="请选择" style="width: 100px" v-model="selectedCity">
-            <el-option label="成都" value="成都"></el-option>
-            <el-option label="重庆" value="重庆"></el-option>
+        <el-form-item label="状态">
+          <el-select placeholder="请选择" style="width: 100px" v-model="selectedStatus">
+            <el-option label="关闭" value="0"></el-option>
+            <el-option label="正常" value="1"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="类型">
@@ -25,29 +25,36 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-      <el-table :data="poiList"  @row-click="handleRowClick">
+<el-table :data="poiList" @row-click="handleRowClick">
         <el-table-column label="名字" prop="name">
           <template #default="{ row }">
             <el-link type="primary" :underline="false">{{ row.name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="类型" prop="type">
+
+        <!-- 修改1：类型列 -->
+        <!-- 后端返回字段是 tybe (注意拼写)，我们需要用 typeMap 把数字转成文字 -->
+        <el-table-column label="类型" prop="tybe">
           <template #default="{ row }">
-            {{ getTypeText(row.type) }}
+            <el-tag>{{ typeMap[row.tybe] || '未知类型' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="城市">
-          成都
-        </el-table-column>
+
+     
+
+        <!-- 修改2：状态列 -->
+        <!-- 后端返回 status 是 0 或 1，需转成文字 -->
         <el-table-column label="状态" prop="status">
           <template #default="{ row }">
-            {{ getStatusText(row.status) }}
+            <el-tag :type="row.status === 0 ? 'success' : 'danger'">
+              {{ statusMap[row.status] || '未知' }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
       <!-- 分页区域 -->
       <el-pagination v-model:current-page="params.pagenum" v-model:page-size="params.pagesize"
-        :page-sizes="[2, 3, 5, 10]" :background="true" layout="jumper,total, sizes,prev, pager, next" :total="total"
+        :page-sizes="[2, 3, 5, 10]" :background="true" layout="jumper,total, sizes,prev, pager, next" :total="total"  pager-count="4"
         @size-change="onSizeChange" @current-change="onCurrentChange" style="margin-top: 20px; justify-content: end;" />
    
   </el-drawer>
@@ -56,7 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useMapStore, useImformStore, usePoiBoxStore } from '@/stores'
-
+import request from '@/utils/request.js'
 const poiBox = usePoiBoxStore()
 const imform = useImformStore()
 
@@ -86,7 +93,7 @@ const handleRowClick = (row) => {
   emit('update:visible', false)
 }
 // 选中的城市和类型
-const selectedCity = ref('')
+const selectedStatus = ref('') // <--- 修改：selectedCity 改为 selectedStatus
 const selectedType = ref('')
 
 // POI数据
@@ -110,272 +117,14 @@ const typeMap = {
 
 // 状态映射
 const statusMap = {
-  0: '正常',
-  1: '关闭',
+  0: '关闭',
+  1: '正常',
 
 }
 
-// 获取类型文本
-const getTypeText = (type) => {
-  return typeMap[type] || '未知类型'
-}
 
-// 获取状态文本
-const getStatusText = (status) => {
-  return statusMap[status] || '未知状态'
-}
 
-// 模拟API数据
-const mockPoiData = [
-  {
-    "id": 1,
-    "name": "中国石油中和加油站",
-    "lon": 104.091008,
-    "lat": 30.561087,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 2,
-    "name": "延长壳牌盛锦三街加油站",
-    "lon": 104.0354,
-    "lat": 30.563117,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 3,
-    "name": "成都通能盛锦CNG加气站",
-    "lon": 104.035513,
-    "lat": 30.56348,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 4,
-    "name": "中国石油麻柳湾加油站",
-    "lon": 104.087907,
-    "lat": 30.596824,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 5,
-    "name": "中国石油元华加油站",
-    "lon": 104.050117,
-    "lat": 30.601513,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 6,
-    "name": "延长壳牌加油站(成都高新益新大道站)",
-    "lon": 104.033537,
-    "lat": 30.587778,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 7,
-    "name": "延长壳牌拓新西二街加油站",
-    "lon": 104.053281,
-    "lat": 30.542733,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 8,
-    "name": "中国石油油料中和加油站(红星路南延线)",
-    "lon": 104.088515,
-    "lat": 30.547206,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 9,
-    "name": "中国石化加油站",
-    "lon": 104.026775,
-    "lat": 30.567829,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 10,
-    "name": "长城加油站",
-    "lon": 104.026451,
-    "lat": 30.580316,
-    "type": 2,
-    "status": 0
-  },
-  {
-    "id": 11,
-    "name": "桂溪南站加油站",
-    "lon": 104.060099,
-    "lat": 30.608153,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 12,
-    "name": "成都高新区兴达加油站",
-    "lon": 104.030415,
-    "lat": 30.5908,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 13,
-    "name": "延长壳牌加油站(锦华路站)",
-    "lon": 104.097729,
-    "lat": 30.597947,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 14,
-    "name": "中国石化金晖加油站",
-    "lon": 104.098723,
-    "lat": 30.598139,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 15,
-    "name": "中国石化棬子树加油加气站",
-    "lon": 104.102801,
-    "lat": 30.594122,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 16,
-    "name": "延长壳牌大源组团二加油站",
-    "lon": 104.034767,
-    "lat": 30.544123,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 17,
-    "name": "中国石油棕树加油站(长寿路)",
-    "lon": 104.076729,
-    "lat": 30.611847,
-    "type": 3,
-    "status": 0
-  },
-  {
-    "id": 18,
-    "name": "延长壳牌加油站(成都市高新区成都高新中和站)",
-    "lon": 104.097542,
-    "lat": 30.542025,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 19,
-    "name": "中国石油成双加油站",
-    "lon": 104.018722,
-    "lat": 30.575009,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 20,
-    "name": "中国石油剑南加油站",
-    "lon": 104.047121,
-    "lat": 30.534593,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 21,
-    "name": "延长壳牌加油站(成新站)",
-    "lon": 104.034885,
-    "lat": 30.608623,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 22,
-    "name": "桂溪加油站",
-    "lon": 104.077479,
-    "lat": 30.618361,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 23,
-    "name": "道森能源长风加油站",
-    "lon": 104.02022,
-    "lat": 30.550826,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 24,
-    "name": "延长壳牌高新大道加油站",
-    "lon": 104.041715,
-    "lat": 30.617425,
-    "type": 4,
-    "status": 0
-  },
-  {
-    "id": 25,
-    "name": "中国石油高新天山加油站",
-    "lon": 104.054007,
-    "lat": 30.622034,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 26,
-    "name": "中国石化高新A加油站",
-    "lon": 104.027133,
-    "lat": 30.608959,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 27,
-    "name": "中国石化高新B加油站",
-    "lon": 104.025772,
-    "lat": 30.608241,
-    "type": 7,
-    "status": 0
-  },
-  {
-    "id": 28,
-    "name": "成通石化高新成通加油站(天府大道南段辅路)",
-    "lon": 104.070777,
-    "lat": 30.515983,
-    "type": 6,
-    "status": 0
-  },
-  {
-    "id": 29,
-    "name": "中国国际能源成都蓉电加油站",
-    "lon": 104.098661,
-    "lat": 30.622705,
-    "type": 1,
-    "status": 0
-  },
-  {
-    "id": 30,
-    "name": "中国石油成都交投娇子内侧加油站",
-    "lon": 104.122029,
-    "lat": 30.598541,
-    "type": 5,
-    "status": 0
-  },
-  {
-    "id": 31,
-    "name": "中国石油娇子三环(外侧)加油站",
-    "lon": 104.123477,
-    "lat": 30.597027,
-    "type": 1,
-    "status": 0
-  }
-]
+ 
 
 // 初始化数据
 onMounted(() => {
@@ -393,7 +142,7 @@ const onSizeChange = (newSize) => {
 // 重置处理 - 修复后的版本
 const handleReset = () => {
   // 清空筛选条件
-  selectedCity.value = ''
+  selectedStatus.value = ''
   selectedType.value = ''
 
   // 重置分页参数
@@ -417,38 +166,61 @@ const handleSearch = () => {
   loadData()
 }
 // 加载数据方法（实际使用时替换为API调用）
-const loadData = () => {
-  console.log('搜索条件:', {
-    city: selectedCity.value,
-    type: selectedType.value,
-    page: params.value.pagenum,
-    pageSize: params.value.pagesize
-  })
+// ... 其他 import 代码 ...
 
-  // 这里模拟根据筛选条件过滤数据
-  let filteredData = [...mockPoiData]
-
-  // 实际使用时，这些过滤逻辑应该在API层面处理
-  // 这里只是前端模拟
-  if (selectedCity.value) {
-    // 模拟城市过滤 - 实际应该调用API
-    console.log('按城市过滤:', selectedCity.value)
-  }
-
+// 修改 loadData 方法
+const loadData = async () => {
+  // 1. 类型转换：将下拉框选中的中文类型（如"加油站"）转换为接口需要的数字 ID（tybe）
+  // 假设 typeMap 结构为 { 1: '加油站', 2: '加气站' ... }
+  let typeId = null
   if (selectedType.value) {
-    // 找到对应的类型值
-    const typeValue = Object.keys(typeMap).find(key => typeMap[key] === selectedType.value)
-    if (typeValue) {
-      filteredData = filteredData.filter(item => item.type === parseInt(typeValue))
-    }
+    // 查找 value 等于 selectedType.value 的 key
+    typeId = Object.keys(typeMap).find(key => typeMap[key] === selectedType.value)
   }
 
-  // 模拟分页
-  const startIndex = (params.value.pagenum - 1) * params.value.pagesize
-  const endIndex = startIndex + params.value.pagesize
-  poiList.value = filteredData.slice(startIndex, endIndex)
-  total.value = filteredData.length
+  try {
+    // 2. 发起请求
+    // 注意：后端不支持分页，所以不要传 page/size，只传筛选条件
+    const res = await request.get('/poi', { // 👈 请将 '/poi/list' 替换为你真实的 API 路径
+      params: {
+        // 接口文档参数：status (integer)
+        status: selectedStatus.value === '' ? null : selectedStatus.value,
+        
+        // 接口文档参数：tybe (integer) -> 注意文档里写的是 tybe 不是 type
+        tybe: typeId 
+        
+        // name 参数如果你有搜索框也可以加上，没有就不用传
+        // name: searchName.value 
+      }
+    })
 
-  console.log('加载数据，参数:', params.value)
+    // 3. 处理响应
+    // 兼容判断：虽然 Swagger 示例写 code:0，但很多通用框架成功是 1，请根据实际情况调整
+    if (res.data.code === 1 || res.data.code === 0 || res.data.code === 200) {
+      
+      // 获取所有符合条件的数据
+      const allData = res.data.data || []
+      
+      // --- 前端分页逻辑开始 ---
+      
+      // A. 设置总条数
+      total.value = allData.length
+
+      // B. 计算当前页的数据范围
+      // 例如：第1页，10条/页 -> startIndex=0, endIndex=10
+      const startIndex = (params.value.pagenum - 1) * params.value.pagesize
+      const endIndex = startIndex + params.value.pagesize
+
+      // C. 截取当前页的数据赋值给表格
+      poiList.value = allData.slice(startIndex, endIndex)
+      
+      // --- 前端分页逻辑结束 ---
+
+    } else {
+      console.error('获取POI列表失败:', res.data.message || res.data.msg)
+    }
+  } catch (error) {
+    console.error('请求异常:', error)
+  }
 }
 </script>
