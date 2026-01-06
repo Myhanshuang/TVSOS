@@ -77,7 +77,7 @@ const handleMockShipments = async () => {
             :class="{ scollButton: 1, scollButtonActive: visible.isSecondVisible }">统计</el-button>
         <div class="space"></div>
         <el-button @click="target.targetChange('third')"
-            :class="{ scollButton: 1, scollButtonActive: visible.isThirdVisible }">小车管理</el-button>
+            :class="{ scollButton: 1, scollButtonActive: visible.isThirdVisible }">任务管理</el-button>
         <el-button @click="openVehicleDrawer">货车列表</el-button>
         <el-button type="primary" @click="openDrawer"> poi列表</el-button>
         <div class="longSpace"></div>
