@@ -3,6 +3,8 @@ import { getVehiclesData } from '@/api/vehicle'; // <--- 导入车辆API
 import { useVehicleStore } from '@/stores';
 let pollingIntervalId = null;
 
+const DEFAULT_STATIC_VEHICLE_ANGLE = 90;
+
 const fetchVehicleData = async () => {
     try {
         const response = await getVehiclesData();
@@ -49,7 +51,7 @@ const updateVehiclesOnMapLogic = async ({
     AMapInstance,
     map,
     vehiclesMap,
-    DEFAULT_VEHICLE_ICON,
+    VEHICLE_ICONS,
     VEHICLE_FULL_PATH_COLOR,
     VEHICLE_PASSED_PATH_COLOR,
     imformStore
@@ -69,6 +71,9 @@ const updateVehiclesOnMapLogic = async ({
         const newPosition = carData.currentPosition;
         if (!newPosition) continue;
 
+        const iconUrl = VEHICLE_ICONS[carData.categoryId] || VEHICLE_ICONS.default;
+        const hasNewPath = carData.path && carData.path.length > 1; 
+
         if (!vehicle) {
             vehicle = {
                 id: carData.id,
@@ -78,12 +83,18 @@ const updateVehiclesOnMapLogic = async ({
                 currentPath: null,    
             };
 
+            const markerIcon = new AMapInstance.Icon({
+                size: new AMapInstance.Size(40, 64), // 根据您的SVG图标实际大小调整
+                image: iconUrl,                     // 使用动态选择的图标 URL
+                imageSize: new AMapInstance.Size(40, 64) // 确保这里也与实际图标大小匹配
+            });
+
             vehicle.marker = new AMapInstance.Marker({
                 map: map,
                 position: newPosition,
-                icon: DEFAULT_VEHICLE_ICON,
-                offset: new AMapInstance.Pixel(-13, -26),
-                autoRotation: true
+                icon: markerIcon,
+                offset: new AMapInstance.Pixel(-20, -32), // 根据图标大小调整偏移
+                angle: hasNewPath ? undefined : DEFAULT_STATIC_VEHICLE_ANGLE
             });
             
             // === 核心修正点 ===
@@ -110,7 +121,7 @@ const updateVehiclesOnMapLogic = async ({
             vehiclesMap.value.set(carData.id, vehicle);
         }
         
-        const hasNewPath = carData.path && carData.path.length > 1; 
+        
         const isPathChanged = hasNewPath && (JSON.stringify(vehicle.currentPath) !== JSON.stringify(carData.path));
         
         if (isPathChanged) {
@@ -136,6 +147,8 @@ const updateVehiclesOnMapLogic = async ({
         } else if (!hasNewPath) {
              vehicle.marker.stopMove();
              vehicle.marker.setPosition(newPosition);
+             vehicle.marker.setAngle(DEFAULT_STATIC_VEHICLE_ANGLE);
+             
              if (vehicle.fullPolyline) {
                  vehicle.fullPolyline.setMap(null);
                  vehicle.fullPolyline = null;

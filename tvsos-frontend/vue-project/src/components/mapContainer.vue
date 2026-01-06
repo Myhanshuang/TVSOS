@@ -18,9 +18,14 @@ let webglLayerObj = null;
 // 存储所有小车实例的Map，方便通过ID查找和更新
 const vehiclesMap = shallowRef(new Map());
 let AMapInstance = null; // 用于存储AMap全局对象，方便在定时器中使用
-
 // 全局车辆默认图标、路径颜色定义
-const DEFAULT_VEHICLE_ICON = "https://a.amap.com/jsapi_demos/static/demo-center-v2/car.png";
+const VEHICLE_ICONS = {
+    1:"/images/货车1.png",
+    2:"/images/货车2.png",
+    3:"/images/货车3.png",
+    4:"/images/货车4.png",
+    5:"/images/货车5.png"
+};
 const VEHICLE_FULL_PATH_COLOR = "#28F";    // 车辆完整规划路径颜色
 const VEHICLE_PASSED_PATH_COLOR = "#AF5"; // 车辆实时运动轨迹颜色 (Passed Path Color)
 const updateFrequencyMs = 2000; // 更新一次数据的时间
@@ -35,7 +40,7 @@ const getServiceOptions = () => ({
     map: map.value,
     vehiclesMap: vehiclesMap,
     updateFrequencyMs: updateFrequencyMs,
-    DEFAULT_VEHICLE_ICON: DEFAULT_VEHICLE_ICON,
+    VEHICLE_ICONS: VEHICLE_ICONS,
     VEHICLE_FULL_PATH_COLOR: VEHICLE_FULL_PATH_COLOR,
     VEHICLE_PASSED_PATH_COLOR: VEHICLE_PASSED_PATH_COLOR,
     imformStore: imform
@@ -585,7 +590,7 @@ watch(zoom, (newZoom) => {
                     <div class="detailedInformation">车牌号：{{ recentVehicle.license }}</div><br>
                     <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div><br>
                     <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{ displayPosition?.[1]?.toFixed(5) }}</div><br>
-                    <div class="detailedInformation">速度：{{ recentVehicle.speed }} km/h</div><br> 
+                    <div class="detailedInformation">速度：{{ recentVehicle.speed.toFixed(2) }} km/h</div><br> 
                     <div class="detailedInformation">当前状态：{{ getVehicleStatusText(recentVehicle.status) }}</div><br>
                     <div class="detailedInformation">运输距离：{{ recentVehicle.distance==null?"NaN": recentVehicle.distance.toFixed(2) }}（km）</div><br>
                     <div class="detailedInformation">预计到达时间：{{ recentVehicle.duration==null?"NaN":recentVehicle.duration.toFixed(2) }}（小时）</div><br>
