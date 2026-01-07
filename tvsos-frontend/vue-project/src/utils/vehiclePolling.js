@@ -238,6 +238,12 @@ const updateVehiclesOnMapLogic = async ({
         if (vehicle.passedPolyline && vehicle.fullPathPoints) {
             updatePassedPath(vehicle, carData, AMapInstance);
         }
+        
+        // [Fix] 实时更新信息面板数据
+        if (imformStore.recentVehicle && imformStore.recentVehicle.id === carData.id) {
+            // 保留原有引用，更新属性，或者直接替换对象（取决于 store 实现，直接替换通常更安全）
+            imformStore.imformShow('vehicle', carData);
+        }
     }
 
     // 移除不再存在的车辆

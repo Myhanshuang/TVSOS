@@ -38,6 +38,9 @@ public class ShipmentServiceImpl implements ShipmentService {
     @Autowired
     private TaskMapper taskMapper;
 
+    @Autowired
+    private com.tvsos.mapper.PoiMapper poiMapper;
+
     private static final Random RANDOM = new Random();
 
     /**
@@ -56,6 +59,12 @@ public class ShipmentServiceImpl implements ShipmentService {
         if (cargoList.isEmpty()) {
             throw new ServiceException("cargo 表没有数据，无法 mock 订单");
         }
+        
+        // 读取所有 POI
+        List<entity.Poi> poiList = poiMapper.list(new dto.PoiQueryDTO());
+        if (poiList.size() < 2) {
+             throw new ServiceException("POI 数量不足，无法 mock 订单");
+        }
 
         for (int i = 0; i < count; i++) {
 
@@ -65,20 +74,24 @@ public class ShipmentServiceImpl implements ShipmentService {
             shipment.setNum(num);
 
             // ----------------------------
-            // 经纬度随机（lon,lat）
+            // 使用 POI 作为起点终点
             // ----------------------------
-            double[] begin = MockLocationUtils.randomBegin();
-            double[] end = MockLocationUtils.randomEnd();
+            entity.Poi startPoi = poiList.get(RANDOM.nextInt(poiList.size()));
+            entity.Poi endPoi = poiList.get(RANDOM.nextInt(poiList.size()));
+            // 确保起点终点不同
+            while (endPoi.getId().equals(startPoi.getId())) {
+                endPoi = poiList.get(RANDOM.nextInt(poiList.size()));
+            }
 
-            shipment.setBeginLon(begin[0]);
-            shipment.setBeginLat(begin[1]);
-            shipment.setEndLon(end[0]);
-            shipment.setEndLat(end[1]);
+            shipment.setBeginLon(startPoi.getLon());
+            shipment.setBeginLat(startPoi.getLat());
+            shipment.setEndLon(endPoi.getLon());
+            shipment.setEndLat(endPoi.getLat());
 
             // ----------------------------
             // 根据距离估算预计时间
             // ----------------------------
-            double distanceKm = MockLocationUtils.calcDistance(begin[0], begin[1], end[0], end[1]);
+            double distanceKm = MockLocationUtils.calcDistance(startPoi.getLon(), startPoi.getLat(), endPoi.getLon(), endPoi.getLat());
 
             // 假设速度 40~60 km/h
             double speed = 40 + RANDOM.nextInt(20);
