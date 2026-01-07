@@ -1,13 +1,21 @@
 // src/utils/vehiclePolling.js
 import { getVehiclesData, getVehiclePath } from '@/api/vehicle'; // <--- 导入车辆API
-import { getSimulationSpeed } from '@/api/simulation';
 import { useVehicleStore } from '@/stores';
 
 let pollingTimerId = null;
-let currentPollingDelay = 2000;
+const POLLING_DELAY = 500; // 固定轮询间隔，减少前端压力
 let isPollingRunning = false; // 内部运行标志
 
 const DEFAULT_STATIC_VEHICLE_ANGLE = 90;
+
+// 生成随机颜色 (基于 ID 哈希，保证同一辆车颜色固定)
+const getVehicleColor = (id) => {
+    const colors = [
+        '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF5', 
+        '#F5FF33', '#FF8C33', '#8C33FF', '#33FF8C', '#FF3333'
+    ];
+    return colors[id % colors.length];
+};
 
 const fetchVehicleData = async () => {
     try {
@@ -51,26 +59,6 @@ const fetchVehicleData = async () => {
     }
 };
 
-// 获取仿真倍速并调整轮询间隔
-const adjustPollingFrequency = async () => {
-    try {
-        const res = await getSimulationSpeed();
-        if (res.data.code === 1) {
-            const multiplier = res.data.data;
-            // 基础间隔 2000ms。
-            // 1x -> 2000ms
-            // 5x -> 400ms
-            // 10x -> 200ms
-            // 下限 200ms 防止请求过于频繁
-            let delay = 2000 / multiplier;
-            if (delay < 200) delay = 200;
-            currentPollingDelay = delay;
-        }
-    } catch (e) {
-        // ignore
-    }
-};
-
 // 计算并绘制已行驶路径
 const updatePassedPath = (vehicle, carData, AMapInstance) => {
     if (!vehicle.fullPathPoints || vehicle.fullPathPoints.length === 0) return;
@@ -81,8 +69,7 @@ const updatePassedPath = (vehicle, carData, AMapInstance) => {
     let minDistance = Infinity;
     let closestIndex = 0;
     
-    // 优化：不需要每次遍历所有点，可以从上次的 index 开始往后找
-    // 这里为了鲁棒性，先遍历
+    // 优化：从上次的 index 开始往后找 (这里简化为全遍历)
     for (let i = 0; i < vehicle.fullPathPoints.length; i++) {
         const pt = vehicle.fullPathPoints[i];
         const dist = AMapInstance.GeometryUtil.distance(currentPos, [pt[0], pt[1]]);
@@ -108,14 +95,11 @@ const updateVehiclesOnMapLogic = async ({
     vehiclesMap,
     VEHICLE_ICONS,
     VEHICLE_FULL_PATH_COLOR,
-    VEHICLE_PASSED_PATH_COLOR,
+    VEHICLE_PASSED_PATH_COLOR, // 废弃，改用动态颜色
     imformStore
 }) => {
     if (!AMapInstance || !map) return;
     
-    // 顺便更新倍速
-    await adjustPollingFrequency();
-
     const newVehicleDataList = await fetchVehicleData();
     const vehicleStore = useVehicleStore();
     vehicleStore.setVehicles(newVehicleDataList);
@@ -137,8 +121,8 @@ const updateVehiclesOnMapLogic = async ({
                 marker: null,
                 fullPolyline: null,
                 passedPolyline: null,
-                fullPathPoints: null, // 存储完整路径坐标数组
-                hasFetchedPath: false // 标记是否已获取路径
+                fullPathPoints: null, 
+                hasFetchedPath: false
             };
 
             const markerIcon = new AMapInstance.Icon({
@@ -170,7 +154,7 @@ const updateVehiclesOnMapLogic = async ({
         // === 路径获取与绘制逻辑 ===
         const isMovingTask = (carData.status === 2 || carData.status === 4);
         
-        // 如果处于任务状态且尚未获取路径，或者路径需要更新（例如换了任务，这里简单判断没有路径就请求）
+        // 如果处于任务状态且尚未获取路径
         if (isMovingTask && !vehicle.hasFetchedPath) {
             try {
                 const res = await getVehiclePath(carData.id);
@@ -184,7 +168,7 @@ const updateVehiclesOnMapLogic = async ({
                             map: map,
                             path: vehicle.fullPathPoints,
                             strokeColor: "#999999", // 灰色
-                            strokeOpacity: 0.5,
+                            strokeOpacity: 0.3,
                             strokeWeight: 6,
                             zIndex: 80
                         });
@@ -193,17 +177,19 @@ const updateVehiclesOnMapLogic = async ({
                         vehicle.fullPolyline.setMap(map);
                     }
                     
-                    // 初始化已行驶路径线 (高亮)
+                    // 初始化已行驶路径线 (动态颜色高亮)
+                    const dynamicColor = getVehicleColor(carData.id);
                     if (!vehicle.passedPolyline) {
                         vehicle.passedPolyline = new AMapInstance.Polyline({
                             map: map,
                             path: [],
-                            strokeColor: VEHICLE_PASSED_PATH_COLOR, // 绿色
-                            strokeOpacity: 1,
+                            strokeColor: dynamicColor, // 动态颜色
+                            strokeOpacity: 0.9,
                             strokeWeight: 6,
                             zIndex: 81
                         });
                     } else {
+                        vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor }); // 更新颜色
                         vehicle.passedPolyline.setMap(map);
                     }
                 }
@@ -223,9 +209,9 @@ const updateVehiclesOnMapLogic = async ({
         // === 移动与更新 ===
         
         // 1. 平滑移动
-        // duration 使用动态计算的 delay，保证动画速度匹配轮询频率
+        // 固定 duration 为 2000ms，匹配固定轮询间隔
         vehicle.marker.moveTo(newPosition, {
-            duration: currentPollingDelay, 
+            duration: POLLING_DELAY, 
             autoRotation: false 
         });
         
@@ -241,7 +227,6 @@ const updateVehiclesOnMapLogic = async ({
         
         // [Fix] 实时更新信息面板数据
         if (imformStore.recentVehicle && imformStore.recentVehicle.id === carData.id) {
-            // 保留原有引用，更新属性，或者直接替换对象（取决于 store 实现，直接替换通常更安全）
             imformStore.imformShow('vehicle', carData);
         }
     }
@@ -268,7 +253,7 @@ const pollingLoop = async (options) => {
     await updateVehiclesOnMapLogic(options);
     
     if (isPollingRunning) {
-        pollingTimerId = setTimeout(() => pollingLoop(options), currentPollingDelay);
+        pollingTimerId = setTimeout(() => pollingLoop(options), POLLING_DELAY);
     }
 };
 

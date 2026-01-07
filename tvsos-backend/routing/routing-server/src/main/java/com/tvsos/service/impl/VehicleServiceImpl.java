@@ -12,6 +12,7 @@ import entity.Trip;
 import entity.TripSegment;
 import entity.Vehicle;
 import exception.ServiceException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 public class VehicleServiceImpl implements VehicleService {
 
     @Autowired
@@ -174,18 +176,13 @@ public class VehicleServiceImpl implements VehicleService {
                 .orElse(null);
 
         if (currentSeg == null) {
-            // 所有 segment 完成 (意味着卸货也完成了，现在在这里处理 status 5 -> 1 的逻辑)
-            // 增加 5秒 延时，让状态 5 停留一会
-            if (java.time.Duration.between(vehicle.getUpdateTime(), LocalDateTime.now()).getSeconds() < 5) {
-                return;
-            }
-            
-            // 所有 segment 完成 → trip 要完成
+            // 所有 segment 完成 (意味着卸货也完成了，现在处理 5 -> 1)
+            // Trip 结束
             trip.setStatus(3);
             trip.setEndTime(LocalDateTime.now());
             tripMapper.update(trip);
 
-            // 该 trip 的所有 task 也要完成
+            // Task 结束
             List<Long> taskIdList = tripTaskAssignMapper.getByTripId(trip.getId());
             for(Long taskId : taskIdList){
                 Task task = new Task();
@@ -193,58 +190,61 @@ public class VehicleServiceImpl implements VehicleService {
                 task.setStatus(3);
                 taskMapper.update(task);
             }
-            // 车辆回到空闲
-            vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus())); // 5 -> 1
+            // 车辆回到空闲 (5 -> 1)
+            vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus())); 
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
             return;
         }
 
         Integer status = vehicleMapper.getById(vehicleId).getStatus();
-        // 装货逻辑 (Status 3)
+        
+        // 装货逻辑 (Status 3 -> 4)
         if(status == 3){
-            // 增加 5秒 延时
-            if (java.time.Duration.between(vehicle.getUpdateTime(), LocalDateTime.now()).getSeconds() < 5) {
-                return;
-            }
+            // 状态流转 3 -> 4
+            vehicle.setStatus(MarkovStatusUtils.nextState(status)); 
             
-            vehicle.setStatus(MarkovStatusUtils.nextState(status)); // 变为 4 (运货行驶)
+            // 开启下一段 Segment
             TripSegment nextSeg = segments.stream()
                     .filter(s -> s.getStatus() == 1)
                     .sorted(Comparator.comparingInt(TripSegment::getSequence))
                     .findFirst()
                     .orElse(null);
+            
             if(nextSeg == null){
                 throw new ServiceException("运货路线为空");
             }
+            
             vehicle.setUpdateTime(LocalDateTime.now());
-            nextSeg.setStatus(2);
+            nextSeg.setStatus(2); // 运货段开始
             vehicleMapper.update(vehicle);
             tripSegmentMapper.update(nextSeg);
 
             // [New] 加载运货段(Segment 2)的路径并开始模拟
             List<Double[]> points = routeStorageService.loadRoute(trip.getId(), 2);
             if (points != null && !points.isEmpty()) {
+                log.info("成功加载运货路径，车辆 {} 开始运货行驶，路径点数: {}", vehicle.getId(), points.size());
                 vehicleRouteManager.startRoute(vehicle.getId(), points);
+            } else {
+                log.error("严重错误：车辆 {} 无法加载运货路径 (TripId={}, Segment=2)，车辆将静止！", vehicle.getId(), trip.getId());
             }
             return;
         }
-        //卸货逻辑 - 注意：status 5 的进入是在运货段结束时。status 5 的离开是在 currentSeg == null 时。
-        // 这里保留这个块，防止异常进入，但正常流程不会走这里，因为 status 5 时 currentSeg 应该是 null (如果 seg 2 已经置为 3)
+        
+        // 卸货逻辑 (Status 5 -> 1) 
+        // 实际上 status 5 是由 SimulationTask 在 Segment 2 结束时设置的
+        // 这里如果是 status 5 且 currentSeg 不为空，说明逻辑有点错位，
+        // 但通常 SimulationTask 会在此时调用 updateVehicle 触发 5 -> 1 (如果 currentSeg 全部完成了)
+        // 上面的 if (currentSeg == null) 会处理大部分 5->1 的情况
         if (status == 5) {
-            // 如果代码走到这里，说明 currentSeg 不为 null，说明数据状态可能有异常
-            // 或者正在进行某种特殊处理。为了安全，保留原逻辑但指向正确的流转
-            // 但按照新设计，status 5 应该由上面的 if (currentSeg == null) 处理
-            return; 
+             // 保护性逻辑，如果还有未完成的 segment 但状态是 5，可能需要强制修正
+             return; 
         }
 
-        // ========== 关键逻辑：是否到达 segment 终点？ ==========
-        // [New] 移除基于时间的判断逻辑。
-        // 现在由 SimulationTask 驱动，当调用 updateVehicle 时，意味着车辆已经由仿真引擎驱动到了终点。
+        // ========== 移动结束逻辑 (由 SimulationTask 触发) ==========
+        // 当 SimulationTask 发现车辆走到 Segment 终点时调用此方法
         
         LocalDateTime now = LocalDateTime.now();
-
-        // ========== 已到达 segment 终点：做状态流转 ==========
 
         // 1) 当前 segment 完成
         currentSeg.setStatus(3);
@@ -254,24 +254,14 @@ public class VehicleServiceImpl implements VehicleService {
         vehicle.setLat(currentSeg.getEndLat());
         vehicle.setLon(currentSeg.getEndLon());
 
-        // 3) 使用 Markov 决定车辆状态
+        // 3) 状态流转
+        // 如果是第一段 (接单) 结束 (2 -> 3)
+        // 如果是第二段 (运货) 结束 (4 -> 5)
         int nextState = MarkovStatusUtils.nextState(vehicle.getStatus());
         vehicle.setStatus(nextState);
 
-        // 4) 如果是最后一个 segment 结束
-        if (currentSeg.getSequence() == 2) {
-             // 此时 nextState 应该是 5 (卸货)
-             // 我们只更新车辆状态为 5，不结束 Trip，也不跳转到 1
-             // Trip 结束和 5->1 的跳转交给下一次轮询 (上面的 if (currentSeg == null))
-        } else {
-             // 如果是第一段结束 (接单完成 -> 装货)
-             // nextState 应该是 3 (装货)
-             // 此时也只是更新状态，不开启下一段，等待 Loading 延时
-        }
-
-        // 5) 更新时间
+        // 4) 更新时间
         vehicle.setUpdateTime(now);
-
         vehicleMapper.update(vehicle);
     }
 

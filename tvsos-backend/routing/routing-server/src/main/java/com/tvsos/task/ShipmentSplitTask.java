@@ -24,7 +24,7 @@ public class ShipmentSplitTask {
      * 每隔 SCHEDULE_MINUTE 分钟执行一次
      * 自动拆分订单 -> 任务
      */
-    @Scheduled(fixedDelayString = "#{T(java.util.concurrent.TimeUnit).MINUTES.toMillis(T(constant.ShipmentConstant).SCHEDULE_MINUTE)}")
+    // @Scheduled(fixedDelayString = "#{T(java.util.concurrent.TimeUnit).MINUTES.toMillis(T(constant.ShipmentConstant).SCHEDULE_MINUTE)}")
     public void splitPendingShipments() {
         log.info("开始执行订单拆分定时任务...(间隔：{} min，最大拆分订单：{} 个)", ShipmentConstant.SCHEDULE_MINUTE, ShipmentConstant.SHIPMENT_BATCH_SIZE);
 

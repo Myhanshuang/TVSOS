@@ -320,7 +320,7 @@ public class TaskServiceImpl implements TaskService {
         seg2.setEndLon(task.getEndLon());
         seg2.setEndLat(task.getEndLat());
         seg2.setDistance(deliverDist);
-        seg2.setStatus(2);
+        seg2.setStatus(1); // 待执行
         seg2.setDuration(deliverDuration);
         tripSegmentMapper.insert(seg2);
         

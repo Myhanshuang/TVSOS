@@ -41,6 +41,9 @@ public class ShipmentServiceImpl implements ShipmentService {
     @Autowired
     private com.tvsos.mapper.PoiMapper poiMapper;
 
+    @Autowired
+    private com.tvsos.manager.TaskDispatchManager taskDispatchManager;
+
     private static final Random RANDOM = new Random();
 
     /**
@@ -65,6 +68,9 @@ public class ShipmentServiceImpl implements ShipmentService {
         if (poiList.size() < 2) {
              throw new ServiceException("POI 数量不足，无法 mock 订单");
         }
+
+        // 定义单次任务的重量限制 (例如 5吨)
+        final double TASK_WEIGHT_LIMIT = 5000.0;
 
         for (int i = 0; i < count; i++) {
 
@@ -133,6 +139,19 @@ public class ShipmentServiceImpl implements ShipmentService {
             }
 
             list.add(shipment);
+            
+            // === 立即拆分订单 ===
+            splitShipment(shipment, TASK_WEIGHT_LIMIT);
+
+            // === 立即尝试分配生成的任务 ===
+            // 查找该 shipment 生成的所有待调度任务
+            List<Task> pendingTasks = taskMapper.getPendingTasksByShipmentId(shipment.getId()); // 需要在 TaskMapper 增加这个方法
+            if (pendingTasks != null) {
+                for (Task task : pendingTasks) {
+                    // 将任务提交给限流调度器，不再直接调用
+                    taskDispatchManager.submitTask(task);
+                }
+            }
         }
 
         return list;
