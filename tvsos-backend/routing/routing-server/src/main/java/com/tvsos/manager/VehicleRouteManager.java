@@ -58,7 +58,7 @@ public class VehicleRouteManager {
         state.setFinished(false);
         
         activeRoutes.put(vehicleId, state);
-        log.info("Vehicle {} started new route with {} points.", vehicleId, points.size());
+        log.info("Vehicle {} started new route with {} points. Current active routes: {}", vehicleId, points.size(), activeRoutes.size());
     }
 
     /**

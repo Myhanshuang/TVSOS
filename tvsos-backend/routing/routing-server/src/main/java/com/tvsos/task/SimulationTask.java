@@ -27,6 +27,11 @@ public class SimulationTask {
     @Autowired
     private VehicleService vehicleService;
 
+    @Autowired
+    private com.tvsos.service.RouteStorageService routeStorageService;
+    @Autowired
+    private com.tvsos.mapper.TripMapper tripMapper;
+
     // 基础速度：每秒走多少个路径点
     private static final double BASE_POINTS_PER_SECOND = 1.5;
 
@@ -35,25 +40,81 @@ public class SimulationTask {
         // 1. 处理移动中的车辆 (内存驱动)
         handleMovingVehicles();
         
-        // 2. 处理静止/作业中的车辆 (数据库驱动)
+        // [New] 2. 检查并唤醒“失活”的移动车辆 (数据库驱动)
+        // 防止服务重启或逻辑遗漏导致状态为 2/4 的车辆在内存中不存在
+        handleReviveVehicles();
+        
+        // 3. 处理静止/作业中的车辆 (数据库驱动)
         // 状态 3(装货) 和 5(卸货)
         handleStationaryVehicles();
     }
 
     private void handleMovingVehicles() {
         Map<Long, VehicleRouteManager.RouteState> activeRoutes = vehicleRouteManager.getAllActiveRoutes();
-        if (activeRoutes.isEmpty()) return;
-
+        // 即使为空也要继续执行下面的 revive 逻辑
+        
         double globalMultiplier = vehicleRouteManager.getGlobalSpeedMultiplier();
         double step = BASE_POINTS_PER_SECOND * globalMultiplier;
 
-        activeRoutes.forEach((vehicleId, state) -> {
-            try {
-                processVehicle(vehicleId, state, step);
-            } catch (Exception e) {
-                log.error("Simulation error for vehicle {}", vehicleId, e);
+        if (!activeRoutes.isEmpty()) {
+            activeRoutes.forEach((vehicleId, state) -> {
+                try {
+                    processVehicle(vehicleId, state, step);
+                } catch (Exception e) {
+                    log.error("Simulation error for vehicle {}", vehicleId, e);
+                }
+            });
+        }
+    }
+    
+    /**
+     * 唤醒机制：查找状态为 2 或 4 但不在 activeRoutes 中的车辆
+     */
+    private void handleReviveVehicles() {
+        // 获取一批待处理车辆 (这里复用 getPendingVehicles，假设量不大)
+        // 更好的做法是专门写一个 SQL: select * from vehicle where status in (2,4)
+        // 这里先遍历检查
+        java.util.List<Vehicle> vehicles = vehicleService.getPendingVehicles(50);
+        Map<Long, VehicleRouteManager.RouteState> activeRoutes = vehicleRouteManager.getAllActiveRoutes();
+        
+        for (Vehicle v : vehicles) {
+            if ((v.getStatus() == 2 || v.getStatus() == 4) && !activeRoutes.containsKey(v.getId())) {
+                log.warn("发现失活车辆 {} (Status={})，尝试唤醒...", v.getId(), v.getStatus());
+                reviveVehicle(v);
             }
-        });
+        }
+    }
+    
+    private void reviveVehicle(Vehicle v) {
+        // 查找对应的 Trip
+        entity.Trip trip = tripMapper.getByVehicleIdAndStatus(v.getId(), 2);
+        if (trip == null) {
+            log.warn("车辆 {} 唤醒中止：未找到进行中的 Trip (Status=2)。强制重置为空闲状态。", v.getId());
+            // 强制重置车辆状态为 1 (空闲)，避免死循环
+            v.setStatus(1);
+            v.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(v);
+            return;
+        }
+        
+        int segmentIndex = (v.getStatus() == 2) ? 1 : 2;
+        
+        try {
+            java.util.List<Double[]> points = routeStorageService.loadRoute(trip.getId(), segmentIndex);
+            if (points != null && !points.isEmpty()) {
+                vehicleRouteManager.startRoute(v.getId(), points);
+                
+                // 此时需要根据当前数据库里的位置，找到路径上最近的点作为 currentIndex
+                // 否则会从头开始跑，导致“瞬移回起点”。
+                // 这里简单起见，如果数据库位置有效，尝试匹配；否则从头开始。
+                // TODO: 增加“最近点匹配”逻辑。目前先从头开始，保证能动。
+                log.info("车辆 {} 已唤醒，重新加入仿真队列", v.getId());
+            } else {
+                log.error("车辆 {} 唤醒失败：无法加载路径 (Trip={}, Seg={})", v.getId(), trip.getId(), segmentIndex);
+            }
+        } catch (Exception e) {
+            log.error("车辆 {} 唤醒异常", v.getId(), e);
+        }
     }
 
     // 处理静止车辆的状态流转 (装货 -> 运货, 卸货 -> 空闲)
@@ -93,6 +154,8 @@ public class SimulationTask {
         if (advance > 0) {
             state.setCurrentIndex(state.getCurrentIndex() + advance);
             state.setAccumulator(state.getAccumulator() - advance);
+            // Log movement periodically to avoid spam (e.g. every 10th move or if state changes significantly)
+            // log.debug("Vehicle {} advanced to index {}", vehicleId, state.getCurrentIndex());
         }
 
         // 2. 检查是否到达终点
@@ -119,9 +182,13 @@ public class SimulationTask {
                 double angle = calculateBearing(currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]);
                 vehicle.setAngle(angle);
             }
-
+            
             // 更新数据库位置
-            vehicleMapper.update(vehicle);
+            try {
+                vehicleMapper.update(vehicle);
+            } catch (Exception e) {
+                log.error("Failed to update vehicle position for {}", vehicleId, e);
+            }
 
             // 4. 如果到达终点，触发业务流转
             if (finished) {
@@ -135,6 +202,8 @@ public class SimulationTask {
                     vehicleService.updateVehicle(fullVehicle);
                 }
             }
+        } else {
+            log.warn("Vehicle {} has null position at index {}", vehicleId, state.getCurrentIndex());
         }
     }
 

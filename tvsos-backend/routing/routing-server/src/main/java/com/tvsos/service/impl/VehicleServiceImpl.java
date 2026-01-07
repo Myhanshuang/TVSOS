@@ -220,13 +220,22 @@ public class VehicleServiceImpl implements VehicleService {
             vehicleMapper.update(vehicle);
             tripSegmentMapper.update(nextSeg);
 
-            // [New] 加载运货段(Segment 2)的路径并开始模拟
+            // [Revert & Fix] 从存储加载预先规划好的运货路径 (Segment 2)
             List<Double[]> points = routeStorageService.loadRoute(trip.getId(), 2);
             if (points != null && !points.isEmpty()) {
-                log.info("成功加载运货路径，车辆 {} 开始运货行驶，路径点数: {}", vehicle.getId(), points.size());
+                // 1. 启动仿真
                 vehicleRouteManager.startRoute(vehicle.getId(), points);
+                
+                // 2. [Critical] 强制将车辆位置同步到路径起点
+                // 防止因之前的误差导致车辆“脱轨”
+                Double[] startPoint = points.get(0);
+                vehicle.setLon(startPoint[0]);
+                vehicle.setLat(startPoint[1]);
+                vehicleMapper.update(vehicle);
+                
+                log.info("车辆 {} 开始运货，强制归位到路径起点: [{}, {}]", vehicle.getId(), startPoint[0], startPoint[1]);
             } else {
-                log.error("严重错误：车辆 {} 无法加载运货路径 (TripId={}, Segment=2)，车辆将静止！", vehicle.getId(), trip.getId());
+                log.error("严重错误：车辆 {} 无法加载运货路径 (TripId={}, Segment=2)", vehicle.getId(), trip.getId());
             }
             return;
         }
