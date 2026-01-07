@@ -7,7 +7,6 @@ import com.tvsos.mapper.VehicleMapper;
 import com.tvsos.service.RouteStorageService;
 import com.tvsos.service.VehicleService;
 import com.tvsos.utils.MarkovStatusUtils;
-import com.tvsos.utils.TripUtils;
 import entity.Trip;
 import entity.TripSegment;
 import entity.Vehicle;
@@ -39,12 +38,7 @@ public class SimulationTask {
     @Autowired
     private TripMapper tripMapper;
     @Autowired
-    private TripUtils tripUtils;
-    @Autowired
     private TripSegmentMapper tripSegmentMapper;
-
-    // 基础速度：每秒走多少个路径点
-    private static final double BASE_POINTS_PER_SECOND = 1.5;
 
     @Scheduled(fixedRate = 1000) // 每秒执行
     public void tick() {
@@ -61,11 +55,12 @@ public class SimulationTask {
     private void handleMovingVehicles() {
         Map<Long, VehicleRouteManager.RouteState> activeRoutes = vehicleRouteManager.getAllActiveRoutes();
         double globalMultiplier = vehicleRouteManager.getGlobalSpeedMultiplier();
-        double step = BASE_POINTS_PER_SECOND * globalMultiplier;
 
         if (!activeRoutes.isEmpty()) {
             activeRoutes.forEach((vehicleId, state) -> {
                 try {
+                    // Calculate step based on pre-calculated speed (points/sec) and global multiplier
+                    double step = state.getPointsPerSecond() * globalMultiplier;
                     processVehicle(vehicleId, state, step);
                 } catch (Exception e) {
                     log.error("Simulation error for vehicle {}", vehicleId, e);
@@ -75,7 +70,6 @@ public class SimulationTask {
     }
     
     private void handleReviveVehicles() {
-        // 查找状态为 2 或 4 但不在 activeRoutes 中的车辆
         List<Vehicle> vehicles = vehicleService.getPendingVehicles(20);
         Map<Long, VehicleRouteManager.RouteState> activeRoutes = vehicleRouteManager.getAllActiveRoutes();
         
@@ -87,20 +81,16 @@ public class SimulationTask {
     }
     
     private void reviveVehicle(Vehicle v) {
-        // 1. Try to find active trip (Status 2)
         Trip trip = tripMapper.getByVehicleIdAndStatus(v.getId(), 2);
         
-        // 2. Fallback: If no active trip found, try finding the latest trip
         if (trip == null) {
             Trip latestTrip = tripMapper.getByVehicleId(v.getId());
             if (latestTrip != null) {
                 trip = latestTrip;
-                log.warn("Vehicle {} revive: Active trip not found, using latest Trip {}", v.getId(), trip.getId());
             }
         }
 
         if (trip == null) {
-            log.error("Vehicle {} revive failed: No Trip found. Resetting to IDLE.", v.getId());
             v.setStatus(1);
             v.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(v);
@@ -109,32 +99,26 @@ public class SimulationTask {
         
         int segmentIndex = (v.getStatus() == 2) ? 1 : 2;
         
-        // 3. Try load route from Redis
+        // Load route from storage
         List<Double[]> points = routeStorageService.loadRoute(trip.getId(), segmentIndex);
         
-        // 4. Fallback: Re-plan route if missing using TripSegment info
-        if (points == null || points.isEmpty()) {
-            log.info("Vehicle {} revive: Route missing for Seg {}. Attempting re-plan using Segment info...", v.getId(), segmentIndex);
-            points = replanRouteUsingSegment(trip, segmentIndex, v);
-        }
-
         if (points != null && !points.isEmpty()) {
-            // [Fix] Snap to closest point instead of starting from 0 to avoid jumping back
+            // Find duration to calculate speed
+            TripSegment segment = getSegment(trip.getId(), segmentIndex);
+            long durationSec = (segment != null && segment.getDuration() != null) 
+                    ? (long)(segment.getDuration() * 3600) 
+                    : points.size(); // Fallback to 1 pt/sec
+
             int startIndex = findClosestPointIndex(points, v.getLon(), v.getLat());
             
-            // Only use closest point if it's reasonably close (e.g., < 5km? or just trust it?)
-            // If the vehicle is far away, maybe it's better to jump to start? 
-            // But usually "revive" means it stopped moving, so current pos should be on track.
-            
-            // If startIndex is very close to end, it might finish immediately. That's fine.
-            vehicleRouteManager.startRoute(v.getId(), points);
+            vehicleRouteManager.startRoute(v.getId(), points, durationSec);
             VehicleRouteManager.RouteState state = vehicleRouteManager.getVehicleState(v.getId());
             if (state != null) {
                 state.setCurrentIndex(startIndex);
                 log.info("Vehicle {} revived at index {}/{}", v.getId(), startIndex, points.size());
             }
         } else {
-            log.error("Vehicle {} revive failed: Could not load or plan route.", v.getId());
+            log.warn("Vehicle {} revive failed: Route missing for Seg {}. Waiting for repair or reset.", v.getId(), segmentIndex);
         }
     }
 
@@ -147,7 +131,6 @@ public class SimulationTask {
         
         for (int i = 0; i < points.size(); i++) {
             Double[] p = points.get(i);
-            // Euclidean distance squared
             double dx = p[0] - vehicleLon;
             double dy = p[1] - vehicleLat;
             double distSq = dx*dx + dy*dy;
@@ -159,39 +142,6 @@ public class SimulationTask {
         }
         return bestIndex;
     }
-
-    private List<Double[]> replanRouteUsingSegment(Trip trip, int segmentIndex, Vehicle v) {
-        try {
-            TripSegment segment = getSegment(trip.getId(), segmentIndex);
-            if (segment == null) {
-                log.error("Re-plan failed: Segment {} not found for Trip {}", segmentIndex, trip.getId());
-                return null;
-            }
-
-            String origin = segment.getBeginLon() + "," + segment.getBeginLat();
-            String destination = segment.getEndLon() + "," + segment.getEndLat();
-            
-            log.info("Re-planning route for Vehicle {} Seg {}: {} -> {}", v.getId(), segmentIndex, origin, destination);
-
-            Map<String, Object> route = tripUtils.planTrip(origin, destination, null);
-            List<Double[]> polyline = (List<Double[]>) route.get("polyline");
-            
-            if (polyline != null && !polyline.isEmpty()) {
-                routeStorageService.saveRoute(trip.getId(), segmentIndex, polyline);
-                
-                Double dist = (Double) route.get("distance");
-                Double dur = (Double) route.get("duration");
-                if (dist != null) segment.setDistance(dist);
-                if (dur != null) segment.setDuration(dur);
-                tripSegmentMapper.update(segment);
-                
-                return polyline;
-            }
-        } catch (Exception e) {
-            log.error("Re-plan failed for vehicle {}", v.getId(), e);
-        }
-        return null;
-    }
     
     private TripSegment getSegment(Long tripId, int sequence) {
         List<TripSegment> segments = tripSegmentMapper.getByTripId(tripId);
@@ -201,7 +151,6 @@ public class SimulationTask {
 
     private void handleStationaryVehicles() {
         List<Vehicle> vehicles = vehicleService.getPendingVehicles(20); 
-        
         double globalMultiplier = vehicleRouteManager.getGlobalSpeedMultiplier();
         long requiredStaySeconds = (long) (5.0 / globalMultiplier);
         if (requiredStaySeconds < 1) requiredStaySeconds = 1;
@@ -211,7 +160,6 @@ public class SimulationTask {
             if (status == 3 || status == 5) {
                 java.time.Duration duration = java.time.Duration.between(v.getUpdateTime(), LocalDateTime.now());
                 if (duration.getSeconds() >= requiredStaySeconds) {
-                    log.info("Vehicle {} finished waiting (Status={}), triggering update", v.getId(), status);
                     vehicleService.updateVehicle(v);
                 }
             }
@@ -240,7 +188,6 @@ public class SimulationTask {
             vehicle.setLat(currentPoint[1]);
             vehicle.setUpdateTime(LocalDateTime.now());
 
-            // Calculate Angle
             Double[] nextPoint = state.getNextPoint();
             if (nextPoint != null && !finished) {
                 double angle = calculateBearing(currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]);
