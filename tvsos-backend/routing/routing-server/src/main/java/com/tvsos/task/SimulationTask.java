@@ -90,13 +90,10 @@ public class SimulationTask {
         // 1. Try to find active trip (Status 2)
         Trip trip = tripMapper.getByVehicleIdAndStatus(v.getId(), 2);
         
-        // 2. Fallback: If no active trip found, try finding the latest trip (maybe status was updated wrongly or query failed)
+        // 2. Fallback: If no active trip found, try finding the latest trip
         if (trip == null) {
             Trip latestTrip = tripMapper.getByVehicleId(v.getId());
             if (latestTrip != null) {
-                // Check if this trip is logically relevant (e.g., status is 2 but mapped poorly, or it's the one we need)
-                // If vehicle is status 4, and trip is status 2 (or even 3?), we might need it.
-                // Assuming safety: use latest trip if it looks recent.
                 trip = latestTrip;
                 log.warn("Vehicle {} revive: Active trip not found, using latest Trip {}", v.getId(), trip.getId());
             }
@@ -112,13 +109,13 @@ public class SimulationTask {
         
         int segmentIndex = (v.getStatus() == 2) ? 1 : 2;
         
-        // 3. Try load route
+        // 3. Try load route from Redis
         List<Double[]> points = routeStorageService.loadRoute(trip.getId(), segmentIndex);
         
-        // 4. Fallback: Re-plan route if missing (The User's Request)
+        // 4. Fallback: Re-plan route if missing using TripSegment info
         if (points == null || points.isEmpty()) {
-            log.info("Vehicle {} revive: Route missing for Seg {}. Attempting re-plan...", v.getId(), segmentIndex);
-            points = replanRoute(trip, segmentIndex, v);
+            log.info("Vehicle {} revive: Route missing for Seg {}. Attempting re-plan using Segment info...", v.getId(), segmentIndex);
+            points = replanRouteUsingSegment(trip, segmentIndex, v);
         }
 
         if (points != null && !points.isEmpty()) {
@@ -129,50 +126,35 @@ public class SimulationTask {
         }
     }
 
-    private List<Double[]> replanRoute(Trip trip, int segmentIndex, Vehicle v) {
+    private List<Double[]> replanRouteUsingSegment(Trip trip, int segmentIndex, Vehicle v) {
         try {
-            String origin, destination;
-            
-            if (segmentIndex == 1) {
-                // Pickup: Vehicle Start -> Task Begin (Trip End is usually Task End, Trip Begin is Vehicle Start)
-                // BUT wait, Trip.BeginLon/Lat was set to Vehicle location at start.
-                // Trip.EndLon/Lat is Task End.
-                // We need Task Begin!
-                // We can get it from TripSegment 1 End.
-                TripSegment seg1 = getSegment(trip.getId(), 1);
-                if (seg1 == null) return null;
-                origin = trip.getBeginLon() + "," + trip.getBeginLat(); // Approx start
-                destination = seg1.getEndLon() + "," + seg1.getEndLat();
-            } else {
-                // Delivery: Task Begin -> Task End
-                // Task Begin is TripSegment 1 End (or Seg 2 Start).
-                // Task End is Trip.EndLon/Lat.
-                TripSegment seg2 = getSegment(trip.getId(), 2);
-                if (seg2 != null) {
-                    origin = seg2.getBeginLon() + "," + seg2.getBeginLat();
-                    destination = seg2.getEndLon() + "," + seg2.getEndLat();
-                } else {
-                    // Fallback to Trip End
-                    origin = v.getLon() + "," + v.getLat(); // Current pos
-                    destination = trip.getEndLon() + "," + trip.getEndLat();
-                }
+            // Retrieve specific segment
+            TripSegment segment = getSegment(trip.getId(), segmentIndex);
+            if (segment == null) {
+                log.error("Re-plan failed: Segment {} not found for Trip {}", segmentIndex, trip.getId());
+                return null;
             }
+
+            // Use Segment coordinates which are precise
+            String origin = segment.getBeginLon() + "," + segment.getBeginLat();
+            String destination = segment.getEndLon() + "," + segment.getEndLat();
+            
+            log.info("Re-planning route for Vehicle {} Seg {}: {} -> {}", v.getId(), segmentIndex, origin, destination);
 
             Map<String, Object> route = tripUtils.planTrip(origin, destination, null);
             List<Double[]> polyline = (List<Double[]>) route.get("polyline");
             
             if (polyline != null && !polyline.isEmpty()) {
+                // Save to Redis
                 routeStorageService.saveRoute(trip.getId(), segmentIndex, polyline);
                 
-                // Also update segment distance/duration
-                TripSegment seg = getSegment(trip.getId(), segmentIndex);
-                if (seg != null) {
-                    Double dist = (Double) route.get("distance");
-                    Double dur = (Double) route.get("duration");
-                    seg.setDistance(dist);
-                    seg.setDuration(dur);
-                    tripSegmentMapper.update(seg);
-                }
+                // Update segment distance/duration in DB
+                Double dist = (Double) route.get("distance");
+                Double dur = (Double) route.get("duration");
+                if (dist != null) segment.setDistance(dist);
+                if (dur != null) segment.setDuration(dur);
+                tripSegmentMapper.update(segment);
+                
                 return polyline;
             }
         } catch (Exception e) {
@@ -228,7 +210,12 @@ public class SimulationTask {
             vehicle.setLat(currentPoint[1]);
             vehicle.setUpdateTime(LocalDateTime.now());
 
-            // Angle calculation removed as Vehicle entity does not support it
+            // Calculate Angle
+            Double[] nextPoint = state.getNextPoint();
+            if (nextPoint != null && !finished) {
+                double angle = calculateBearing(currentPoint[0], currentPoint[1], nextPoint[0], nextPoint[1]);
+                vehicle.setAngle(angle);
+            }
             
             try {
                 vehicleMapper.update(vehicle);
@@ -244,5 +231,19 @@ public class SimulationTask {
                 }
             }
         }
+    }
+
+    /**
+     * 计算两点间的方位角 (0-360, 正北为0)
+     */
+    private double calculateBearing(double lon1, double lat1, double lon2, double lat2) {
+        double l1 = Math.toRadians(lon1);
+        double l2 = Math.toRadians(lon2);
+        double phi1 = Math.toRadians(lat1);
+        double phi2 = Math.toRadians(lat2);
+        double y = Math.sin(l2 - l1) * Math.cos(phi2);
+        double x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(l2 - l1);
+        double bearing = Math.toDegrees(Math.atan2(y, x));
+        return (bearing + 360) % 360;
     }
 }

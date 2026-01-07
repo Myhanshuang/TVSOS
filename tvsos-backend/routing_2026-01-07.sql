@@ -398,3 +398,5 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-01-07 14:56:31
+-- 添加 angle 字段用于车辆朝向
+ALTER TABLE vehicle ADD COLUMN angle DOUBLE DEFAULT 0 COMMENT '车辆角度(0-360)';
