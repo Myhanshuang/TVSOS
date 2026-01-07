@@ -32,6 +32,7 @@ public class ShipmentController {
     @Operation(summary = "mock用户订单")
     public Result<List<Shipment>> mockShipments(@Parameter @PathVariable("count") int count) {
         List<Shipment> shipmentList = shipmentService.mockShipments(count);
+        log.info("mock 用户订单：{} 个", count);
         return Result.success(shipmentList);
     }
 

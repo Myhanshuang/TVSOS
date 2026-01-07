@@ -1,7 +1,7 @@
 <script setup>
 import MapContainer from '@/components/mapContainer.vue'
 import Statistics from '@/components/statistics.vue';
-import carsManage from '@/components/carsManage.vue';
+import taskManage from '@/components/taskManage.vue';
 
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useVisibleStore, useTargetStore, useImformStore,  } from '@/stores/index.js'
@@ -108,7 +108,7 @@ watch(() => target.watchLissoner, async () => {
     <Statistics/>
   </div>
   <div id='third' ref="thirdRef" :class="{Component: 1, isVisible: visible.isThirdVisible}">
-    <carsManage/>
+    <taskManage/>
   </div>
 </template>
 

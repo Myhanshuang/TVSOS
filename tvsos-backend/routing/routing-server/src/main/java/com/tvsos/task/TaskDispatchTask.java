@@ -38,6 +38,10 @@ public class TaskDispatchTask {
                 if(isSuccess){
                     successCnt++;
                 }
+                if (successCnt == 3) {
+                    // 高德 API 有每秒 3 个的并发上限
+                    break;
+                }
             }
 
             log.info("本次任务分配完成，总处理任务数: {} (其中成功 {} 次，失败 {} 次)", tasks.size(), successCnt, tasks.size() - successCnt);

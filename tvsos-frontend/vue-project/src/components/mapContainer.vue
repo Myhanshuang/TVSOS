@@ -18,9 +18,14 @@ let webglLayerObj = null;
 // 存储所有小车实例的Map，方便通过ID查找和更新
 const vehiclesMap = shallowRef(new Map());
 let AMapInstance = null; // 用于存储AMap全局对象，方便在定时器中使用
-
 // 全局车辆默认图标、路径颜色定义
-const DEFAULT_VEHICLE_ICON = "https://a.amap.com/jsapi_demos/static/demo-center-v2/car.png";
+const VEHICLE_ICONS = {
+    1:"/images/货车1.png",
+    2:"/images/货车2.png",
+    3:"/images/货车3.png",
+    4:"/images/货车4.png",
+    5:"/images/货车5.png"
+};
 const VEHICLE_FULL_PATH_COLOR = "#28F";    // 车辆完整规划路径颜色
 const VEHICLE_PASSED_PATH_COLOR = "#AF5"; // 车辆实时运动轨迹颜色 (Passed Path Color)
 const updateFrequencyMs = 2000; // 更新一次数据的时间
@@ -35,7 +40,7 @@ const getServiceOptions = () => ({
     map: map.value,
     vehiclesMap: vehiclesMap,
     updateFrequencyMs: updateFrequencyMs,
-    DEFAULT_VEHICLE_ICON: DEFAULT_VEHICLE_ICON,
+    VEHICLE_ICONS: VEHICLE_ICONS,
     VEHICLE_FULL_PATH_COLOR: VEHICLE_FULL_PATH_COLOR,
     VEHICLE_PASSED_PATH_COLOR: VEHICLE_PASSED_PATH_COLOR,
     imformStore: imform
@@ -572,7 +577,7 @@ watch(zoom, (newZoom) => {
                 <el-button class="imformOut" @click="imform.imformHide">×</el-button>
                 <!-- 根据 currentInfoType 动态渲染详细信息 -->
                 <div v-if="currentInfoType === 'poi' && recentPoi">
-                    <h3>POI 详细信息</h3>
+                    <h3 class="imfromTitle">POI 详细信息</h3>
                     <div class="detailedInformation">编号：{{ recentPoi.id }}</div><br>
                     <div class="detailedInformation">名称：{{ recentPoi.name }}</div><br>
                     <!-- 假设 poiBox.recentPoiKind 和 poiBox.recentPoiStatus 是根据 recentPoi 实时计算或获取的 -->
@@ -580,12 +585,12 @@ watch(zoom, (newZoom) => {
                     <div class="detailedInformation">状态：{{ poiBox.recentPoiStatus }}</div>
                 </div>
                 <div v-else-if="currentInfoType === 'vehicle' && recentVehicle">
-                    <h3>车辆详细信息</h3>
+                    <h3 class="imfromTitle">车辆详细信息</h3>
                     <div class="detailedInformation">ID：{{ recentVehicle.id }}</div><br>
                     <div class="detailedInformation">车牌号：{{ recentVehicle.license }}</div><br>
                     <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div><br>
                     <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{ displayPosition?.[1]?.toFixed(5) }}</div><br>
-                    <div class="detailedInformation">速度：{{ recentVehicle.speed }} km/h</div><br> 
+                    <div class="detailedInformation">速度：{{ recentVehicle.speed.toFixed(2) }} km/h</div><br> 
                     <div class="detailedInformation">当前状态：{{ getVehicleStatusText(recentVehicle.status) }}</div><br>
                     <div class="detailedInformation">运输距离：{{ recentVehicle.distance==null?"NaN": recentVehicle.distance.toFixed(2) }}（km）</div><br>
                     <div class="detailedInformation">预计到达时间：{{ recentVehicle.duration==null?"NaN":recentVehicle.duration.toFixed(2) }}（小时）</div><br>
@@ -635,11 +640,33 @@ watch(zoom, (newZoom) => {
 
 #imfromBox {
     display: inline-block;
-    background-color: aliceblue;
+    background-color: rgb(255, 255, 255);
     height: calc(100% - 20px);
     width: calc(100% - 10px);
     margin: 10px 10px 10px 10px;
     position: relative;
+}
+
+
+
+
+.imfromTitle{
+    font-size: 27px;
+    font-family: "PingFang SC","Microsoft YaHei UI";
+    display: block;
+    position: relative;
+    margin: 15px 10px;
+}
+.imfromTitle::after{
+    content: "";
+    display: inline-block;
+    position: absolute;
+    bottom: -6px;
+    left: 0px;
+    width: calc(100% - 30px);
+    height: 4px;
+    background-color: rgb(94, 150, 200);
+    border-radius: 2px;
 }
 
 .imformHide {
@@ -678,8 +705,14 @@ watch(zoom, (newZoom) => {
 }
 
 .detailedInformation {
+    font-size: 18px;
+    font-family: monospace;
     display: inline-block;
-    margin: 15px 10px 5px 15px;
+    margin: 8px 5px 8px 18px;
+    padding: 2px 5px 2px 10px;
+    border-left: rgb(94, 150, 200) 4px solid;
+    border-radius: 4px;
+    background-color: rgb(211, 227, 242);
 }
 
 .imformOut {
