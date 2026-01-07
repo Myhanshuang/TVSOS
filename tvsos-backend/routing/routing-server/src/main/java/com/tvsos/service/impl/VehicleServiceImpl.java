@@ -14,14 +14,12 @@ import entity.Vehicle;
 import exception.ServiceException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import vo.VehicleVO;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class VehicleServiceImpl implements VehicleService {
@@ -38,6 +36,8 @@ public class VehicleServiceImpl implements VehicleService {
     private TripTaskAssignMapper tripTaskAssignMapper;
     @Autowired
     private TripUtils tripUtils;
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 筛选/获取车辆列表
@@ -73,10 +73,18 @@ public class VehicleServiceImpl implements VehicleService {
                                 .orElse(null);
                     }
                     String destination = currSegment.getEndLon().toString() + "," + currSegment.getEndLat().toString();
-                    Map<String, Object> planMap = tripUtils.planTrip(origin, destination, null);
+                    // 检查 redis 中是否存在该车的路径信息
+                    Map<String, Object> planMap = (Map<String, Object>) redisTemplate.opsForValue().get("route:vehicleId:" + vehicle.getId());
+                    if(planMap == null || planMap.isEmpty()) {
+                        //缓存不存在 调用 api 查询路径
+                        planMap = tripUtils.planTrip(origin, destination, null);
+                        // 添加缓存
+                        redisTemplate.opsForValue().set("route:vehicleId:" + vehicle.getId(), planMap);
+                    }
                     vehicleVO.setDistance((Double) planMap.get("distance"));
                     vehicleVO.setDuration((Double) planMap.get("duration"));
                     vehicleVO.setPolyline((List<Double[]>) planMap.get("polyline"));
+
                     Double speed = vehicleVO.getDistance() / vehicleVO.getDuration();
                     vehicle.setSpeed(speed);
                     vehicleMapper.update(vehicle);
@@ -221,6 +229,8 @@ public class VehicleServiceImpl implements VehicleService {
         }
 
         // ========== 已到达 segment 终点：做状态流转 ==========
+        // 删除 redis 缓存中的路线信息
+        redisTemplate.delete("route:vehicleId:" + vehicleId);
 
         // 1) 当前 segment 完成
         currentSeg.setStatus(3);
