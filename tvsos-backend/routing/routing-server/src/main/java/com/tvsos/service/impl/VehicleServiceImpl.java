@@ -54,10 +54,7 @@ public class VehicleServiceImpl implements VehicleService {
             VehicleVO vehicleVO = new VehicleVO();
             BeanUtils.copyProperties(vehicle, vehicleVO);
 
-            // Use getByVehicleIdAndStatus to find active trip, or fallback to latest
-            // But for display, usually active is preferred.
-            // If IDLE, we might show nothing or last trip.
-            // Using getByVehicleId (latest) as per previous fix
+            // Fetch active or latest trip
             Trip trip = tripMapper.getByVehicleId(vehicle.getId());
             
             if(trip != null) {
@@ -73,16 +70,40 @@ public class VehicleServiceImpl implements VehicleService {
                              .orElse(null);
 
                      if (currSegment != null) {
-                         vehicleVO.setDistance(currSegment.getDistance());
-                         vehicleVO.setDuration(currSegment.getDuration());
-                         
+                         // 1. Load Route (Polyline)
                          List<Double[]> polyline = routeStorageService.loadRoute(trip.getId(), targetSeq);
                          if (polyline != null) {
                              vehicleVO.setPolyline(polyline);
                          }
+
+                         // 2. Calculate Remaining Distance/Duration
+                         double totalDistance = currSegment.getDistance() != null ? currSegment.getDistance() : 0.0;
+                         double totalDuration = currSegment.getDuration() != null ? currSegment.getDuration() : 0.0;
                          
-                         if (vehicleVO.getDuration() != null && vehicleVO.getDuration() > 0) {
-                             vehicleVO.setSpeed(vehicleVO.getDistance() / vehicleVO.getDuration());
+                         double progress = 0.0;
+                         // Only calculate progress for active moving states
+                         if (vehicle.getStatus() == 2 || vehicle.getStatus() == 4) {
+                             progress = vehicleRouteManager.getProgress(vehicle.getId());
+                         } else if (vehicle.getStatus() == 3 || vehicle.getStatus() == 5) {
+                             // At destination (Loading/Unloading) -> Progress 100% (Remaining 0)
+                             // Or keep it 100% so distance is 0.
+                             progress = 1.0;
+                         } else if (vehicle.getStatus() == 1) {
+                             // IDLE -> if trip finished, 0 remaining? 
+                             // Usually IDLE means no active trip, but we might be showing history.
+                             progress = 1.0; 
+                         }
+                         
+                         double remainingRatio = 1.0 - progress;
+                         // Clamp ratio
+                         remainingRatio = Math.max(0.0, Math.min(1.0, remainingRatio));
+                         
+                         vehicleVO.setDistance(totalDistance * remainingRatio);
+                         vehicleVO.setDuration(totalDuration * remainingRatio);
+                         
+                         // 3. Speed
+                         if (totalDuration > 0) {
+                             vehicleVO.setSpeed(totalDistance / totalDuration);
                          }
                      }
                 }
@@ -204,9 +225,6 @@ public class VehicleServiceImpl implements VehicleService {
 
         int nextState = MarkovStatusUtils.nextState(vehicle.getStatus());
         
-        // Removed Just-In-Time Planning block. 
-        // Route for Seg 2 is assumed to be planned at dispatch.
-
         vehicle.setStatus(nextState);
         vehicle.setUpdateTime(now);
         vehicleMapper.update(vehicle);
