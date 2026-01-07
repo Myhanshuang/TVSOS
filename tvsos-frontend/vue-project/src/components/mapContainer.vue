@@ -577,7 +577,7 @@ watch(zoom, (newZoom) => {
                 <el-button class="imformOut" @click="imform.imformHide">×</el-button>
                 <!-- 根据 currentInfoType 动态渲染详细信息 -->
                 <div v-if="currentInfoType === 'poi' && recentPoi">
-                    <h3>POI 详细信息</h3>
+                    <h3 class="imfromTitle">POI 详细信息</h3>
                     <div class="detailedInformation">编号：{{ recentPoi.id }}</div><br>
                     <div class="detailedInformation">名称：{{ recentPoi.name }}</div><br>
                     <!-- 假设 poiBox.recentPoiKind 和 poiBox.recentPoiStatus 是根据 recentPoi 实时计算或获取的 -->
@@ -585,7 +585,7 @@ watch(zoom, (newZoom) => {
                     <div class="detailedInformation">状态：{{ poiBox.recentPoiStatus }}</div>
                 </div>
                 <div v-else-if="currentInfoType === 'vehicle' && recentVehicle">
-                    <h3>车辆详细信息</h3>
+                    <h3 class="imfromTitle">车辆详细信息</h3>
                     <div class="detailedInformation">ID：{{ recentVehicle.id }}</div><br>
                     <div class="detailedInformation">车牌号：{{ recentVehicle.license }}</div><br>
                     <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div><br>
@@ -640,11 +640,33 @@ watch(zoom, (newZoom) => {
 
 #imfromBox {
     display: inline-block;
-    background-color: aliceblue;
+    background-color: rgb(255, 255, 255);
     height: calc(100% - 20px);
     width: calc(100% - 10px);
     margin: 10px 10px 10px 10px;
     position: relative;
+}
+
+
+
+
+.imfromTitle{
+    font-size: 27px;
+    font-family: "PingFang SC","Microsoft YaHei UI";
+    display: block;
+    position: relative;
+    margin: 15px 10px;
+}
+.imfromTitle::after{
+    content: "";
+    display: inline-block;
+    position: absolute;
+    bottom: -6px;
+    left: 0px;
+    width: calc(100% - 30px);
+    height: 4px;
+    background-color: rgb(94, 150, 200);
+    border-radius: 2px;
 }
 
 .imformHide {
@@ -683,8 +705,14 @@ watch(zoom, (newZoom) => {
 }
 
 .detailedInformation {
+    font-size: 18px;
+    font-family: monospace;
     display: inline-block;
-    margin: 15px 10px 5px 15px;
+    margin: 8px 5px 8px 18px;
+    padding: 2px 5px 2px 10px;
+    border-left: rgb(94, 150, 200) 4px solid;
+    border-radius: 4px;
+    background-color: rgb(211, 227, 242);
 }
 
 .imformOut {
