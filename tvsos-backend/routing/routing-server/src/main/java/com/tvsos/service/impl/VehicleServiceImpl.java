@@ -38,6 +38,10 @@ public class VehicleServiceImpl implements VehicleService {
     private TripTaskAssignMapper tripTaskAssignMapper;
     @Autowired
     private TripUtils tripUtils;
+    @Autowired
+    private com.tvsos.service.RouteStorageService routeStorageService;
+    @Autowired
+    private com.tvsos.manager.VehicleRouteManager vehicleRouteManager;
 
     /**
      * 筛选/获取车辆列表
@@ -54,35 +58,58 @@ public class VehicleServiceImpl implements VehicleService {
 
             Trip trip =  tripMapper.getByVehicleId(vehicle.getId());
 
+            // 移除实时路径规划逻辑，直接返回数据库中的状态
+            // distance 和 duration 应该在任务创建时写入，这里不再动态计算
+            // 前端只接收当前位置，不需要完整 polyline
+            
+            // 为了保持兼容性，如果数据库里有 distance/duration，可以设置进去
+            // 这里假设 Vehicle 实体或者 TripSegment 里有相关信息
             if(trip != null) {
                 List<TripSegment> tripSegmentList = tripSegmentMapper.getByTripId(trip.getId());
                 if(tripSegmentList != null && !tripSegmentList.isEmpty()) {
-                    String origin = vehicle.getLon().toString() + "," + vehicle.getLat().toString();
-                    TripSegment currSegment = null;
-                    if(vehicle.getStatus() == 1 || vehicle.getStatus() == 2) {
-                        currSegment = tripSegmentList.stream()
-                                .filter(s -> s.getSequence() == 1)
-                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
-                                .findFirst()
-                                .orElse(null);
-                    }else {
-                        currSegment = tripSegmentList.stream()
-                                .filter(s -> s.getSequence() == 2)
-                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
-                                .findFirst()
-                                .orElse(null);
-                    }
-                    String destination = currSegment.getEndLon().toString() + "," + currSegment.getEndLat().toString();
-                    Map<String, Object> planMap = tripUtils.planTrip(origin, destination, null);
-                    vehicleVO.setDistance((Double) planMap.get("distance"));
-                    vehicleVO.setDuration((Double) planMap.get("duration"));
-                    vehicleVO.setPolyline((List<Double[]>) planMap.get("polyline"));
-                    Double speed = vehicleVO.getDistance() / vehicleVO.getDuration();
-                    vehicle.setSpeed(speed);
-                    vehicleMapper.update(vehicle);
-                    vehicleVO.setSpeed(speed);
-//                    vehicleVO.setSteps((JSONArray) planMap.get("steps"));
-//                    vehicleVO.setRaw((JSONObject) planMap.get("raw"));
+                     TripSegment currSegment = null;
+                     if(vehicle.getStatus() == 1 || vehicle.getStatus() == 2) { // 状态1应该是空闲，这里可能是之前的逻辑有问题，先保留原判断结构
+                         currSegment = tripSegmentList.stream()
+                                 .filter(s -> s.getSequence() == 1)
+                                 .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                                 .findFirst()
+                                 .orElse(null);
+                     } else {
+                         currSegment = tripSegmentList.stream()
+                                 .filter(s -> s.getSequence() == 2)
+                                 .sorted(Comparator.comparingInt(TripSegment::getSequence))
+                                 .findFirst()
+                                 .orElse(null);
+                     }
+                     if (currSegment != null) {
+                         // 1. 获取基础总数据
+                         double totalDistance = currSegment.getDistance() != null ? currSegment.getDistance() : 0.0;
+                         double totalDuration = currSegment.getDuration() != null ? currSegment.getDuration() : 0.0;
+                         
+                         // 2. 获取实时仿真进度
+                         double progress = 0.0;
+                         // 只有在行驶状态下才去查进度
+                         if (vehicle.getStatus() == 2 || vehicle.getStatus() == 4) {
+                             progress = vehicleRouteManager.getProgress(vehicle.getId());
+                         } else if (vehicle.getStatus() == 3 || vehicle.getStatus() == 5) {
+                             // 装卸货状态，距离视为 0 或保持到达状态
+                             progress = 1.0; 
+                         }
+
+                         // 3. 计算剩余数据
+                         double remainingRatio = 1.0 - progress;
+                         vehicleVO.setDistance(totalDistance * remainingRatio);
+                         vehicleVO.setDuration(totalDuration * remainingRatio);
+                         
+                         // 4. 设置速度 (km/h)
+                         // 如果总时间有效，用 总距离/总时间 计算平均速度
+                         // 或者直接给一个固定值 (例如 60km/h)，因为仿真速度是倍率控制的
+                         if (totalDuration > 0) {
+                             vehicleVO.setSpeed(totalDistance / totalDuration);
+                         } else {
+                             vehicleVO.setSpeed(0.0);
+                         }
+                     }
                 }
             }
             vehicleVOList.add(vehicleVO);
@@ -170,7 +197,7 @@ public class VehicleServiceImpl implements VehicleService {
         Integer status = vehicleMapper.getById(vehicleId).getStatus();
         // 装货逻辑
         if(status == 3){
-            vehicle.setStatus(MarkovStatusUtils.nextState(status));
+            vehicle.setStatus(MarkovStatusUtils.nextState(status)); // 变为 4 (运货行驶)
             TripSegment nextSeg = segments.stream()
                     .filter(s -> s.getStatus() == 1)
                     .sorted(Comparator.comparingInt(TripSegment::getSequence))
@@ -183,6 +210,12 @@ public class VehicleServiceImpl implements VehicleService {
             nextSeg.setStatus(2);
             vehicleMapper.update(vehicle);
             tripSegmentMapper.update(nextSeg);
+
+            // [New] 加载运货段(Segment 2)的路径并开始模拟
+            List<Double[]> points = routeStorageService.loadRoute(trip.getId(), 2);
+            if (points != null && !points.isEmpty()) {
+                vehicleRouteManager.startRoute(vehicle.getId(), points);
+            }
             return;
         }
         //卸货逻辑
@@ -207,18 +240,18 @@ public class VehicleServiceImpl implements VehicleService {
         }
 
         // ========== 关键逻辑：是否到达 segment 终点？ ==========
-        LocalDateTime segBegin = getSegmentBeginTime(trip, currentSeg, segments);
-        LocalDateTime shouldArriveTime =
-                segBegin.plusSeconds((long) (currentSeg.getDuration() * 3600));
+        // [New] 移除基于时间的判断逻辑。
+        // 现在由 SimulationTask 驱动，当调用 updateVehicle 时，意味着车辆已经由仿真引擎驱动到了终点。
+        // 为了防止误调用，这里可以加一个简单的距离判断，或者直接信任调用者。
+        // 考虑到兼容性，如果此时距离终点还很远，可能是异常调用？
+        // 暂且直接信任 SimulationTask 的判断。
 
+        // LocalDateTime segBegin = getSegmentBeginTime(trip, currentSeg, segments);
+        // LocalDateTime shouldArriveTime = segBegin.plusSeconds((long) (currentSeg.getDuration() * 3600));
+        // LocalDateTime now = LocalDateTime.now();
+        // if (now.isBefore(shouldArriveTime)) { ... }
+        
         LocalDateTime now = LocalDateTime.now();
-
-        if (now.isBefore(shouldArriveTime)) {
-            // ---- 未到时间：只更新 update_time ----
-            vehicle.setUpdateTime(now);
-            vehicleMapper.update(vehicle);
-            return;
-        }
 
         // ========== 已到达 segment 终点：做状态流转 ==========
 

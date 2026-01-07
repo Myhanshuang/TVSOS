@@ -39,6 +39,10 @@ public class TaskServiceImpl implements TaskService {
     private TripSegmentMapper tripSegmentMapper;
     @Autowired
     private TripUtils tripUtils;
+    @Autowired
+    private com.tvsos.service.RouteStorageService routeStorageService;
+    @Autowired
+    private com.tvsos.manager.VehicleRouteManager vehicleRouteManager;
 
     /**
      * 获取待分配的任务 前 taskBatchSize 个
@@ -298,6 +302,13 @@ public class TaskServiceImpl implements TaskService {
         seg1.setDuration(deadheadDuration);
         tripSegmentMapper.insert(seg1);
 
+        // [New] 保存第一段路径并开始模拟
+        List<Double[]> polyline1 = (List<Double[]>) routeToPickup.get("polyline");
+        if (polyline1 != null && !polyline1.isEmpty()) {
+            routeStorageService.saveRoute(tripId, 1, polyline1);
+            vehicleRouteManager.startRoute(vehicle.getId(), polyline1);
+        }
+
         // --- 第二段：运货 B->C ---
         double deliverDist = getRouteDistance(routeDeliver);
         double deliverDuration = getRouteDuration(routeDeliver);
@@ -312,6 +323,12 @@ public class TaskServiceImpl implements TaskService {
         seg2.setStatus(2);
         seg2.setDuration(deliverDuration);
         tripSegmentMapper.insert(seg2);
+        
+        // [New] 保存第二段路径 (暂不开始模拟)
+        List<Double[]> polyline2 = (List<Double[]>) routeDeliver.get("polyline");
+        if (polyline2 != null && !polyline2.isEmpty()) {
+            routeStorageService.saveRoute(tripId, 2, polyline2);
+        }
     }
 
     /** 高德路线的 steps 里距离相加（单位 km） */

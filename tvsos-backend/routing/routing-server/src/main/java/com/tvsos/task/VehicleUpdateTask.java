@@ -25,18 +25,19 @@ public class VehicleUpdateTask {
         // 1. 查最旧的 20 台车辆
         List<Vehicle> vehicles = vehicleService.getPendingVehicles(VehicleConstant.VEHICLE_BATCH_SIZE);
         if (vehicles.isEmpty()) {
-            log.info("无车辆存在！");
-            return;
+            return; // 日志太吵，去掉了
         }
-
 
         for (Vehicle v : vehicles) {
-            log.info("更新车辆状态: 车辆id-{}", v.getId());
+            // [Fix] 关键修改：如果是行驶状态 (2=接单行驶, 4=运货行驶)，跳过！
+            // 它们的流转由 SimulationTask (仿真引擎) 负责，这里只负责静止状态的时间流转 (如 3=装货, 5=卸货)
+            if (v.getStatus() == 2 || v.getStatus() == 4) {
+                continue;
+            }
+            
+            log.info("更新车辆状态(静止/作业中): 车辆id-{}", v.getId());
             vehicleService.updateVehicle(v);
         }
-
-        log.info("本次车辆状态更新完成，总处理车辆数: {}", vehicles.size());
-
     }
 
 }

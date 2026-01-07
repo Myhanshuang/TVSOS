@@ -14,7 +14,16 @@
                 speed = #{speed},
             </if>
             <if test="updateTime != null">
-                update_time = #{updateTime}
+                update_time = #{updateTime},
+            </if>
+            <if test="lon != null">
+                lon = #{lon},
+            </if>
+            <if test="lat != null">
+                lat = #{lat},
+            </if>
+            <if test="angle != null">
+                angle = #{angle},
             </if>
         </set>
         where id = #{id}

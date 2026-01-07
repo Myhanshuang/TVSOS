@@ -1,0 +1,1244 @@
+commit 490a242df0df40e1c8a34a84aedadfb19b3c59d8
+Merge: 27d78ad ed86faf
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Dec 15 22:09:43 2025 +0800
+
+    Merge pull request #83 from Myhanshuang/feature/kirito
+    
+    车辆速度处理
+
+commit ed86faff27a844b6063aec2fa110b4d1b74a1a4b
+Author: kirito <3322640054@qq.com>
+Date:   Mon Dec 15 22:07:22 2025 +0800
+
+    车辆速度处理
+
+commit 27d78ade48ed1a64dcde77ad1817395ae8e7e8d7
+Merge: 3c79489 24afc3a
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Dec 15 18:21:51 2025 +0800
+
+    Merge pull request #82 from Myhanshuang/feature/kirito
+    
+    Feature/kirito
+
+commit 24afc3a47dd2d45650729cc3aedb68a4a82058f1
+Author: kirito <3322640054@qq.com>
+Date:   Mon Dec 15 18:19:59 2025 +0800
+
+    更新一下数据库sql文件
+
+commit a2953654ffd929006756ff756426d8689ed4aaea
+Author: kirito <3322640054@qq.com>
+Date:   Mon Dec 15 18:16:21 2025 +0800
+
+    后端代码和接口文档 应该是写完了 但暗病可能不少 或许需要仔细review或测试一下 当然如果秉持能跑就行的原则那就这样吧TvT
+
+commit 3c79489c0f9dc5698f84438ae0647d72bce4575f
+Merge: 866d1a9 056c459
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Nov 25 18:36:48 2025 +0800
+
+    Merge pull request #81 from Myhanshuang/backend/kirito
+    
+    引入markov状态转换 目前还有卸货 / 装货逻辑暂时还没写完
+
+commit 056c4594ed791db3e61f35ef202700e4cfd8783a
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 25 18:34:06 2025 +0800
+
+    引入markov状态转换 目前还有卸货 / 装货逻辑暂时还没写完
+
+commit 866d1a90b6eb402a3af87f8081b353168f7433c5
+Merge: bdb349b b129e0f
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Nov 25 10:22:38 2025 +0800
+
+    Merge pull request #80 from Myhanshuang/rebuild
+    
+    调用高德API计算距离 筛选符合条件的车辆 / 司机进行任务分配 路线插入和细分路径段插入
+
+commit b129e0f09dc4d8e7b92fa1e65c7c93f8da9ad261
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 25 10:21:16 2025 +0800
+
+    调用高德API计算距离 筛选符合条件的车辆 / 司机进行任务分配 路线插入和细分路径段插入
+
+commit bdb349b5d0a211e381a1de838aa6b939772f0d34
+Merge: 6c3534a 7378533
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Nov 24 21:14:54 2025 +0800
+
+    Merge pull request #79 from Myhanshuang/feature/frontend-Atom112
+    
+    修复了前端渲染的poi点与后端tybe字段不一致的问题（暴力映射）
+
+commit 7378533d16e65ed8b92bf243a6e3f7456d547a02
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Nov 24 21:13:40 2025 +0800
+
+    修复了前端渲染的poi点与后端tybe字段不一致的问题（暴力映射）
+
+commit 6c3534ab798b63001869e12487c56c00f5cd69d1
+Merge: 1c81cfd 1a1d261
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Wed Nov 19 12:00:17 2025 +0800
+
+    Merge pull request #78 from Myhanshuang/feature/frontend-Atom112
+    
+    实现了小车列表的分类查询，按车牌号查询，修复了因后端数据库字段变化导致渲染出的poi点全为加油站的问题
+
+commit 1a1d2610855a6f5cbc2849ae06e56cca205bb2d7
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Wed Nov 19 11:58:39 2025 +0800
+
+    实现了小车列表的分类查询，按车牌号查询，修改了因后端字段变化导致poi点全为加油站的问题
+
+commit 1c81cfd55926a2cde63c0238d5d4aceeef1304e8
+Merge: 127d6bc a337bab
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Nov 18 11:52:27 2025 +0800
+
+    Merge pull request #77 from Myhanshuang/rebuild
+    
+    这个是最新的分支 接下来要做的就是调用高德地图的API进行路线规划了 我在代码块里写了TODO 在后面补充逻辑即可
+
+commit a337bab573412937c545c46139a9c34e0207fb5c
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 18 11:51:27 2025 +0800
+
+    这个是最新的分支 接下来要做的就是调用高德地图的API进行路线规划了 我在代码块里写了TODO 在后面补充逻辑即可
+
+commit 127d6bcc5380bde0cadfdcdc0e0977da058819f0
+Merge: 4a2cce0 c78960a
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Nov 18 11:45:39 2025 +0800
+
+    Merge pull request #76 from Myhanshuang/rebuild
+    
+    后端改了数据库很多字段 完善了订单拆分逻辑
+
+commit c78960a60ccabed810a55052541722fab4b858d4
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 18 11:43:19 2025 +0800
+
+    刚才提交漏了 拉这个！！！
+
+commit 06f75f1cef4b9633939456021d7757fa6e994b36
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 18 11:40:25 2025 +0800
+
+    重构数据库 变动很大 请务必重新执行routing-11-18.sql的脚本 完整迁移了之前的所有功能 目前可以接受前端请求 mock用户订单 插入覆盖数据库完整字段 设置定时任务 将用户订单按照添加顺序 拆分成小任务 后续TODO: 调用高德地图的API 为任务规划路线 分配给车辆 并且新增了swagger 自动生成接口文档 后续开发不需要在apifox手写文档和模型 后端服务启动后 swagger接口测试界面：http://localhost:8080/swagger-ui/index.html swagger json 文档界面：http://localhost:8080/v3/api-docs 可以导入 apifox / postman 使用
+
+commit 4a2cce024483b83ec4a6f5dc5a58273f472d88d1
+Merge: f0cc950 a556767
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 18 09:40:47 2025 +0800
+
+    Merge pull request #75 from Myhanshuang/feature/frontend-hua
+    
+    poiList修正
+
+commit a55676704a39dc3e702dbeee85bfc9c7cca6ad5c
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 18 09:40:01 2025 +0800
+
+    poiList修正
+
+commit f0cc95035b36621993d97531aa0e897b6e9492ef
+Merge: 5bc97c9 a37c91a
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 18 09:24:47 2025 +0800
+
+    Merge pull request #74 from Myhanshuang/feature/frontend-hua
+    
+    poiList点击函数完善
+
+commit a37c91ade4c9618d4e168618819dd186d963142c
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 18 09:13:53 2025 +0800
+
+    poiList点击函数完善
+
+commit 5bc97c969d1e64efd04b882e2f74b824daaaad4a
+Merge: 4cdeefe 46df4ea
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Nov 18 08:56:11 2025 +0800
+
+    Merge pull request #73 from Myhanshuang/feature/frontend-Atom112
+    
+    实现车辆后端轮询
+
+commit 46df4ead6a23fe4b12bdf3555b5327f321ae3e4b
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Nov 18 08:55:22 2025 +0800
+
+    实现车辆后端轮询
+
+commit 1d020ea9ead9e2cec174aaa3b7f124d3adc19a4e
+Author: kirito <3322640054@qq.com>
+Date:   Tue Nov 18 01:21:04 2025 +0800
+
+    重构
+
+commit 4cdeefe439995978b0100b57ac082ce5dd9786c2
+Merge: 2c707f1 f7224c9
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Nov 17 20:55:39 2025 +0800
+
+    Merge pull request #72 from Myhanshuang/feature/kirito
+    
+    再改一点 v2sql
+
+commit f7224c908002217c2484796c1e3dca17bf9a9857
+Author: kirito <3322640054@qq.com>
+Date:   Mon Nov 17 20:54:47 2025 +0800
+
+    再改一点 v2sql
+
+commit 2c707f14a75d1e94784265f6823e50c39edad44e
+Merge: 8c5bb40 e59257a
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Nov 17 19:58:27 2025 +0800
+
+    Merge pull request #71 from Myhanshuang/feature/kirito
+    
+    忘记写请求路径了 补一下
+
+commit e59257aa781110122b541644aaf65bc329e01686
+Author: kirito <3322640054@qq.com>
+Date:   Mon Nov 17 19:57:46 2025 +0800
+
+    忘记写请求路径了 补一下
+
+commit 8c5bb4015ee6c9bd43aa67fbcbeb20d62bc92e95
+Merge: 8f3f436 4b4b338
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Nov 17 19:44:23 2025 +0800
+
+    Merge pull request #70 from Myhanshuang/feature/kirito
+    
+    新增了两个接口 根据id查询poi和vehicle 修改字段tybe -> type 运行前需要用routing-11-17.sql 重新…
+
+commit 4b4b3387350db62a66acf9231e3d28d6ec4485c3
+Author: kirito <3322640054@qq.com>
+Date:   Mon Nov 17 19:33:29 2025 +0800
+
+    新增了两个接口 根据id查询poi和vehicle 修改字段tybe -> type 运行前需要用routing-11-17.sql 重新更新一下数据库
+
+commit 8f3f43610730f414aeaf05c207e5697a24234aee
+Merge: 5bacfd5 49089af
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Fri Nov 14 17:45:05 2025 +0800
+
+    Merge pull request #69 from Myhanshuang/feature/frontend-Atom112
+    
+    实现动画启停，小车点击事件，新增请求小车详细信息api
+
+commit 49089af209002605f3c67d47d4b15ffa17c23225
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Fri Nov 14 17:44:09 2025 +0800
+
+    实现动画启停，小车点击事件
+    
+    动画启停按钮集成在导航栏里，为小车增加点击事件，可查看小车详细信息，修改了详细信息栏的部分行为（在点击地图的空白部分时隐藏），新增api请求小车详细信息，后续会实现与后端对接
+
+commit 5bacfd53345dafbc81409f818924bcc2e232be57
+Merge: 1c5fa6d f67883e
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Wed Nov 12 20:08:03 2025 +0800
+
+    Merge pull request #68 from Myhanshuang/feature/frontend-Atom112
+    
+    实现轮询+小车动画模拟（还未添加点击事件）
+
+commit f67883edfefa3e7a98ca12bdf833f1ff9b9bc106
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Wed Nov 12 20:06:37 2025 +0800
+
+    添加小车路径动画渲染（暂时为添加点击事件）
+
+commit 1c5fa6dca5ac2f10e0c4dd2a37bb492289ea0ed6
+Merge: 534ab9b 60e1598
+Author: kiritosuki <3322640054@qq.com>
+Date:   Wed Nov 12 15:46:51 2025 +0800
+
+    Merge pull request #67 from Myhanshuang/feature/backend-Myhanshuang
+    
+    完成了随机任务的生成，对随机任务的一个简要的任务拆分，对任务的一个简要的分配逻辑。数据库中有相关数据。
+
+commit 60e1598285edaf75fcee37f1ad7e6077302fa001
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Nov 11 18:10:08 2025 +0800
+
+    update the sql
+
+commit 4ce6aca564afa0a713915b2886dd5898b6fd9f0d
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Nov 11 18:03:30 2025 +0800
+
+    修复了一辆车两个司机时的查询bug
+
+commit ecb16d3e131228e6f84697999b0eec66bc2f828c
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Nov 11 16:58:49 2025 +0800
+
+    完成了随机任务的生成，对随机任务的一个简要的任务拆分，对任务的一个简要的分配逻辑。系统能正常运行。具体可见代码注释。
+
+commit 534ab9b7bfe5a47c62209ed2ce65ae8b42ea0bd4
+Merge: 932e6da 2ba9163
+Author: momohutao <3947356492@qq.com>
+Date:   Mon Nov 10 17:44:10 2025 +0800
+
+    Merge pull request #65 from Myhanshuang/feature/frontend-poi点击定位
+    
+    poi点击定位
+
+commit 2ba916367c5fd90fb70ac1247f4925a55e480aaa
+Author: hutao <3947356492@qq.com>
+Date:   Mon Nov 10 17:41:12 2025 +0800
+
+    poi点击定位
+
+commit 932e6dac360e03da4aaa1e52aa18a5e44a2601fe
+Merge: 6fccac3 b5920d1
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 4 09:30:23 2025 +0800
+
+    Merge pull request #63 from Myhanshuang/feature/frontend-hua
+    
+    poi详细显示动画
+
+commit b5920d1a7da291df33baa9e7fdeed5996b408d18
+Author: hua <1994868045@qq.com>
+Date:   Tue Nov 4 09:28:39 2025 +0800
+
+    poi详细显示动画
+
+commit 6fccac366d77f4536181185d566fd9e0acab8342
+Merge: 0825b44 360a757
+Author: kiritosuki <3322640054@qq.com>
+Date:   Mon Nov 3 11:58:21 2025 +0800
+
+    Merge pull request #62 from Myhanshuang/feature/backend-kirito
+    
+    获取车辆列表/健壮之前代码
+
+commit 360a75779ef26caa2598232d1c3fad4c057c6f5e
+Author: kirito <3322640054@qq.com>
+Date:   Mon Nov 3 11:55:31 2025 +0800
+
+    获取车辆列表/健壮之前代码
+
+commit 0825b4476d0c44762306a5fdd39198b0240b418a
+Merge: f028b63 1500648
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 28 09:59:14 2025 +0800
+
+    Merge pull request #61 from Myhanshuang/feature/frontend-hua
+    
+    poi点webGL渲染方式
+
+commit 1500648d1eac64a0586c62bc5201093d96c6fc46
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 28 09:56:52 2025 +0800
+
+    poi点webGL渲染方式
+
+commit f028b63d3e172dc95799a8279985faa3c693a5f6
+Merge: 21caeaa f7faaec
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 28 08:58:28 2025 +0800
+
+    Merge pull request #60 from Myhanshuang/feature/frontend-hua
+    
+    store修复
+
+commit f7faaecd14fb80af8cc778e0fb4782947c3741de
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 28 08:56:26 2025 +0800
+
+    store修复
+
+commit 21caeaab103a037b419e5e4a511c68ee42a829eb
+Merge: 4130e54 f21edd6
+Author: momohutao <3947356492@qq.com>
+Date:   Mon Oct 27 17:51:42 2025 +0800
+
+    Merge pull request #59 from Myhanshuang/feature/frontend-poilist
+    
+    添加poi列表
+
+commit f21edd603268789febe73a68b3bf089c7f822a99
+Merge: 83e4352 4130e54
+Author: momohutao <3947356492@qq.com>
+Date:   Mon Oct 27 17:51:31 2025 +0800
+
+    Merge branch 'develop' into feature/frontend-poilist
+
+commit 83e4352866a0795d45287990669dd081334a3c40
+Author: hutao <3947356492@qq.com>
+Date:   Mon Oct 27 17:48:09 2025 +0800
+
+    添加poi列表
+
+commit 4130e54c3f809b2080f8c8de2d7e183ff21c2ac4
+Merge: 3cde42f 5d10871
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Oct 27 17:31:56 2025 +0800
+
+    Merge pull request #58 from Myhanshuang/feature/backend-Atom112
+    
+    修改回新的poi数据
+
+commit 5d10871dfbf2cc0cc638920507ec67423a2a3239
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Oct 27 17:28:33 2025 +0800
+
+    修改回新的poi数据
+
+commit 3cde42f85d552e937b47f32c93151fd8aaa6549c
+Merge: 1e12099 f472f99
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Tue Oct 21 19:40:05 2025 +0800
+
+    Merge pull request #57 from Myhanshuang/feature/backend-KearHarry
+    
+    Feature/backend kear harry
+
+commit f472f99d8026b9e5d5fbb6f7a7f6248966395f87
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Tue Oct 21 19:38:23 2025 +0800
+
+    更新了py脚本的category_id
+
+commit cef27a01a03314a8c04a6741e16a053b8cf51d75
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Tue Oct 21 17:01:06 2025 +0800
+
+    更新了数据库建表语句
+
+commit 1e12099dec81115500c1f1fe142a5beb30ae21d1
+Merge: 03f43db 764d18a
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Oct 21 09:12:11 2025 +0800
+
+    Merge pull request #56 from Myhanshuang/feature/backend-kirito
+    
+    马尔可夫链工具类封装
+
+commit 764d18adbd405e0730a32b9ab39c4ce444dd11db
+Author: kirito <3322640054@qq.com>
+Date:   Tue Oct 21 09:11:03 2025 +0800
+
+    马尔可夫链工具类封装
+
+commit 03f43dbab8b8666b15d642c7d4e66a6c793cbb54
+Merge: 3f2c151 67b8fed
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Oct 20 19:39:42 2025 +0800
+
+    Merge pull request #55 from Myhanshuang/feature/backend-Atom112
+    
+    货车状态马尔科夫链设计及示例类实现
+
+commit 67b8fedfd74c5d519f37e3e1442816f2250ece84
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Oct 20 18:00:14 2025 +0800
+
+    货车状态马尔科夫链设计及示例类实现
+
+commit 3f2c1519daf2564d74ee3187a623bf07b7cee6d1
+Merge: dc91c9c 2695a24
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:32:13 2025 +0800
+
+    Merge pull request #54 from Myhanshuang/feature/frontend-Atom112
+    
+    网页.ico以及标题
+
+commit 2695a248bfef9c3b8ea4ad0531dbb1c4cb5bd9c7
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:31:08 2025 +0800
+
+    网页.ico以及标题
+
+commit dc91c9c3bc121ff9448acd4023cf2ac047dd216f
+Merge: 2ac945c 8157bc7
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:20:49 2025 +0800
+
+    Merge pull request #53 from Myhanshuang/feature/frontend-Atom112
+    
+    将.png图标更改为.webp图标以减少资源消耗
+
+commit 8157bc7cfbe781e53b6cb36370051fe1e0cebf78
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:19:18 2025 +0800
+
+    将.png图标更改为.webp图标以减少资源消耗
+
+commit 2ac945c954535fe3b12c41589a75ce9c58107538
+Merge: a879a4c 614ac0d
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:07:49 2025 +0800
+
+    Merge pull request #52 from Myhanshuang/feature/poi
+    
+    新的poi点集
+
+commit 614ac0d7b0d5e8b9f720cc1514c474c50bf7b915
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Oct 14 15:06:38 2025 +0800
+
+    新的poi点集
+
+commit a879a4c5765ec26d2be1a4255d40c8b38f7a4aae
+Merge: f99dbf4 73e30d8
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 14 09:45:08 2025 +0800
+
+    Merge pull request #48 from Myhanshuang/feature/frontend-hua
+    
+    poi点击事件
+
+commit 73e30d88102c8722f23e3bbb625f0a881c5772be
+Author: hua <1994868045@qq.com>
+Date:   Tue Oct 14 09:42:54 2025 +0800
+
+    poi点击事件
+
+commit f99dbf4b711cc18a9f36b49a7d36e6f875d2da2c
+Merge: 85e6ff1 dcb4550
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 17:07:40 2025 +0800
+
+    Merge pull request #47 from Myhanshuang/feature/frontend-hua
+    
+    wave修改
+
+commit dcb4550ad5241e3d7383255c28e419e42de89b43
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 16:36:28 2025 +0800
+
+    wave修改
+
+commit 85e6ff1232773498e8a434dd1d3d8853953e77c9
+Merge: 245e003 f5780ae
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 13:12:23 2025 +0800
+
+    Merge pull request #46 from Myhanshuang/feature/frontend-hua
+    
+    url修改
+
+commit f5780ae9e02fabb29d5669a47d2e7c48a75b8a1b
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 13:09:23 2025 +0800
+
+    url修改
+
+commit 245e00350e213c82c0e76b73f73e64c600a44c2d
+Merge: 27199a1 5be3c09
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 11:42:36 2025 +0800
+
+    Merge pull request #44 from Myhanshuang/feature/frontend-hua
+    
+    frontend-git-ignore文件更新
+
+commit 5be3c098d1d85df0ba0d584c5c2605709b5d29e3
+Author: hua <1994868045@qq.com>
+Date:   Mon Oct 13 11:40:20 2025 +0800
+
+    frontend-git-ignore文件更新
+
+commit 27199a1c1f0bac2a3fa6dedda2e116b5c4a90c75
+Merge: b0c7b73 07437f8
+Author: momohutao <3947356492@qq.com>
+Date:   Mon Oct 13 10:58:12 2025 +0800
+
+    Merge pull request #43 from Myhanshuang/feature/frontend-poi
+    
+    前端poi展示
+
+commit 07437f86702fa86b5ccf60b7ec53a36c69a52514
+Author: hutao <3947356492@qq.com>
+Date:   Mon Oct 13 10:54:21 2025 +0800
+
+    前端poi展示
+
+commit b0c7b730eef20e8773e4de15a361f014665c5f2e
+Merge: 9ae3d8b 237072d
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Tue Sep 30 09:15:45 2025 +0800
+
+    Merge pull request #42 from Myhanshuang/KearHarry
+    
+    python脚本数据库数据导入
+
+commit 237072d375e5eddd5d73757356f0fe92846400a5
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Tue Sep 30 09:03:42 2025 +0800
+
+    windows系统打包py脚本
+
+commit 9ae3d8bb7a2e88d45c738a402ba33933aae54eb4
+Merge: 1bc788f 5447b29
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 19:50:58 2025 +0800
+
+    Merge pull request #41 from Myhanshuang/feature/arm
+    
+    移除了无用的后端示例，x86架构的可执行文件与自动化构建脚本。仅保留源代码，日志文件和arm64的可执行文件
+
+commit 5447b298a38f4e2bb583d565747ad5e3daf66393
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 19:48:35 2025 +0800
+
+    移除了无用的后端示例，x86架构的可执行文件与自动化构建脚本。仅保留源代码，日志文件和arm64的可执行文件
+
+commit 1bc788f004279ed108c3a41b4dd96a39908d53a1
+Merge: 5528f47 26a941b
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 19:41:14 2025 +0800
+
+    Merge pull request #40 from Myhanshuang/feature/arm
+    
+    merge
+
+commit 26a941bf187d46b883e0c2a1302e16a3e7f2c2e1
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 19:39:42 2025 +0800
+
+    更改了接口URL和json格式
+
+commit ee8f47f6f845adf74ee00952b2d6c4b9e984eef7
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Mon Sep 29 17:45:52 2025 +0800
+
+    py finished
+
+commit 5528f47c45c3f3680c7d43eec6e6ce4f475552e1
+Merge: 0002c7b 6137b10
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 17:43:35 2025 +0800
+
+    Merge pull request #39 from Myhanshuang/feature/frontend-Atom112
+    
+    更换了网页标题和图标.ico
+
+commit 6137b108e7f913978e9922812f406d42411c69e8
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Mon Sep 29 17:38:57 2025 +0800
+
+    更换了网页标题和图标.ico
+
+commit 459bb185f388ff98e2287c5828879c6ac99ddb65
+Author: Loch <3571937599@qq.com>
+Date:   Mon Sep 29 10:30:25 2025 +0800
+
+    更新.py源文件
+
+commit 0002c7b43f68ea5c9466a92edb23ce75eb4857cc
+Merge: 4d2bf1f b92b115
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Sun Sep 28 19:53:29 2025 +0800
+
+    Merge pull request #38 from Myhanshuang/feature-backend-KearHarry
+    
+    停止跟踪idea
+
+commit b92b11520711231ea7cfa301b2f08bed48ff98dc
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Sun Sep 28 19:52:43 2025 +0800
+
+    停止跟踪idea
+
+commit 4d2bf1f7fba7325afb76614b5c2ff99f59f2f518
+Merge: b0489f9 235c504
+Author: kiritosuki <3322640054@qq.com>
+Date:   Sun Sep 28 09:38:08 2025 +0800
+
+    Merge pull request #37 from Myhanshuang/feature/backend-Myhanshuang
+    
+    Feature/backend myhanshuang
+
+commit 235c5043c90177302edf0a4bf6b0501f45fa8407
+Merge: b99efef 67be3a1
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Sun Sep 28 09:31:59 2025 +0800
+
+    deal with the conflict
+
+commit b0489f9571d1a9d1d1dd20d219df62b06a4559ed
+Merge: 67be3a1 7c4d819
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Sun Sep 28 09:31:11 2025 +0800
+
+    Merge pull request #33 from Myhanshuang/feature/arm
+    
+    Feature/arm
+
+commit 67be3a1ea76c64fec451db339927c6297a9503d7
+Merge: 0abc9bb dbad560
+Author: kiritosuki <3322640054@qq.com>
+Date:   Sun Sep 28 09:23:57 2025 +0800
+
+    Merge pull request #36 from Myhanshuang/feature/backend-kirito
+    
+    添加idea排除项
+
+commit dbad560000df0d44caba7b25e305717c3e6da78c
+Author: kirito <3322640054@qq.com>
+Date:   Sun Sep 28 09:21:33 2025 +0800
+
+    添加idea排除项
+
+commit 0abc9bb719369594b2d100186f2944d287f435dd
+Merge: e2362d3 3a2dc26
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:59:11 2025 +0800
+
+    Merge pull request #32 from Myhanshuang/feature/backend-KearHarry
+    
+    Feature/backend kear harry
+
+commit 3a2dc262b814f39a3df049360b5a1453f561c341
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:58:03 2025 +0800
+
+    Update
+
+commit 2b45ccc8ac2ae363f2e268842765a1c423438dc4
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:56:17 2025 +0800
+
+    修改了一下排除项，把Json文件夹外显
+
+commit e2362d34437b8239144570e6829ee8c9ce034af9
+Merge: eb7b585 92384d3
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:52:17 2025 +0800
+
+    Merge pull request #31 from Myhanshuang/feature/backend-KearHarry
+    
+    Update gitignore
+
+commit 92384d3d79613b0428740c472e60c71ac3d288d2
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:50:46 2025 +0800
+
+    Update gitignore
+    
+    把json写错了，难怪没排除😅
+
+commit eb7b585b9933203806e2e897d47bb35a246999ea
+Merge: 6229042 9eb93f6
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:45:15 2025 +0800
+
+    Merge pull request #30 from Myhanshuang/feature/backend-KearHarry
+    
+    Feature/backend kear harry
+
+commit 9eb93f6ba4012476292d0656cdc38d5329d9872a
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:43:05 2025 +0800
+
+    Update .gitignore
+
+commit a5b386b247180a15e2a87d86fe0effc3943aec2f
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:42:23 2025 +0800
+
+    Reapply "更新脚本工具里的ignore文件"
+    
+    This reverts commit 11bf467871a9885b35a52d1fbd49ab27ec249f99.
+
+commit 11bf467871a9885b35a52d1fbd49ab27ec249f99
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:41:27 2025 +0800
+
+    Revert "更新脚本工具里的ignore文件"
+    
+    This reverts commit 983af68148349cdcdbf906b58ad1ddd18d5a260e.
+
+commit 983af68148349cdcdbf906b58ad1ddd18d5a260e
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Fri Sep 26 13:39:28 2025 +0800
+
+    更新脚本工具里的ignore文件
+    
+    排除的配置项josn文件
+
+commit 62290422cdea96c1d1abf058d56fc382e50c513f
+Merge: 41e57a4 54011c0
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Thu Sep 25 15:54:17 2025 +0800
+
+    Merge pull request #29 from Myhanshuang/feature/backend-KearHarry
+    
+    python数据库更新脚本
+
+commit 54011c01263d6bd46bf3e61c6f9e365f166e8914
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Thu Sep 25 15:52:15 2025 +0800
+
+    python数据库更新脚本
+    
+    具体操作指南请查看该文件下的.md文件
+
+commit 41e57a4fbd3eac6d56ed37575b7298606abf2c6f
+Merge: 21c4a32 6bd6a66
+Author: momohutao <3947356492@qq.com>
+Date:   Wed Sep 24 13:37:07 2025 +0800
+
+    Merge pull request #28 from Myhanshuang/feature/frontend-color
+    
+    前端修改配色
+
+commit 6bd6a6659a6ea09823adbee36d1dc38c491559da
+Merge: 1c16321 21c4a32
+Author: momohutao <3947356492@qq.com>
+Date:   Wed Sep 24 13:36:53 2025 +0800
+
+    Merge branch 'develop' into feature/frontend-color
+
+commit 1c163216f6eb99cc5386dbc90eb79b6df3e6171d
+Author: hutao <3947356492@qq.com>
+Date:   Wed Sep 24 13:15:54 2025 +0800
+
+    前端修改配色
+
+commit 21c4a32420d0c5161308bc27844e18830ad9e67f
+Merge: aad32f6 60e4144
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Tue Sep 23 19:47:49 2025 +0800
+
+    Merge pull request #27 from Myhanshuang/feature/backed-kearharry
+    
+    stop tracking .idea folder
+
+commit 60e4144e52c27a1253a41ea16b0b34a08850fae5
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Tue Sep 23 19:46:34 2025 +0800
+
+    stop tracking .idea folder
+
+commit aad32f656c35cb08b6f9df03a83b2f264ad5bcf2
+Merge: ec44a9f 95f7a07
+Author: Kear <Feixiangwann@gmail.com>
+Date:   Tue Sep 23 19:36:20 2025 +0800
+
+    Merge pull request #26 from Myhanshuang/feature/backend-KearHarry
+    
+    Feature/backend kear harry
+
+commit ec44a9f2d17e9ea49975a567e0779f333c5a0767
+Merge: 0de9657 97a9a9d
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 23 18:10:58 2025 +0800
+
+    Merge pull request #25 from Myhanshuang/feature/frontend-hua
+    
+    美化导航栏
+
+commit 97a9a9d1928292ce3346e5e0484da1c48998f32b
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 23 18:10:04 2025 +0800
+
+    美化导航栏
+
+commit b99efef8330971157606eedbbc98220db916e3aa
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Sep 23 12:04:23 2025 +0800
+
+    just finish the basic logic, WARNING:the format of the data from and to may not correct, especially the source path, o ne gai ning sang
+
+commit 5bfd42ad3d92a87abce977248982016a411f052b
+Merge: 9e4e443 0de9657
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Sep 23 11:18:11 2025 +0800
+
+    correct name
+
+commit 7c4d819d00acfee953a403e169ef7783f2cdfa07
+Author: Loch <42510283+Atom112@users.noreply.github.com>
+Date:   Tue Sep 23 10:05:18 2025 +0800
+
+    添加arm64版本的可执行文件，且删除了监听后端请求的部分，改为直接向后端发送信息
+
+commit 9e4e443b6d53888e5bc7ffe8df064cd5a8d99253
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Sep 23 10:05:17 2025 +0800
+
+    communicate with harware
+
+commit 0de96574f10355de6c4b07f6001be326bda9699a
+Merge: 56e1623 7568a8f
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 23 10:00:45 2025 +0800
+
+    Merge pull request #23 from Myhanshuang/feature/frontend-hua
+    
+    美化失败&跳转动画优化
+
+commit 7568a8f3769dd902d5ed812efe6e994295487369
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 23 09:59:12 2025 +0800
+
+    美化失败&跳转动画优化
+
+commit 56e1623e8dd55545d3bdf830d8f61fa656bb0535
+Merge: 4fa7c1f 3fce317
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Sep 23 09:43:19 2025 +0800
+
+    Merge pull request #22 from Myhanshuang/feature/backend-poilist
+    
+    查询/筛选所有poi
+
+commit 3fce31734d80b5a4c87774b62819a3a30c9a0189
+Author: kirito <3322640054@qq.com>
+Date:   Tue Sep 23 09:42:06 2025 +0800
+
+    查询/筛选所有poi
+
+commit e505aa0dfae8c5f9e854418758fc2a40fd91e618
+Author: Atom112 <3571937599@qq.com>
+Date:   Mon Sep 22 17:45:06 2025 +0800
+
+    添加Linux x86_64 可执行文件
+    
+    后续会补充Linux arm64 可执行文件
+
+commit 95f7a07e440e3ff4cd1abd6d36ed82490bf54f90
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Mon Sep 22 17:35:34 2025 +0800
+
+    idea排除项
+
+commit 0d2a31756f26f24481da3732950c4857a6063b8c
+Author: KearHarry <Feixiangwann@gmail.com>
+Date:   Mon Sep 22 16:49:17 2025 +0800
+
+    添加数据库排除项
+
+commit 4fa7c1f5c68c3d5b65ee61f5bab0bd6d8c0a28a7
+Merge: e633ff6 79ef054
+Author: momohutao <3947356492@qq.com>
+Date:   Thu Sep 18 20:40:27 2025 +0800
+
+    Merge pull request #20 from Myhanshuang/feature/frontend-hutianqi-arrowimage
+    
+    feat: frontend添加向下箭头图片资源
+
+commit 79ef054e1a4b13be30a0082e41b1b62cc6634449
+Author: hutao <3947356492@qq.com>
+Date:   Thu Sep 18 20:30:15 2025 +0800
+
+    feat: frontend添加向下箭头图片资源
+
+commit e633ff604400cdd2067a88c3971f1300db4eccc4
+Merge: e654eb0 5976737
+Author: hua <1994868045@qq.com>
+Date:   Thu Sep 18 19:46:22 2025 +0800
+
+    Merge pull request #19 from Myhanshuang/feature/frontend-hua
+    
+    进度合并&项目结构优化
+
+commit 59767374e9f4597c764b7b4543253c41bc29a789
+Author: hua <1994868045@qq.com>
+Date:   Thu Sep 18 19:44:47 2025 +0800
+
+    进度合并&项目结构优化
+
+commit e654eb0e9a32edfb8f0e5ad9eae6dc8331b32d2d
+Merge: 317c16e 9f55833
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 21:01:01 2025 +0800
+
+    Merge pull request #18 from Myhanshuang/feature/frontend-hua
+    
+    导航栏的监测视口动画
+
+commit 9f55833770987f8795654cdfdec438eb26a40533
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 20:59:12 2025 +0800
+
+    导航栏的监测视口动画
+
+commit 317c16e5567394f7239f4d8bdd0f16601250021d
+Merge: 2fb490e 05e298b
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 20:38:29 2025 +0800
+
+    Merge pull request #17 from Myhanshuang/feature/frontend-hua
+    
+    我的vite.config配置有关@的debug
+
+commit 05e298b4e9370b8cfe6c925749a3ba3b94ab7bec
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 20:36:39 2025 +0800
+
+    我的vite.config配置有关@的debug
+
+commit 2fb490eecb82b07a5693dcdb4c597813df8ce36e
+Merge: bc13a7c f214f3c
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 20:19:06 2025 +0800
+
+    Merge pull request #16 from Myhanshuang/feature/fontend-hua
+    
+    Feature/fontend hua
+
+commit f214f3c2f4a1b7a4f7cf3ed72affa00767513885
+Merge: d6e3dcd bc13a7c
+Author: hua <1994868045@qq.com>
+Date:   Tue Sep 16 20:18:53 2025 +0800
+
+    Merge branch 'develop' into feature/fontend-hua
+
+commit bc13a7c29146326d13b59b80321bed6fa5d81f37
+Merge: f6e7778 59cb1bc
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Sep 16 20:10:35 2025 +0800
+
+    Merge pull request #15 from Myhanshuang/feature/backend-Myhanshuang
+    
+    add basic class for interacte with the database
+
+commit 59cb1bc6d49b7c3540032a52045102da46e38906
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Sep 16 20:07:30 2025 +0800
+
+    Delete tvsos-backend/routing/routing-server/src/main/resources/application-dev.yaml
+
+commit a42a1634078a5cbb7df02b8db7d2e259adbb261e
+Author: Myhanshuang <2774994572@qq.com>
+Date:   Tue Sep 16 09:34:58 2025 +0800
+
+    add basic class for interacte with the database
+
+commit d6e3dcd22b7703d99df667b2b9d2177ce171324e
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Tue Sep 16 09:18:58 2025 +0800
+
+    开发环境请求代理配置
+
+commit f6e777899454048013ac452d8558e7208bf0af49
+Merge: bd27c50 ff24670
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Sep 16 08:49:43 2025 +0800
+
+    Merge pull request #14 from Myhanshuang/feature/backend-kirito
+    
+    entity类示例
+
+commit ff24670dee9d7ceea0969c071a39b7890b13c9c4
+Author: kirito <3322640054@qq.com>
+Date:   Tue Sep 16 08:48:11 2025 +0800
+
+    entity类示例
+
+commit bd27c50afdc6d97940ce5ef2a3213af8c05cc903
+Merge: 7770db1 593f961
+Author: kiritosuki <3322640054@qq.com>
+Date:   Tue Sep 16 08:43:52 2025 +0800
+
+    Merge pull request #12 from Myhanshuang/feature/backend/kirito
+    
+    sql脚本
+
+commit 158f3e1f7e8ef935d60e830c4d35cdbd14954774
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Tue Sep 16 08:36:40 2025 +0800
+
+    页面翻动函数优化
+
+commit 593f961c0143cab7966cb87d576be87a278c0f62
+Author: kirito <3322640054@qq.com>
+Date:   Mon Sep 15 17:56:16 2025 +0800
+
+    sql脚本
+
+commit e1f475ada980dc9baef803cc8800945e33997536
+Merge: 3817e5d deed9a2
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Mon Sep 15 17:51:19 2025 +0800
+
+    `Merge branch 'develop' into feature/fontend-hua
+
+commit 7770db1a2bd245a6fa7fd0a9f1cc6fb8dad7d99d
+Merge: 19d2d35 3817e5d
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 15 17:41:11 2025 +0800
+
+    Merge pull request #11 from Myhanshuang/feature/fontend-hua
+    
+    地图最大化布局&检测器淡入动画
+
+commit 19d2d35bdf52b4a5540f91cbd0451cf0ef45d3b4
+Merge: deed9a2 1547b11
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 15 17:39:20 2025 +0800
+
+    Merge pull request #9 from Myhanshuang/feature/arm
+    
+    Feature/arm
+
+commit 3817e5dd26910640ea3532478656a9a93cae4201
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Mon Sep 15 17:38:28 2025 +0800
+
+    地图最大化布局&检测器淡入动画
+
+commit deed9a25110182b97d932a9cecfcd2232c9aebc6
+Merge: 015d812 751a31d
+Author: hua <1994868045@qq.com>
+Date:   Mon Sep 15 16:43:08 2025 +0800
+
+    Merge pull request #10 from Myhanshuang/feat/login-module
+    
+    Feat/login module from front-end
+
+commit 751a31d0f4bea70cb80c44cbb1d35ae9fc990ea5
+Author: hutao <3947356492@qq.com>
+Date:   Mon Sep 15 14:06:30 2025 +0800
+
+    feat: 添加登录页面、忘记密码功能及状态管理
+
+commit 015d8120714054470f74a3ffc83ac8344d7954e3
+Merge: 8dfe34c 119e5ab
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 15 12:53:19 2025 +0800
+
+    Merge pull request #7 from Myhanshuang/feature/fontend-hua
+    
+    完成页面滑动动画&初步搭建统计页面
+
+commit 119e5ab8ed15f9585f359151dfaf0b8f383ad264
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Sun Sep 14 21:00:27 2025 +0800
+
+    初步搭建小车管理主件&修理小车轮播图无害化
+
+commit 1547b11e9f3565f5d4d6605d4f0933aad41e2890
+Author: Atom112 <3571937599@qq.com>
+Date:   Sat Sep 13 13:00:12 2025 +0800
+
+    完善了Flask的运行方式（Waitress）及运行信息的日志化存储
+
+commit 601dd2806db06258684610049390753cba8d564e
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Fri Sep 12 17:27:08 2025 +0800
+
+    完成页面滑动动画&初步搭建统计页面
+
+commit 8dfe34cc791f3fd256931bf1c8b78556233f0627
+Merge: 30fa85d 00e330d
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Fri Sep 12 00:23:53 2025 +0800
+
+    Merge pull request #6 from Myhanshuang/feature/fontend-hua
+    
+    前端项目初始化和router初始化编写
+
+commit 00e330d53142c2ea6ba85142dc0f81243338cbf5
+Merge: f404de0 30fa85d
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Thu Sep 11 22:41:06 2025 +0800
+
+    Merge branch 'develop' of github.com:Myhanshuang/TVSOS into feature/fontend-hua
+
+commit f404de043ecc7d258548290789adcf4ea5636b26
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Thu Sep 11 22:40:40 2025 +0800
+
+    地图主件&导航栏初始化&小车详细动画测试
+
+commit bb6640cba75c0f4209fc73da277f61e7e8b0add4
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Wed Sep 10 18:58:07 2025 +0800
+
+    前端项目初始化和router初始化编写
+
+commit ddb87cd20ef4b75be0b7401fd16158c0cbf2ef7b
+Author: Atom112 <3571937599@qq.com>
+Date:   Tue Sep 9 17:58:48 2025 +0800
+
+    update arm
+
+commit a21b688900e48dc1081e1e1df2d5bfa9c9d55db7
+Author: Atom112 <3571937599@qq.com>
+Date:   Tue Sep 9 17:50:03 2025 +0800
+
+    添加硬件侧脚本和其对应后端示例
+
+commit 30fa85d3939d62dfd313e3f2c96102958cc14e76
+Merge: 365d77e b9d9c89
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Tue Sep 9 10:02:45 2025 +0800
+
+    Merge pull request #5 from Myhanshuang/feature/frontend-hua
+    
+    Feature/frontend hua
+
+commit b9d9c89fdf18492d2f586298977ecd12736d3cd3
+Author: huaguanzhong <1994868045@qq.com>
+Date:   Tue Sep 9 09:55:13 2025 +0800
+
+    frontend .gitignore file created
+
+commit 365d77e6cba27cfda07a549e1060fdfd03d1d1ab
+Merge: 502717c 319cc6f
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 8 19:41:29 2025 +0800
+
+    Merge pull request #2 from Myhanshuang/feature/backend-kirito
+    
+    添加git使用说明
+
+commit e3fcbc477a390ed04d375f174312e4d219449b52
+Merge: e66eef5 319cc6f
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 8 19:40:47 2025 +0800
+
+    Merge pull request #3 from Myhanshuang/feature/backend-kirito
+    
+    添加git使用说明
+
+commit 319cc6f58ebc8ac73db726f4357983db55801011
+Author: kirito <3322640054@qq.com>
+Date:   Mon Sep 8 19:20:35 2025 +0800
+
+    添加git使用说明
+
+commit e66eef5f42d69845d9b4482a28b403db27d19610
+Merge: 502717c 4ed9958
+Author: Myhanshuang <111032626+Myhanshuang@users.noreply.github.com>
+Date:   Mon Sep 8 17:44:33 2025 +0800
+
+    Merge pull request #1 from Myhanshuang/feature/backend-kirito
+    
+    在后端目录下添加readme文件
+
+commit 4ed9958338372990cb260a4ff21e35cade22e508
+Author: kirito <3322640054@qq.com>
+Date:   Mon Sep 8 17:31:13 2025 +0800
+
+    在后端目录下添加readme文件
+
+commit 502717cc7520ee5a5f62f391920ec579a2edc3a6
+Author: kirito <3322640054@qq.com>
+Date:   Mon Sep 8 16:36:11 2025 +0800
+
+    补充目录
+
+commit f0a5db33285972d5848c525bcaedd3d7e813ed29
+Author: kirito <3322640054@qq.com>
+Date:   Mon Sep 8 16:27:39 2025 +0800
+
+    init project
