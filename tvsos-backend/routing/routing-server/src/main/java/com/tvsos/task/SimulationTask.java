@@ -119,23 +119,55 @@ public class SimulationTask {
         }
 
         if (points != null && !points.isEmpty()) {
+            // [Fix] Snap to closest point instead of starting from 0 to avoid jumping back
+            int startIndex = findClosestPointIndex(points, v.getLon(), v.getLat());
+            
+            // Only use closest point if it's reasonably close (e.g., < 5km? or just trust it?)
+            // If the vehicle is far away, maybe it's better to jump to start? 
+            // But usually "revive" means it stopped moving, so current pos should be on track.
+            
+            // If startIndex is very close to end, it might finish immediately. That's fine.
             vehicleRouteManager.startRoute(v.getId(), points);
-            log.info("Vehicle {} revived successfully (Status={})", v.getId(), v.getStatus());
+            VehicleRouteManager.RouteState state = vehicleRouteManager.getVehicleState(v.getId());
+            if (state != null) {
+                state.setCurrentIndex(startIndex);
+                log.info("Vehicle {} revived at index {}/{}", v.getId(), startIndex, points.size());
+            }
         } else {
             log.error("Vehicle {} revive failed: Could not load or plan route.", v.getId());
         }
     }
 
+    private int findClosestPointIndex(List<Double[]> points, Double vehicleLon, Double vehicleLat) {
+        if (points == null || points.isEmpty()) return 0;
+        if (vehicleLon == null || vehicleLat == null) return 0;
+        
+        int bestIndex = 0;
+        double minDistanceSq = Double.MAX_VALUE;
+        
+        for (int i = 0; i < points.size(); i++) {
+            Double[] p = points.get(i);
+            // Euclidean distance squared
+            double dx = p[0] - vehicleLon;
+            double dy = p[1] - vehicleLat;
+            double distSq = dx*dx + dy*dy;
+            
+            if (distSq < minDistanceSq) {
+                minDistanceSq = distSq;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
     private List<Double[]> replanRouteUsingSegment(Trip trip, int segmentIndex, Vehicle v) {
         try {
-            // Retrieve specific segment
             TripSegment segment = getSegment(trip.getId(), segmentIndex);
             if (segment == null) {
                 log.error("Re-plan failed: Segment {} not found for Trip {}", segmentIndex, trip.getId());
                 return null;
             }
 
-            // Use Segment coordinates which are precise
             String origin = segment.getBeginLon() + "," + segment.getBeginLat();
             String destination = segment.getEndLon() + "," + segment.getEndLat();
             
@@ -145,10 +177,8 @@ public class SimulationTask {
             List<Double[]> polyline = (List<Double[]>) route.get("polyline");
             
             if (polyline != null && !polyline.isEmpty()) {
-                // Save to Redis
                 routeStorageService.saveRoute(trip.getId(), segmentIndex, polyline);
                 
-                // Update segment distance/duration in DB
                 Double dist = (Double) route.get("distance");
                 Double dur = (Double) route.get("duration");
                 if (dist != null) segment.setDistance(dist);
@@ -233,9 +263,6 @@ public class SimulationTask {
         }
     }
 
-    /**
-     * 计算两点间的方位角 (0-360, 正北为0)
-     */
     private double calculateBearing(double lon1, double lat1, double lon2, double lat2) {
         double l1 = Math.toRadians(lon1);
         double l2 = Math.toRadians(lon2);
