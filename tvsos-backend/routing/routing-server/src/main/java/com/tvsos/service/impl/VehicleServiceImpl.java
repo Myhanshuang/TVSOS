@@ -248,30 +248,4 @@ public class VehicleServiceImpl implements VehicleService {
         Integer count = vehicleMapper.countVehicleCategory(categoryId);
         return count;
     }
-
-    // 获取当前 segment 的实际开始时间
-    private LocalDateTime getSegmentBeginTime(Trip trip, TripSegment currentSeg, List<TripSegment> allSegs) {
-        // 第 1 段：使用 trip 的 beginTime 或 createTime
-        if (currentSeg.getSequence() == 1) {
-            LocalDateTime begin = trip.getBeginTime();
-            if (begin == null) begin = trip.getCreateTime();
-            return begin;
-        }
-
-        // 第 2 段：开始时间 = 第 1 段结束时间
-        // 找到 seq = 1 的 segment
-        TripSegment seg1 = allSegs.stream()
-                .filter(s -> s.getSequence() == 1)
-                .findFirst()
-                .orElse(null);
-
-        if (seg1 == null) throw new ServiceException("Segment 数据异常");
-
-        LocalDateTime seg1Begin = trip.getBeginTime();
-        if (seg1Begin == null) seg1Begin = trip.getCreateTime();
-
-        long seg1Seconds = (long) (seg1.getDuration() * 3600);
-
-        return seg1Begin.plusSeconds(seg1Seconds);
-    }
 }
