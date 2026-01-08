@@ -3,9 +3,10 @@ import { onMounted, ref, watch } from 'vue'
 import { getShipmentList } from '@/api/shipment'
 import dayjs from 'dayjs'
 
+const status = ref()
 const numTask = ref()
 const taskData = ref([])
-const status = ref()
+const tableKey = ref(0)
 
 // taskData 的 status 字段映射
 const statusMap = {
@@ -23,16 +24,13 @@ const formatTime = (timeStr) => {
   return dayjs(timeStr).format('YYYY-MM-DD HH:mm:ss')
 }
 
-function reloadShipmentList(){
-  getShipmentList({ num: status.value, status: status.value }).then((res) => {
-    if (res.data?.code === 1 && res.data.data?.length) {
-      taskData.value = res.data?.data
-      console.log("获取任务:", taskData.value.length);
-    } else {
-      console.log("获取任务失败");
-    }
-    });
+async function reloadShipmentList () {
+  const res = await getShipmentList({ num: numTask.value, status: status.value })
+  const list = Array.isArray(res?.data?.data) ? res.data.data : []
+  taskData.value = [...list]
+  tableKey.value++
 }
+
 
 onMounted(() => {
   reloadShipmentList()
@@ -67,7 +65,7 @@ onMounted(() => {
         </el-select>
         <el-button type="primary" @click="reloadShipmentList" class="reloadBox">查询</el-button>
       </div>
-      <el-table :data="taskData" class="elBox" stripe="true" width="100%">
+      <el-table :data="taskData" class="elBox" stripe="true" width="100%" :key="tableKey" row-key="num">
         <el-table-column prop="num" label="订单编号" width="90">
         </el-table-column>
         <el-table-column label="货源地" width="180">
