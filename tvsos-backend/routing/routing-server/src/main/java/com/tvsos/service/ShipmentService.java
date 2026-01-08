@@ -1,5 +1,6 @@
 package com.tvsos.service;
 
+import dto.ShipmentDTO;
 import entity.Shipment;
 
 import java.util.List;
@@ -23,4 +24,10 @@ public interface ShipmentService {
      * @param weightLimit 单个任务货物重量上限
      */
     void splitShipment(Shipment shipment, double weightLimit);
+
+    /**
+     * 查询 / 筛选用户订单
+     * @return
+     */
+    List<Shipment> list(ShipmentDTO shipmentDTO);
 }

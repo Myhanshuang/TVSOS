@@ -32,4 +32,10 @@ public interface VehicleMapper {
 
     @Select("select * from vehicle order by update_time limit #{vehicleBatchSize}")
     List<Vehicle> getPendingVehicles(Integer vehicleBatchSize);
+
+    @Select("select * from vehicle")
+    List<Vehicle> findAll();
+
+    @Select("select count(*) from vehicle where category_id = #{categoryId}")
+    Integer countVehicleCategory(Long categoryId);
 }

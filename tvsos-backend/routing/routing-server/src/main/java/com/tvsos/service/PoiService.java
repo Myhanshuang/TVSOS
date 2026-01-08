@@ -19,4 +19,17 @@ public interface PoiService {
      * @return
      */
     Poi getById(Long id);
+
+    /**
+     * 查询所有poi
+     * @return
+     */
+    List<Poi> findAll();
+
+    /**
+     * 查询种类 为 tybe 的poi数量
+     * @param tybe
+     * @return
+     */
+    Integer countTybe(Integer tybe);
 }
