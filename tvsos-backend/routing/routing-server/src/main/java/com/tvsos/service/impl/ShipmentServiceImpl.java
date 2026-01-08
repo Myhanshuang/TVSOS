@@ -6,6 +6,7 @@ import com.tvsos.mapper.ShipmentMapper;
 import com.tvsos.mapper.TaskMapper;
 import com.tvsos.service.ShipmentService;
 import com.tvsos.utils.MockLocationUtils;
+import dto.ShipmentDTO;
 import entity.Cargo;
 import entity.Shipment;
 import entity.ShipmentCargo;
@@ -194,6 +195,16 @@ public class ShipmentServiceImpl implements ShipmentService {
         shipment.setStatus(2);
         shipmentMapper.update(shipment);
 
+    }
+
+    /**
+     * 查询 / 筛选用户订单
+     * @return
+     */
+    @Override
+    public List<Shipment> list(ShipmentDTO shipmentDTO) {
+        List<Shipment> shipmentList = shipmentMapper.list(shipmentDTO);
+        return shipmentList;
     }
 }
 

@@ -135,6 +135,8 @@ public class VehicleServiceImpl implements VehicleService {
             // 没任务，车辆空闲，只更新更新时间
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
@@ -144,6 +146,8 @@ public class VehicleServiceImpl implements VehicleService {
             // 不合法数据，只更新时间
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
@@ -172,6 +176,8 @@ public class VehicleServiceImpl implements VehicleService {
             vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
@@ -191,6 +197,8 @@ public class VehicleServiceImpl implements VehicleService {
             nextSeg.setStatus(2);
             vehicleMapper.update(vehicle);
             tripSegmentMapper.update(nextSeg);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
         //卸货逻辑
@@ -211,6 +219,8 @@ public class VehicleServiceImpl implements VehicleService {
 
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
@@ -267,6 +277,27 @@ public class VehicleServiceImpl implements VehicleService {
         vehicle.setUpdateTime(now);
 
         vehicleMapper.update(vehicle);
+    }
+
+    /**
+     * 查询所有车辆
+     * @return
+     */
+    @Override
+    public List<Vehicle> findAll() {
+        List<Vehicle> vehicleList = vehicleMapper.findAll();
+        return vehicleList;
+    }
+
+    /**
+     * 查找该 categoryId 有多少辆车
+     * @param categoryId
+     * @return
+     */
+    @Override
+    public Integer countVehicleCategory(Long categoryId) {
+        Integer count = vehicleMapper.countVehicleCategory(categoryId);
+        return count;
     }
 
     // 获取当前 segment 的实际开始时间

@@ -11,4 +11,16 @@
         </set>
         where id = #{id}
     </update>
+
+    <select id="list" resultType="entity.Shipment">
+        select * from shipment
+        <where>
+            <if test="num != null and num != ''">
+                num like concat('%', #{num}, '%')
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
 </mapper>
