@@ -32,4 +32,10 @@ public interface PoiService {
      * @return
      */
     Integer countTybe(Integer tybe);
+
+    /**
+     * 统计 poi 数量
+     * @return
+     */
+    Integer count();
 }
