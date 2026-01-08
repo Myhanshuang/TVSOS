@@ -30,3 +30,6 @@ $RECYCLE.BIN/
 
 # Linux
 *~
+
+# datasource.json
+.data/

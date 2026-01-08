@@ -6,6 +6,8 @@ import { ref } from 'vue'
 import PoiList from '@/components/poiList.vue' 
 import VehicleList from '@/components/vehicleList.vue';
 import { storeToRefs } from 'pinia'; // 引入 storeToRefs
+import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation';
+
 const imform = useImformStore()
 const target = useTargetStore()
 const visible = useVisibleStore()
@@ -61,7 +63,41 @@ const handleMockShipments = async () => {
   }
 }
 
+// === 仿真倍速控制 ===
+const currentSpeed = ref(1.0);
+const speedOptions = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0];
 
+const handleSetSpeed = async (speed) => {
+    try {
+        const res = await setSimulationSpeed(speed);
+        if (res.data.code === 1) {
+            currentSpeed.value = speed;
+            ElMessage.success(`仿真倍速已设置为 ${speed}x`);
+        } else {
+            ElMessage.error(res.data.message || '设置失败');
+        }
+    } catch (error) {
+        ElMessage.error('网络错误');
+    }
+};
+
+// 初始化获取当前倍速
+const initSpeed = async () => {
+    try {
+        const res = await getSimulationSpeed();
+        if (res.data.code === 1) {
+            currentSpeed.value = res.data.data;
+        }
+    } catch (error) {
+        console.warn('获取仿真倍速失败');
+    }
+};
+
+// 页面加载时获取
+import { onMounted } from 'vue';
+onMounted(() => {
+    initSpeed();
+});
 
 </script>
 
@@ -81,6 +117,13 @@ const handleMockShipments = async () => {
         <el-button @click="openVehicleDrawer">货车列表</el-button>
         <el-button type="primary" @click="openDrawer"> poi列表</el-button>
         <div class="longSpace"></div>
+
+        <div class="speed-control" style="margin-right: 20px;">
+            <span style="margin-right: 8px; font-size: 14px; color: #666;">倍速:</span>
+            <el-radio-group v-model="currentSpeed" size="small" @change="handleSetSpeed">
+                <el-radio-button v-for="speed in speedOptions" :key="speed" :label="speed">{{ speed }}x</el-radio-button>
+            </el-radio-group>
+        </div>
 
         <el-button @click="mapAnimationStore.startPolling" :disabled="isPollingActive">开始动画</el-button>
         <el-button @click="mapAnimationStore.pausePolling" :disabled="!isPollingActive">暂停动画</el-button>

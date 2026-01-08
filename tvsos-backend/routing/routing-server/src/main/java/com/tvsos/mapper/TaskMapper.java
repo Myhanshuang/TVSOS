@@ -16,5 +16,8 @@ public interface TaskMapper {
     @Select("select * from task where status = 1 order by create_time limit #{taskBatchSize}")
     List<Task> getPendingTasks(Integer taskBatchSize);
 
+    @Select("select * from task where shipment_id = #{shipmentId} and status = 1")
+    List<Task> getPendingTasksByShipmentId(Long shipmentId);
+
     void update(Task task);
 }

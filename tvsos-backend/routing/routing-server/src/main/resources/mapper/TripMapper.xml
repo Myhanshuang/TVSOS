@@ -5,7 +5,7 @@
         update trip
         <set>
             <if test="status != null">
-                status = #{status}
+                status = #{status},
             </if>
             <if test="endTime != null">
                 end_time = #{endTime}
