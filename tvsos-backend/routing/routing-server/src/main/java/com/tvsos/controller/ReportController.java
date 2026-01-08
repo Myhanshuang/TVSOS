@@ -28,12 +28,6 @@ import java.util.Map;
 @Tag(name = "Report")
 public class ReportController {
     @Autowired
-    private VehicleService vehicleService;
-    @Autowired
-    private ShipmentService shipmentService;
-    @Autowired
-    private VehicleCategoryService vehicleCategoryService;
-    @Autowired
     private ReportService reportService;
 
     /**
@@ -58,6 +52,54 @@ public class ReportController {
         log.info("柱状图 poi类型 - 数量");
         List<List> list = reportService.reportPoiTybe();
         return Result.success(list);
+    }
+
+    /**
+     * 统计 车上的货物总量
+     * @return
+     */
+    @GetMapping("/cargoSize")
+    @Operation(summary = "统计 车上的货物总量 /kg")
+    public Result<Double> reportCargoSize() {
+        Double sum = reportService.reportCargoSize();
+        log.info("统计目前车上的货物总量: {} kg", sum);
+        return Result.success(sum);
+    }
+
+    /**
+     * 统计 poi 数量
+     * @return
+     */
+    @GetMapping("/poiSum")
+    @Operation(summary = "统计 poi 数量")
+    public Result<Integer> reportPoiSum(){
+        Integer sum = reportService.reportPoiSum();
+        log.info("统计 poi 数量: {}", sum);
+        return Result.success(sum);
+    }
+
+    /**
+     * 统计车辆数量
+     * @return
+     */
+    @GetMapping("/vehicleSum")
+    @Operation(summary = "统计车辆数量")
+    public Result<Integer> reportVehicleSum(){
+        Integer sum = reportService.reportVehicleSum();
+        log.info("统计车辆数量: {}", sum);
+        return Result.success(sum);
+    }
+
+    /**
+     * 统计司机数量
+     * @return
+     */
+    @GetMapping("/driverSum")
+    @Operation(summary = "统计司机数量")
+    public Result<Integer> reportDriverSum(){
+        Integer sum = reportService.reportDriverSum();
+        log.info("统计司机数量: {}", sum);
+        return Result.success(sum);
     }
 
 }

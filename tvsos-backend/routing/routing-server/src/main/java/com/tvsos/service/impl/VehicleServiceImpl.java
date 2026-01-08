@@ -248,4 +248,30 @@ public class VehicleServiceImpl implements VehicleService {
         Integer count = vehicleMapper.countVehicleCategory(categoryId);
         return count;
     }
+
+    /**
+     * 统计目前车上的货物总量
+     * @return
+     */
+    @Override
+    public Double sumCargoSize() {
+        Double sum = vehicleMapper.sumCargoSize();
+        if(sum == null){
+            sum = 0.0;
+        }
+        return sum;
+    }
+
+    /**
+     * 统计车辆数量
+     * @return
+     */
+    @Override
+    public Integer count() {
+        Integer sum = vehicleMapper.count();
+        if(sum == null) {
+            sum = 0;
+        }
+        return sum;
+    }
 }

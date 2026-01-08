@@ -1,9 +1,6 @@
 package com.tvsos.service.impl;
 
-import com.tvsos.service.PoiService;
-import com.tvsos.service.ReportService;
-import com.tvsos.service.VehicleCategoryService;
-import com.tvsos.service.VehicleService;
+import com.tvsos.service.*;
 import entity.Poi;
 import entity.Vehicle;
 import entity.VehicleCategory;
@@ -25,6 +22,8 @@ public class ReportServiceImpl implements ReportService {
     private VehicleService vehicleService;
     @Autowired
     private PoiService poiService;
+    @Autowired
+    private DriverService driverService;
 
     /**
      * 饼图 车辆类型 - 数量
@@ -109,5 +108,45 @@ public class ReportServiceImpl implements ReportService {
         resList.add(strList);
         resList.add(countList);
         return resList;
+    }
+
+    /**
+     * 统计 车上的货物总量
+     * @return
+     */
+    @Override
+    public Double reportCargoSize() {
+        Double sum = vehicleService.sumCargoSize();
+        return sum;
+    }
+
+    /**
+     * 统计 poi 数量
+     * @return
+     */
+    @Override
+    public Integer reportPoiSum() {
+        Integer sum = poiService.count();
+        return sum;
+    }
+
+    /**
+     * 统计车辆数量
+     * @return
+     */
+    @Override
+    public Integer reportVehicleSum() {
+        Integer sum =  vehicleService.count();
+        return sum;
+    }
+
+    /**
+     * 统计司机数量
+     * @return
+     */
+    @Override
+    public Integer reportDriverSum() {
+        Integer sum = driverService.count();
+        return sum;
     }
 }

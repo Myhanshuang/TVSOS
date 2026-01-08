@@ -16,4 +16,29 @@ public interface ReportService {
      * @return
      */
     List<List> reportPoiTybe();
+
+    /**
+     * 统计 车上的货物总量
+     * @return
+     */
+    Double reportCargoSize();
+
+    /**
+     * 统计 poi 数量
+     * @return
+     */
+    Integer reportPoiSum();
+
+    /**
+     * 统计车辆数量
+     * @return
+     */
+    Integer reportVehicleSum();
+
+    /**
+     * 统计司机数量
+     * @return
+     */
+    Integer reportDriverSum();
+
 }

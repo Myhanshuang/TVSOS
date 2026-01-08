@@ -54,4 +54,17 @@ public class PoiServiceImpl implements PoiService {
     public Integer countTybe(Integer tybe) {
         return poiMapper.countTybe(tybe);
     }
+
+    /**
+     * 统计 poi 数量
+     * @return
+     */
+    @Override
+    public Integer count() {
+        Integer sum = poiMapper.count();
+        if(sum == null){
+            sum = 0;
+        }
+        return sum;
+    }
 }

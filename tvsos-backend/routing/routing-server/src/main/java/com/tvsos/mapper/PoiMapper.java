@@ -33,4 +33,7 @@ public interface PoiMapper {
 
     @Select("select count(*) from poi where tybe = #{tybe}")
     Integer countTybe(Integer tybe);
+
+    @Select("select count(*) from poi")
+    Integer count();
 }

@@ -38,4 +38,10 @@ public interface VehicleMapper {
 
     @Select("select count(*) from vehicle where category_id = #{categoryId}")
     Integer countVehicleCategory(Long categoryId);
+
+    @Select("select sum(cargo_size) from vehicle")
+    Double sumCargoSize();
+
+    @Select("select count(*) from vehicle")
+    Integer count();
 }

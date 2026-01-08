@@ -56,4 +56,17 @@ public interface VehicleService {
      * @return
      */
     Integer countVehicleCategory(Long categoryId);
+
+    /**
+     * 统计目前车上的货物总量
+     * @return
+     */
+    Double sumCargoSize();
+
+    /**
+     * 统计车辆数量
+     * @return
+     */
+    Integer count();
+
 }
