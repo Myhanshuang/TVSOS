@@ -1,5 +1,6 @@
 package com.tvsos.mapper;
 
+import dto.ShipmentDTO;
 import entity.Shipment;
 import org.apache.ibatis.annotations.*;
 
@@ -17,4 +18,6 @@ public interface ShipmentMapper {
     List<Shipment> getPendingShipments(@Param("batchSize") int batchSize);
 
     void update(Shipment shipment);
+
+    List<Shipment> list(ShipmentDTO shipmentDTO);
 }

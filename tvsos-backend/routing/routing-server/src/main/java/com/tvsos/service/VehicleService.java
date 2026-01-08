@@ -44,4 +44,16 @@ public interface VehicleService {
      * @return
      */
     void updateVehicle(Vehicle vehicle);
+
+    /**
+     * 查询所有车辆
+     */
+    List<Vehicle> findAll();
+
+    /**
+     * 查找该 categoryId 有多少辆车
+     * @param categoryId
+     * @return
+     */
+    Integer countVehicleCategory(Long categoryId);
 }

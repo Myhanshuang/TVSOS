@@ -23,4 +23,14 @@ public interface PoiMapper {
      */
     @Select("select * from poi where id = #{id}")
     Poi getById(Long id);
+
+    /**
+     * 查询所有poi
+     * @return
+     */
+    @Select("select  * from poi")
+    List<Poi> findAll();
+
+    @Select("select count(*) from poi where tybe = #{tybe}")
+    Integer countTybe(Integer tybe);
 }

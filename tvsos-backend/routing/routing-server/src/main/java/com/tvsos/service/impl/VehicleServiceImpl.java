@@ -132,10 +132,22 @@ public class VehicleServiceImpl implements VehicleService {
             }
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
         List<TripSegment> segments = tripSegmentMapper.getByTripId(trip.getId());
+        if (segments == null || segments.isEmpty()) {
+            // 不合法数据，只更新时间
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
+            return;
+        }
+
+        // 找出尚未完成的 segment
         TripSegment currentSeg = segments.stream()
                 .filter(s -> s.getStatus() == 2)
                 .findFirst()
@@ -158,6 +170,8 @@ public class VehicleServiceImpl implements VehicleService {
             vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus())); 
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
@@ -182,7 +196,14 @@ public class VehicleServiceImpl implements VehicleService {
             
             nextSeg.setStatus(2);
             tripSegmentMapper.update(nextSeg);
-            vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
+            return;
+        }
+        //卸货逻辑
+        if (status == 5) {
+            // 状态流转（卸货 -> 空闲）
+            vehicle.setStatus(MarkovStatusUtils.nextState(status));  // 5 -> 1
 
             // Load Route for Simulation (Segment 2)
             List<Double[]> points = routeStorageService.loadRoute(trip.getId(), 2);
@@ -200,6 +221,11 @@ public class VehicleServiceImpl implements VehicleService {
             } else {
                 log.error("Vehicle {} missing route for Seg 2!", vehicle.getId());
             }
+
+            vehicle.setUpdateTime(LocalDateTime.now());
+            vehicleMapper.update(vehicle);
+            // 删除路线 redis 缓存
+            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
         
@@ -226,5 +252,52 @@ public class VehicleServiceImpl implements VehicleService {
         vehicle.setStatus(nextState);
         vehicle.setUpdateTime(now);
         vehicleMapper.update(vehicle);
+    }
+
+    /**
+     * 查询所有车辆
+     * @return
+     */
+    @Override
+    public List<Vehicle> findAll() {
+        List<Vehicle> vehicleList = vehicleMapper.findAll();
+        return vehicleList;
+    }
+
+    /**
+     * 查找该 categoryId 有多少辆车
+     * @param categoryId
+     * @return
+     */
+    @Override
+    public Integer countVehicleCategory(Long categoryId) {
+        Integer count = vehicleMapper.countVehicleCategory(categoryId);
+        return count;
+    }
+
+    // 获取当前 segment 的实际开始时间
+    private LocalDateTime getSegmentBeginTime(Trip trip, TripSegment currentSeg, List<TripSegment> allSegs) {
+        // 第 1 段：使用 trip 的 beginTime 或 createTime
+        if (currentSeg.getSequence() == 1) {
+            LocalDateTime begin = trip.getBeginTime();
+            if (begin == null) begin = trip.getCreateTime();
+            return begin;
+        }
+
+        // 第 2 段：开始时间 = 第 1 段结束时间
+        // 找到 seq = 1 的 segment
+        TripSegment seg1 = allSegs.stream()
+                .filter(s -> s.getSequence() == 1)
+                .findFirst()
+                .orElse(null);
+
+        if (seg1 == null) throw new ServiceException("Segment 数据异常");
+
+        LocalDateTime seg1Begin = trip.getBeginTime();
+        if (seg1Begin == null) seg1Begin = trip.getCreateTime();
+
+        long seg1Seconds = (long) (seg1.getDuration() * 3600);
+
+        return seg1Begin.plusSeconds(seg1Seconds);
     }
 }

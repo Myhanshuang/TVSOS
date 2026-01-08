@@ -34,4 +34,24 @@ public class PoiServiceImpl implements PoiService {
         Poi poi = poiMapper.getById(id);
         return poi;
     }
+
+    /**
+     * 查询所有poi
+     * @return
+     */
+    @Override
+    public List<Poi> findAll() {
+        List<Poi> poiList = poiMapper.findAll();
+        return poiList;
+    }
+
+    /**
+     *  查询种类为 tybe 的poi数量
+     * @param tybe
+     * @return
+     */
+    @Override
+    public Integer countTybe(Integer tybe) {
+        return poiMapper.countTybe(tybe);
+    }
 }
