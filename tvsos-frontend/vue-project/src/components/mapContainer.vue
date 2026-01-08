@@ -724,10 +724,11 @@ watch(zoom, (newZoom) => {
     position: absolute;
     top: 10px;
     right: 10px;
-    font-size: large;
+    font-size: 30px;
     border-radius: 50%;
     border: 0px;
     transition: all 0.5s;
+    z-index: 1;
 }
 
 .imformOut:hover {
