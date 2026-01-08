@@ -25,6 +25,9 @@ public class VehicleVO {
     private LocalDateTime updateTime;
     private Long categoryId;
     private Double cargoSize;
+    
+    @Schema(description = "车辆角度 (0-360)")
+    private Double angle;
 
     // 路线距离 单位km
     @Schema(description = "路线距离 单位km")

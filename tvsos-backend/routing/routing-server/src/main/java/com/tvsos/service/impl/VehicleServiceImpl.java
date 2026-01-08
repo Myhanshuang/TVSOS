@@ -12,6 +12,7 @@ import entity.Trip;
 import entity.TripSegment;
 import entity.Vehicle;
 import exception.ServiceException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,6 +22,7 @@ import vo.VehicleVO;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Slf4j
 @Service
 public class VehicleServiceImpl implements VehicleService {
 
@@ -37,60 +39,71 @@ public class VehicleServiceImpl implements VehicleService {
     @Autowired
     private TripUtils tripUtils;
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    private com.tvsos.service.RouteStorageService routeStorageService;
+    @Autowired
+    private com.tvsos.manager.VehicleRouteManager vehicleRouteManager;
 
-    /**
-     * 筛选/获取车辆列表
-     * @param vehicleQueryDTO
-     * @return
-     */
     @Override
     public List<VehicleVO> list(VehicleQueryDTO vehicleQueryDTO) {
         List<Vehicle> vehicleList = vehicleMapper.list(vehicleQueryDTO);
         List<VehicleVO> vehicleVOList = new ArrayList<>();
+
         for(Vehicle vehicle : vehicleList) {
             VehicleVO vehicleVO = new VehicleVO();
             BeanUtils.copyProperties(vehicle, vehicleVO);
 
-            Trip trip =  tripMapper.getByVehicleId(vehicle.getId());
+            // Fetch active or latest trip
+            Trip trip = tripMapper.getByVehicleId(vehicle.getId());
 
             if(trip != null) {
                 List<TripSegment> tripSegmentList = tripSegmentMapper.getByTripId(trip.getId());
                 if(tripSegmentList != null && !tripSegmentList.isEmpty()) {
-                    String origin = vehicle.getLon().toString() + "," + vehicle.getLat().toString();
-                    TripSegment currSegment = null;
-                    if(vehicle.getStatus() == 1 || vehicle.getStatus() == 2) {
-                        currSegment = tripSegmentList.stream()
-                                .filter(s -> s.getSequence() == 1)
-                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
-                                .findFirst()
-                                .orElse(null);
-                    }else {
-                        currSegment = tripSegmentList.stream()
-                                .filter(s -> s.getSequence() == 2)
-                                .sorted(Comparator.comparingInt(TripSegment::getSequence))
-                                .findFirst()
-                                .orElse(null);
-                    }
-                    String destination = currSegment.getEndLon().toString() + "," + currSegment.getEndLat().toString();
-                    // 检查 redis 中是否存在该车的路径信息
-                    Map<String, Object> planMap = (Map<String, Object>) redisTemplate.opsForValue().get("route:vehicleId:" + vehicle.getId());
-                    if(planMap == null || planMap.isEmpty()) {
-                        //缓存不存在 调用 api 查询路径
-                        planMap = tripUtils.planTrip(origin, destination, null);
-                        // 添加缓存
-                        redisTemplate.opsForValue().set("route:vehicleId:" + vehicle.getId(), planMap);
-                    }
-                    vehicleVO.setDistance((Double) planMap.get("distance"));
-                    vehicleVO.setDuration((Double) planMap.get("duration"));
-                    vehicleVO.setPolyline((List<Double[]>) planMap.get("polyline"));
+                     // Status 1(IDLE), 2(PICKUP) -> Segment 1
+                     // Status 3(LOADING), 4(DELIVERY), 5(UNLOADING) -> Segment 2
+                     int targetSeq = (vehicle.getStatus() <= 2) ? 1 : 2;
 
-                    Double speed = vehicleVO.getDistance() / vehicleVO.getDuration();
-                    vehicle.setSpeed(speed);
-                    vehicleMapper.update(vehicle);
-                    vehicleVO.setSpeed(speed);
-//                    vehicleVO.setSteps((JSONArray) planMap.get("steps"));
-//                    vehicleVO.setRaw((JSONObject) planMap.get("raw"));
+                     TripSegment currSegment = tripSegmentList.stream()
+                             .filter(s -> s.getSequence() == targetSeq)
+                             .findFirst()
+                             .orElse(null);
+
+                     if (currSegment != null) {
+                         // 1. Load Route (Polyline)
+                         List<Double[]> polyline = routeStorageService.loadRoute(trip.getId(), targetSeq);
+                         if (polyline != null) {
+                             vehicleVO.setPolyline(polyline);
+                         }
+
+                         // 2. Calculate Remaining Distance/Duration
+                         double totalDistance = currSegment.getDistance() != null ? currSegment.getDistance() : 0.0;
+                         double totalDuration = currSegment.getDuration() != null ? currSegment.getDuration() : 0.0;
+
+                         double progress = 0.0;
+                         // Only calculate progress for active moving states
+                         if (vehicle.getStatus() == 2 || vehicle.getStatus() == 4) {
+                             progress = vehicleRouteManager.getProgress(vehicle.getId());
+                         } else if (vehicle.getStatus() == 3 || vehicle.getStatus() == 5) {
+                             // At destination (Loading/Unloading) -> Progress 100% (Remaining 0)
+                             // Or keep it 100% so distance is 0.
+                             progress = 1.0;
+                         } else if (vehicle.getStatus() == 1) {
+                             // IDLE -> if trip finished, 0 remaining?
+                             // Usually IDLE means no active trip, but we might be showing history.
+                             progress = 1.0;
+                         }
+
+                         double remainingRatio = 1.0 - progress;
+                         // Clamp ratio
+                         remainingRatio = Math.max(0.0, Math.min(1.0, remainingRatio));
+
+                         vehicleVO.setDistance(totalDistance * remainingRatio);
+                         vehicleVO.setDuration(totalDuration * remainingRatio);
+
+                         // 3. Speed
+                         if (totalDuration > 0) {
+                             vehicleVO.setSpeed(totalDistance / totalDuration);
+                         }
+                     }
                 }
             }
             vehicleVOList.add(vehicleVO);
@@ -98,73 +111,42 @@ public class VehicleServiceImpl implements VehicleService {
         return vehicleVOList;
     }
 
-    /**
-     * 根据id获取车辆信息
-     * @param id
-     * @return
-     */
     @Override
     public Vehicle getById(Long id) {
-        Vehicle vehicle = vehicleMapper.getById(id);
-        return vehicle;
+        return vehicleMapper.getById(id);
     }
 
-    /**
-     * 获取要更新的车辆列表
-     * @param vehicleBatchSize
-     * @return
-     */
     @Override
     public List<Vehicle> getPendingVehicles(Integer vehicleBatchSize) {
-        List<Vehicle> vehicleList = vehicleMapper.getPendingVehicles(vehicleBatchSize);
-        return vehicleList;
+        return vehicleMapper.getPendingVehicles(vehicleBatchSize);
     }
 
-    /**
-     * 更新车辆状态
-     * @param vehicle
-     * @return
-     */
     @Override
     public void updateVehicle(Vehicle vehicle) {
-
         Long vehicleId = vehicle.getId();
-        // 1. 查该车当前的 trip（status = 2 的）
         Trip trip = tripMapper.getByVehicleIdAndStatus(vehicleId, 2);
-        if (trip == null || vehicle.getStatus() == 1) {
-            // 没任务，车辆空闲，只更新更新时间
+
+        if (trip == null) {
+            if (vehicle.getStatus() != 1) {
+                vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
+            }
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
-            // 删除路线 redis 缓存
-            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
-        // 2. 查该 trip 的两个 segment，按顺序排好
         List<TripSegment> segments = tripSegmentMapper.getByTripId(trip.getId());
-        if (segments == null || segments.isEmpty()) {
-            // 不合法数据，只更新时间
-            vehicle.setUpdateTime(LocalDateTime.now());
-            vehicleMapper.update(vehicle);
-            // 删除路线 redis 缓存
-            redisTemplate.delete("route:vehicleId:" + vehicleId);
-            return;
-        }
-
-        // 找出尚未完成的 segment
         TripSegment currentSeg = segments.stream()
                 .filter(s -> s.getStatus() == 2)
-                .sorted(Comparator.comparingInt(TripSegment::getSequence))
                 .findFirst()
                 .orElse(null);
 
         if (currentSeg == null) {
-            // 所有 segment 完成 → trip 要完成
+            // All segments done
             trip.setStatus(3);
             trip.setEndTime(LocalDateTime.now());
             tripMapper.update(trip);
 
-            // 该 trip 的所有 task 也要完成
             List<Long> taskIdList = tripTaskAssignMapper.getByTripId(trip.getId());
             for(Long taskId : taskIdList){
                 Task task = new Task();
@@ -172,110 +154,77 @@ public class VehicleServiceImpl implements VehicleService {
                 task.setStatus(3);
                 taskMapper.update(task);
             }
-            // 车辆回到空闲
+
             vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
             vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
-            // 删除路线 redis 缓存
-            redisTemplate.delete("route:vehicleId:" + vehicleId);
             return;
         }
 
-        Integer status = vehicleMapper.getById(vehicleId).getStatus();
-        // 装货逻辑
+        int status = vehicle.getStatus();
+
+        // 1. Loading Finished (3 -> 4)
         if(status == 3){
-            vehicle.setStatus(MarkovStatusUtils.nextState(status));
             TripSegment nextSeg = segments.stream()
                     .filter(s -> s.getStatus() == 1)
                     .sorted(Comparator.comparingInt(TripSegment::getSequence))
                     .findFirst()
                     .orElse(null);
+
             if(nextSeg == null){
-                throw new ServiceException("运货路线为空");
+                log.error("No next segment found for vehicle {} at status 3", vehicle.getId());
+                return;
             }
+
+            int nextState = MarkovStatusUtils.nextState(status); // 3 -> 4
+            vehicle.setStatus(nextState);
             vehicle.setUpdateTime(LocalDateTime.now());
+
             nextSeg.setStatus(2);
-            vehicleMapper.update(vehicle);
             tripSegmentMapper.update(nextSeg);
-            // 删除路线 redis 缓存
-            redisTemplate.delete("route:vehicleId:" + vehicleId);
-            return;
-        }
-        //卸货逻辑
-        if (status == 5) {
-            // 状态流转（卸货 -> 空闲）
-            vehicle.setStatus(MarkovStatusUtils.nextState(status));  // 5 -> 1
-
-            // 当前卸货段（status = 2）
-            TripSegment currentSeg2 = segments.stream()
-                    .filter(s -> s.getStatus() == 2)
-                    .findFirst()
-                    .orElse(null);
-
-            if (currentSeg2 != null) {
-                currentSeg2.setStatus(3);        // 卸货段完成
-                tripSegmentMapper.update(currentSeg2);
-            }
-
-            vehicle.setUpdateTime(LocalDateTime.now());
             vehicleMapper.update(vehicle);
-            // 删除路线 redis 缓存
-            redisTemplate.delete("route:vehicleId:" + vehicleId);
+
+            // Load Route for Simulation (Segment 2)
+            List<Double[]> points = routeStorageService.loadRoute(trip.getId(), 2);
+            if (points != null && !points.isEmpty()) {
+                Double[] start = points.get(0);
+                vehicle.setLon(start[0]);
+                vehicle.setLat(start[1]);
+                vehicleMapper.update(vehicle);
+
+                // Pass duration for speed calc
+                long durationSec = (nextSeg.getDuration() != null) ? (long)(nextSeg.getDuration() * 3600) : points.size();
+                vehicleRouteManager.startRoute(vehicle.getId(), points, durationSec);
+
+                log.info("Vehicle {} started delivery (Seg 2)", vehicle.getId());
+            } else {
+                log.error("Vehicle {} missing route for Seg 2!", vehicle.getId());
+            }
             return;
         }
 
-        // ========== 关键逻辑：是否到达 segment 终点？ ==========
-        LocalDateTime segBegin = getSegmentBeginTime(trip, currentSeg, segments);
-        LocalDateTime shouldArriveTime =
-                segBegin.plusSeconds((long) (currentSeg.getDuration() * 3600));
+        // 2. Unloading Finished (5 -> 1)
+        if (status == 5) {
+             int nextState = MarkovStatusUtils.nextState(status);
+             vehicle.setStatus(nextState);
+             vehicle.setUpdateTime(LocalDateTime.now());
+             vehicleMapper.update(vehicle);
+             return;
+        }
 
+        // 3. Arrival at Segment End
         LocalDateTime now = LocalDateTime.now();
 
-        if (now.isBefore(shouldArriveTime)) {
-            // ---- 未到时间：只更新 update_time ----
-            vehicle.setUpdateTime(now);
-            vehicleMapper.update(vehicle);
-            return;
-        }
-
-        // ========== 已到达 segment 终点：做状态流转 ==========
-        // 删除 redis 缓存中的路线信息
-        redisTemplate.delete("route:vehicleId:" + vehicleId);
-
-        // 1) 当前 segment 完成
         currentSeg.setStatus(3);
         tripSegmentMapper.update(currentSeg);
 
-        // 2) 更新车辆位置到 segment 终点
         vehicle.setLat(currentSeg.getEndLat());
         vehicle.setLon(currentSeg.getEndLon());
 
-        // 3) 使用 Markov 决定车辆状态
         int nextState = MarkovStatusUtils.nextState(vehicle.getStatus());
+
         vehicle.setStatus(nextState);
-
-        // 4) 如果是最后一个 segment 结束 → trip 结束
-        if (currentSeg.getSequence() == 2) {
-            trip.setStatus(3);
-            trip.setEndTime(now);
-            tripMapper.update(trip);
-
-            // 所有 task 结束
-            List<Long> taskIdList = tripTaskAssignMapper.getByTripId(trip.getId());
-            for(Long taskId : taskIdList){
-                Task task = new Task();
-                task.setId(taskId);
-                task.setStatus(3);
-                taskMapper.update(task);
-            }
-
-            // 车辆回到空闲
-            vehicle.setStatus(MarkovStatusUtils.nextState(vehicle.getStatus()));
-        }
-
-        // 5) 更新时间
         vehicle.setUpdateTime(now);
-
         vehicleMapper.update(vehicle);
     }
 

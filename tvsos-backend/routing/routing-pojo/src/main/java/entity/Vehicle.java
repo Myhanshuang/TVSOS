@@ -21,4 +21,5 @@ public class Vehicle {
     private LocalDateTime updateTime;
     private Long categoryId;
     private Double cargoSize;
+    private Double angle;
 }

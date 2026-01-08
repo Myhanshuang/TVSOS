@@ -17,7 +17,7 @@ public class TaskDispatchTask {
     @Autowired
     private TaskService taskService;
 
-    @Scheduled(fixedDelayString = "#{T(java.util.concurrent.TimeUnit).MINUTES.toMillis(T(constant.TaskConstant).DISPATCH_MINUTE)}")
+    // @Scheduled(fixedDelayString = "#{T(java.util.concurrent.TimeUnit).MINUTES.toMillis(T(constant.TaskConstant).DISPATCH_MINUTE)}")
     public void dispatchPendingTask(){
         log.info("开始执行任务分配定时任务...(间隔：{} min，最大分配任务：{} 个)", TaskConstant.DISPATCH_MINUTE, TaskConstant.TASK_BATCH_SIZE);
 

@@ -14,6 +14,8 @@ import result.Result;
 import vo.VehicleVO;
 
 import java.util.List;
+import java.util.ArrayList;
+import entity.Trip;
 
 @Slf4j
 @RestController
@@ -23,6 +25,10 @@ public class VehicleController {
 
     @Autowired
     private VehicleService vehicleService;
+    @Autowired
+    private com.tvsos.service.RouteStorageService routeStorageService;
+    @Autowired
+    private com.tvsos.mapper.TripMapper tripMapper;
 
     /**
      * 筛选/获取车辆列表
@@ -35,6 +41,29 @@ public class VehicleController {
         log.info("筛选/获取车辆列表");
         List<VehicleVO> vehicleVOList = vehicleService.list(vehicleQueryDTO);
         return Result.success(vehicleVOList);
+    }
+    
+    @GetMapping("/path/{id}")
+    @Operation(summary = "获取车辆当前的完整路径")
+    public Result<List<Double[]>> getVehiclePath(@PathVariable Long id) {
+        Vehicle vehicle = vehicleService.getById(id);
+        if (vehicle == null) return Result.error("车辆不存在");
+        
+        // 只有行驶状态才有路径 (2:接单, 4:运货)
+        if (vehicle.getStatus() != 2 && vehicle.getStatus() != 4) {
+            return Result.success(new ArrayList<>());
+        }
+
+        Trip trip = tripMapper.getByVehicleIdAndStatus(id, 2); // 查找进行中的 trip
+        if (trip == null) return Result.success(new ArrayList<>());
+
+        // 判断是第几段
+        // Status 2 (接单) -> Segment 1
+        // Status 4 (运货) -> Segment 2
+        int segmentIndex = (vehicle.getStatus() == 2) ? 1 : 2;
+
+        List<Double[]> points = routeStorageService.loadRoute(trip.getId(), segmentIndex);
+        return Result.success(points != null ? points : new ArrayList<>());
     }
 
     /**
