@@ -1,17 +1,20 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
-import { getPoiTybe, getVehicleCategory, getVehicleSum, getPoiSum, getDriverSum, getCargoSizeSum } from '@/api/report'
+import {
+  getPoiTybe,
+  getVehicleCategory,
+  getVehicleSum,
+  getPoiSum,
+  getDriverSum,
+  getCargoSizeSum
+} from '@/api/report'
 import * as echarts from 'echarts'
 
-// 统计车辆数量
+// 统计数据（四张卡片）
 const vehicleSum = ref(0)
-// 统计 poi 数量
-const poiSum = ref(0)
-// 统计司机数量
+const PoiSum = ref(0)
 const driverSum = ref(0)
-// 统计 车上的货物总量 /kg
 const cargoSizeSum = ref(0)
-
 
 const barRef = ref(null)
 const pieRef = ref(null)
@@ -21,7 +24,7 @@ let pieChart = null
 let ro = null
 let timer = null
 
-const PoiTypeData = ref([]) // 后端返回 [xAxisArray, yArray] 或你自己的结构
+const PoiTypeData = ref([]) // 后端返回 [xAxisArray, yArray]
 const VehicleCategoryData = ref([]) // 后端返回 [{name, count}, ...]
 
 function normalizePieData(raw) {
@@ -34,7 +37,7 @@ function normalizePieData(raw) {
     .filter((x) => x.name && Number.isFinite(x.value))
 }
 
-// 同时拉取：4个统计 + 2个图表数据（并发）
+// ✅ 同时拉取：4个统计 + 2个图表数据（并发）
 async function fetchAllOnce() {
   const [
     poiRes,
@@ -58,7 +61,7 @@ async function fetchAllOnce() {
 
   // 卡片数据（假设 data.data 是数字）
   vehicleSum.value = Number(vehicleSumRes?.data?.data ?? 0)
-  poiSum.value = Number(poiSumRes?.data?.data ?? 0)
+  PoiSum.value = Number(poiSumRes?.data?.data ?? 0)
   driverSum.value = Number(driverSumRes?.data?.data ?? 0)
   cargoSizeSum.value = Number(cargoSizeSumRes?.data?.data ?? 0)
 }
@@ -68,13 +71,8 @@ function buildBarOption() {
   const yData = Array.isArray(PoiTypeData.value?.[1]) ? PoiTypeData.value[1] : []
 
   return {
-    title: {
-      text: 'POI 各类型数量柱状图',
-      left: 'center',
-      top: 10
-    },
+    title: { text: 'POI 各类型数量柱状图', left: 'center', top: 10 },
     tooltip: { trigger: 'axis' },
-    // 给标题留空间
     grid: { left: 40, right: 20, top: 60, bottom: 40, containLabel: true },
     xAxis: { type: 'category', data: xData, axisLabel: { interval: 0 } },
     yAxis: { type: 'value', minInterval: 1 },
@@ -88,25 +86,15 @@ function buildPieOption() {
   if (!pieData.length || sum === 0) pieData = [{ name: '暂无数据', value: 1 }]
 
   return {
-    title: {
-      text: '车辆类型饼状图',
-      left: 'center',
-      top: 10
-    },
+    title: { text: '车辆类型饼状图', left: 'center', top: 10 },
     tooltip: { trigger: 'item' },
-    // ✅ 图示移到右侧
-    legend: {
-      orient: 'vertical',
-      right: 10,
-      top: 'middle'
-    },
+    legend: { orient: 'vertical', right: 10, top: 'middle' }, // 右侧图示
     series: [
       {
         name: '车辆类型',
         type: 'pie',
         radius: ['40%', '70%'],
-        // ✅ 给右侧 legend 留空间（可按需要微调）
-        center: ['40%', '55%'],
+        center: ['40%', '55%'], // 给右侧 legend 留空间
         avoidLabelOverlap: false,
         itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
         label: { show: false, position: 'center' },
@@ -119,7 +107,7 @@ function buildPieOption() {
 }
 
 function initCharts() {
-  if (barChart || pieChart) return // 只 init 一次
+  if (barChart || pieChart) return
 
   barChart = echarts.init(barRef.value, null, { renderer: 'svg' })
   pieChart = echarts.init(pieRef.value, null, { renderer: 'svg' })
@@ -134,8 +122,6 @@ function initCharts() {
 
 function updateCharts() {
   if (!barChart || !pieChart) return
-
-  // 容器隐藏/尺寸为0时先跳过，避免报错
   if (barRef.value?.clientWidth === 0 || barRef.value?.clientHeight === 0) return
   if (pieRef.value?.clientWidth === 0 || pieRef.value?.clientHeight === 0) return
 
@@ -148,7 +134,7 @@ function updateCharts() {
 
 async function pollOnce() {
   try {
-    await fetchAllOnce()
+    await fetchAllOnce()   // ✅ 同时更新卡片+图
     updateCharts()
   } catch (e) {
     console.error('轮询请求失败：', e)
@@ -159,10 +145,7 @@ onMounted(async () => {
   await nextTick()
   initCharts()
 
-  // 先跑一次立刻出图
   await pollOnce()
-
-  // 每5秒轮询一次
   timer = window.setInterval(pollOnce, 5000)
 })
 
@@ -173,7 +156,6 @@ onBeforeUnmount(() => {
   }
   ro?.disconnect()
   ro = null
-
   barChart?.dispose()
   pieChart?.dispose()
   barChart = null
@@ -186,20 +168,23 @@ onBeforeUnmount(() => {
     <div class="Border">
       <div class="hangCards">
         <div class="card">
-          <div class="card-title">车辆数量</div>
-          <div class="data">{{ vehicleSum }} 辆</div>
+          <div class="cardTitle">车辆总数</div>
+          <div class="cardValue">{{ vehicleSum }}</div>
         </div>
+
         <div class="card">
-          <div class="card-title">POI 点总量</div>
-          <div class="data">{{ poiSum }} 个</div>
+          <div class="cardTitle">POI 总数</div>
+          <div class="cardValue">{{ PoiSum }}</div>
         </div>
+
         <div class="card">
-          <div class="card-title">司机数量</div>
-          <div class="data">{{ driverSum }} 位</div>
+          <div class="cardTitle">司机总数</div>
+          <div class="cardValue">{{ driverSum }}</div>
         </div>
+
         <div class="card">
-          <div class="card-title">运输中的货物总量</div>
-          <div class="data">{{ cargoSizeSum }} kg</div>
+          <div class="cardTitle">货物总量</div>
+          <div class="cardValue">{{ cargoSizeSum }} <span class="unit">kg</span></div>
         </div>
       </div>
 
@@ -241,7 +226,29 @@ onBeforeUnmount(() => {
   background-color: white;
   border-radius: 6px;
   box-shadow: 2px 2px 2px #e1e1e1, -2px -2px 2px #e1e1e1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 14px;
 }
+.cardTitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+.cardValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1;
+}
+.unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: #888;
+  margin-left: 6px;
+}
+
 .hangCharts {
   display: flex;
   height: 75%;
@@ -259,23 +266,5 @@ onBeforeUnmount(() => {
 .chartDom {
   width: 100%;
   height: 100%;
-}
-
-.card-title {
-  margin: 15px 0px 15px 20px;
-  padding: 0px;
-
-  font-size: 24px;
-  font-weight: bold;
-  color: #606060;
-}
-
-.data {
-  margin: 0px;
-  padding: 0px;
-  text-align: center;
-  font-size: 30px;
-  font-weight: bold;
-  color: #333333;
 }
 </style>

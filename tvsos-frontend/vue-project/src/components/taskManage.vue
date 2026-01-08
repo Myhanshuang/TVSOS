@@ -65,7 +65,7 @@ onMounted(() => {
         </el-select>
         <el-button type="primary" @click="reloadShipmentList" class="reloadBox">查询</el-button>
       </div>
-      <el-table :data="taskData" class="elBox" stripe="true" width="100%" :key="tableKey" row-key="num">
+      <el-table :data="taskData" class="elBox" stripe width="100%" :key="tableKey" row-key="num">
         <el-table-column prop="num" label="订单编号" width="90">
         </el-table-column>
         <el-table-column label="货源地" width="180">
@@ -168,5 +168,10 @@ box-shadow:  7px 7px 10px #bebebe,
   margin-left: 20px;
   margin-bottom: 5px;
   font-size: 14px;
+}
+
+#barChart{
+  width: 500px;
+  height: 300px;
 }
 </style>
