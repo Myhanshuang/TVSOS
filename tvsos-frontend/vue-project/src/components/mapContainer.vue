@@ -1,9 +1,10 @@
 <script setup>
 import { onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import { useMapAnimationStore,useImformStore, usePoiBoxStore, useMapStore } from "@/stores";
+import { useModVehicleStore,useMapAnimationStore, useImformStore, usePoiBoxStore, useMapStore } from "@/stores";
 import { getPOIList } from "@/api/poi";
 import { storeToRefs } from 'pinia';
+import axios from 'axios';
 
 const imform = useImformStore();
 const poiBox = usePoiBoxStore();
@@ -11,6 +12,65 @@ const mapStore = useMapStore();
 const { center, zoom, blinkingPoi } = storeToRefs(mapStore);
 const { currentInfoType, recentVehicle } = storeToRefs(imform);
 const { recentPoi } = storeToRefs(poiBox);
+const modVehicleStore = useModVehicleStore();
+const { recentModVehicle } = storeToRefs(modVehicleStore);
+
+// ------------------- 【新增】特殊车辆 "川A12345" 的独立逻辑 -------------------
+const specialVehicleMarker = shallowRef(null);      // 存储特殊车辆的地图标记实例
+const specialVehicleData = ref(null);                // 存储从后端获取的特殊车辆数据
+const SPECIAL_VEHICLE_LICENSE = '川A-12345';          // 车辆的唯一标识 (车牌号)
+let specialVehiclePollInterval = null;               // 轮询定时器ID
+// -----------------------------------------------------------------------------
+
+/**
+ * 【新增】从后端获取所有车辆最新状态，并筛选出特定车辆
+ */
+const fetchSpecialVehicleData = async () => {
+    try {
+        // 后端此接口返回一个包含所有车辆最新状态的数组
+        const response = await axios.get('http://localhost:8080/api/vehicles/latest-locations');
+        const allVehicles = response.data;
+        console.log('获取到的所有车辆数据:', allVehicles);
+        // 从数组中根据车牌号找到我们的目标车辆
+        const vehicleInfo = allVehicles.find(v => v.licensePlate === SPECIAL_VEHICLE_LICENSE);
+        if (vehicleInfo) {
+            // 将后端返回的数据格式化为信息面板需要的格式
+            specialVehicleData.value = {
+                id: SPECIAL_VEHICLE_LICENSE, // 使用车牌作为唯一ID
+                license: vehicleInfo.licensePlate,
+                categoryId: 5, // 指定一个类型，用于显示图标和文本（可自定义）
+                lat: vehicleInfo.latitude,
+                lon: vehicleInfo.longitude,
+                speed: vehicleInfo.speed,
+                status: 1, // 指定一个默认状态（可自定义）
+                updateTime: vehicleInfo.timestamp
+            };
+        } else {
+            console.warn(`未从后端数据中找到车辆: ${SPECIAL_VEHICLE_LICENSE}`);
+        }
+    } catch (error) {
+        console.error('获取特殊车辆信息失败:', error);
+    }
+};
+
+/**
+ * 【新增】启动对特殊车辆数据的轮询
+ */
+const startSpecialVehiclePolling = () => {
+    fetchSpecialVehicleData(); // 立即执行一次以获取初始数据
+    // 每5秒钟请求一次最新数据
+    specialVehiclePollInterval = setInterval(fetchSpecialVehicleData, 5000);
+};
+
+/**
+ * 【新增】停止轮询
+ */
+const stopSpecialVehiclePolling = () => {
+    if (specialVehiclePollInterval) {
+        clearInterval(specialVehiclePollInterval);
+        specialVehiclePollInterval = null;
+    }
+};
 
 let map = shallowRef(null);
 let webglLayerObj = null;
@@ -20,11 +80,11 @@ const vehiclesMap = shallowRef(new Map());
 let AMapInstance = null; // 用于存储AMap全局对象，方便在定时器中使用
 // 全局车辆默认图标、路径颜色定义
 const VEHICLE_ICONS = {
-    1:"/images/货车1.png",
-    2:"/images/货车2.png",
-    3:"/images/货车3.png",
-    4:"/images/货车4.png",
-    5:"/images/货车5.png"
+    1: "/images/货车1.png",
+    2: "/images/货车2.png",
+    3: "/images/货车3.png",
+    4: "/images/货车4.png",
+    5: "/images/货车5.png"
 };
 const VEHICLE_FULL_PATH_COLOR = "#28F";    // 车辆完整规划路径颜色
 const VEHICLE_PASSED_PATH_COLOR = "#AF5"; // 车辆实时运动轨迹颜色 (Passed Path Color)
@@ -48,28 +108,28 @@ const getServiceOptions = () => ({
 
 // 新增：车辆状态映射函数
 const getVehicleStatusText = (status) => {
-  const statusMap = {
-    1: '空闲',
-    2: '接单行驶',
-    3: '装货',
-    4: '运货行驶',
-    5: '卸货中',
-    6: '停留等待',
-    7: '加油',
-    8: '维修'
-  };
-  return statusMap[status] || '未知状态'; // 如果没有匹配的状态，显示'未知状态'
+    const statusMap = {
+        1: '空闲',
+        2: '接单行驶',
+        3: '装货',
+        4: '运货行驶',
+        5: '卸货中',
+        6: '停留等待',
+        7: '加油',
+        8: '维修'
+    };
+    return statusMap[status] || '未知状态'; // 如果没有匹配的状态，显示'未知状态'
 };
 
 const getVehicleCategoryText = (category) => {
-  const statusMap = {
-    1: '平板货车',
-    2: '高护栏货车',
-    3: '厢式货车',
-    4: '冷链运输车',
-    5: '危化品运输车',
-  };
-  return statusMap[category] || '未知类型'; // 如果没有匹配的状态，显示'未知类型'
+    const statusMap = {
+        1: '平板货车',
+        2: '高护栏货车',
+        3: '厢式货车',
+        4: '冷链运输车',
+        5: '危化品运输车',
+    };
+    return statusMap[category] || '未知类型'; // 如果没有匹配的状态，显示'未知类型'
 };
 
 //------------------------------------feature end-----------------------------------------
@@ -83,36 +143,36 @@ let positionInterval = null;
 
 // 【新增】使用 watch 监听当前选中的车辆
 watch(recentVehicle, (newVehicle) => {
-  // 1. 首先清除上一个定时器，防止内存泄漏或冲突
-  if (positionInterval) {
-    clearInterval(positionInterval);
-    positionInterval = null;
-  }
-
-  // 2. 如果有新选中的车辆，并且当前显示的就是车辆信息
-  if (newVehicle && currentInfoType.value === 'vehicle') {
-    // 从 map 中找到这个车辆的完整实例（包含 marker）
-    const vehicle = vehiclesMap.value.get(newVehicle.id);
-    
-    if (vehicle && vehicle.marker) {
-      const updateDisplayPosition = () => {
-        const currentPos = vehicle.marker.getPosition();
-        if (currentPos) {
-          // AMap 的 getPosition() 返回的是一个对象，我们需要经纬度数组
-          displayPosition.value = [currentPos.getLng(), currentPos.getLat()];
-        }
-      };
-
-      // 立即执行一次，确保点击后立刻显示正确位置
-      updateDisplayPosition();
-      
-      // 启动一个定时器，高频更新位置（例如每 100 毫秒）
-      positionInterval = setInterval(updateDisplayPosition, 100);
+    // 1. 首先清除上一个定时器，防止内存泄漏或冲突
+    if (positionInterval) {
+        clearInterval(positionInterval);
+        positionInterval = null;
     }
-  } else {
-    // 3. 如果没有选中车辆（例如关闭了信息面板），则清空位置信息
-    displayPosition.value = null;
-  }
+
+    // 2. 如果有新选中的车辆，并且当前显示的就是车辆信息
+    if (newVehicle && currentInfoType.value === 'vehicle') {
+        // 从 map 中找到这个车辆的完整实例（包含 marker）
+        const vehicle = vehiclesMap.value.get(newVehicle.id);
+
+        if (vehicle && vehicle.marker) {
+            const updateDisplayPosition = () => {
+                const currentPos = vehicle.marker.getPosition();
+                if (currentPos) {
+                    // AMap 的 getPosition() 返回的是一个对象，我们需要经纬度数组
+                    displayPosition.value = [currentPos.getLng(), currentPos.getLat()];
+                }
+            };
+
+            // 立即执行一次，确保点击后立刻显示正确位置
+            updateDisplayPosition();
+
+            // 启动一个定时器，高频更新位置（例如每 100 毫秒）
+            positionInterval = setInterval(updateDisplayPosition, 100);
+        }
+    } else {
+        // 3. 如果没有选中车辆（例如关闭了信息面板），则清空位置信息
+        displayPosition.value = null;
+    }
 }, { deep: true });
 
 
@@ -375,7 +435,7 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
             mapInstance.setZoomAndCenter(15, [nearest.lon, nearest.lat]);
             imform.imformShow('poi');
         } else {
-          imform.imformHide();//如果没点到任何点，隐藏详细信息栏
+            imform.imformHide();//如果没点到任何点，隐藏详细信息栏
         }
 
     };
@@ -430,7 +490,7 @@ function createWebGLLayer(AMap, mapInstance, initialPoiList) {
 
 // ===== 生命周期 =====
 onMounted(() => {
-    
+
     window._AMapSecurityConfig = { securityJsCode: "09582d73da9c81d93b134caf4e6f173a" };
     AMapLoader.load({
         key: "84a1985a18fcdb13254b2d85d69885ee",
@@ -447,6 +507,50 @@ onMounted(() => {
 
         map.value.addControl(new AMap.ToolBar());
         map.value.addControl(new AMap.Scale());
+
+
+ // ------------------- 【新增】创建特殊车辆标记并启动轮询 -------------------
+        
+        // 1. 定义成都市中心坐标和车辆图标
+        const chengduCenter = [104.065735, 30.659462]; 
+        const specialVehicleIcon = new AMap.Icon({
+            size: new AMap.Size(48, 48),
+            // 请确保在 public/images/ 目录下有这张图片
+            image: '/images/货车1.png', 
+            imageSize: new AMap.Size(48, 48),
+        });
+
+        // 2. 创建 Marker 实例
+        specialVehicleMarker.value = new AMap.Marker({
+            position: chengduCenter,
+            icon: specialVehicleIcon,
+            offset: new AMap.Pixel(-24, -24), // 使图标中心对准坐标点
+            map: map.value,
+            zIndex: 150 // 确保它在其他元素之上
+        });
+
+        // 3. 为标记绑定点击事件
+        specialVehicleMarker.value.on('click', () => {
+            if (specialVehicleData.value) {
+                // 【修改】使用从后端获取的数据更新 ModVehicleStore
+                modVehicleStore.recentModVehicleChange(specialVehicleData.value);
+                
+                // 【修改】显示信息面板，并将类型指定为 'modvehicle'
+                imform.imformShow('modvehicle');
+
+                // 【重要】直接更新用于显示的坐标，绕开现有动画车辆的 watcher
+                displayPosition.value = [specialVehicleData.value.lon, specialVehicleData.value.lat];
+
+            } else {
+                alert('正在从服务器获取车辆信息，请稍候...');
+                fetchSpecialVehicleData(); // 如果还没有数据，尝试立即获取一次
+            }
+        });
+
+        // 4. 启动数据轮询
+        startSpecialVehiclePolling();
+
+        // --------------------------------------------------------------------------
 
         const startBlinkAnimation = (poi) => {
             if (!map.value) return
@@ -513,15 +617,15 @@ onMounted(() => {
         }, { deep: true }) // 添加 deep: true 以确保复杂对象的变化也能被监测
 
         getPOIList().then((res) => {
-          if (res.data?.code === 1 && res.data.data?.length) {
-            const formattedPoiList = res.data.data.map(poi => ({
-                ...poi,
-                // **修改：应用类型映射函数**
-                type: mapPoiType(poi.tybe)
-            }));
-          webglLayerObj = createWebGLLayer(AMap, map.value, formattedPoiList);
-          console.log("初始POI:", formattedPoiList.length);
-          }
+            if (res.data?.code === 1 && res.data.data?.length) {
+                const formattedPoiList = res.data.data.map(poi => ({
+                    ...poi,
+                    // **修改：应用类型映射函数**
+                    type: mapPoiType(poi.tybe)
+                }));
+                webglLayerObj = createWebGLLayer(AMap, map.value, formattedPoiList);
+                console.log("初始POI:", formattedPoiList.length);
+            }
         });
         // 将地图上下文信息传递给 Store
         mapAnimationStore.setPollingOptions(getServiceOptions());
@@ -529,6 +633,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+
+// 【新增】停止特殊车辆的轮询和清理标记
+    stopSpecialVehiclePolling();
+    if (specialVehicleMarker.value) {
+        specialVehicleMarker.value.setMap(null);
+    }
+    // ------------------------------------------
+
     // 调用服务中的停止轮询函数
     if (positionInterval) clearInterval(positionInterval);
     stopPolling();
@@ -588,14 +700,26 @@ watch(zoom, (newZoom) => {
                     <h3>车辆详细信息</h3>
                     <div class="detailedInformation">ID：{{ recentVehicle.id }}</div><br>
                     <div class="detailedInformation">车牌号：{{ recentVehicle.license }}</div><br>
-                    <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div><br>
-                    <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{ displayPosition?.[1]?.toFixed(5) }}</div><br>
-                    <div class="detailedInformation">速度：{{ recentVehicle.speed.toFixed(2) }} km/h</div><br> 
+                    <div class="detailedInformation">车辆类型：{{ getVehicleCategoryText(recentVehicle.categoryId) }}</div>
+                    <br>
+                    <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{
+                        displayPosition?.[1]?.toFixed(5) }}</div><br>
+                    <div class="detailedInformation">速度：{{ recentVehicle.speed.toFixed(2) }} km/h</div><br>
                     <div class="detailedInformation">当前状态：{{ getVehicleStatusText(recentVehicle.status) }}</div><br>
-                    <div class="detailedInformation">运输距离：{{ recentVehicle.distance==null?"NaN": recentVehicle.distance.toFixed(2) }}（km）</div><br>
-                    <div class="detailedInformation">预计到达时间：{{ recentVehicle.duration==null?"NaN":recentVehicle.duration.toFixed(2) }}（小时）</div><br>
+                    <div class="detailedInformation">运输距离：{{ recentVehicle.distance == null ? "NaN" :
+                        recentVehicle.distance.toFixed(2) }}（km）</div><br>
+                    <div class="detailedInformation">预计到达时间：{{
+                        recentVehicle.duration == null ? "NaN" : recentVehicle.duration.toFixed(2) }}（小时）</div><br>
                     <div class="detailedInformation">最后更新时间：{{ recentVehicle.updateTime }}</div><br>
                     <!-- 你需要根据实际的 vehicle 数据结构添加更多字段 -->
+                </div>
+                <div v-else-if="currentInfoType === 'modvehicle' && recentModVehicle">
+                    <h3>modbus测试面板</h3>
+                    <div class="detailedInformation">车牌号：{{ recentModVehicle.license }}</div><br>
+                    <div class="detailedInformation">位置：{{ displayPosition?.[0]?.toFixed(5) }}, {{
+                        displayPosition?.[1]?.toFixed(5) }}</div><br>
+                    <div class="detailedInformation">速度：{{ recentModVehicle.speed.toFixed(2) }} km/h</div><br>
+                    <!-- 这里可以为特殊车辆添加更多独有的字段 -->
                 </div>
             </div>
         </div>
@@ -706,5 +830,4 @@ watch(zoom, (newZoom) => {
     color: rgb(255, 14, 14);
     background-color: white;
 }
-
 </style>

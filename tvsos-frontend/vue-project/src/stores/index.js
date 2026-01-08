@@ -19,3 +19,4 @@ export * from './modules/poiBox'
 export * from './modules/mapStore'
 export * from './modules/mapAnimationStore'
 export * from './modules/vehicle';
+export * from './modules/modVehicle';
