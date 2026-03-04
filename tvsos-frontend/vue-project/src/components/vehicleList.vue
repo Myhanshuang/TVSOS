@@ -1,20 +1,14 @@
-<!-- src/components/VehicleList.vue -->
+<!-- 货车列表抽屉组件：提供车辆的多条件查询、分页展示及地图点击定位功能 -->
 <template>
-  <el-drawer
-    title="货车列表"
-    direction="rtl"
-    size="50%"
-    :model-value="visible"
-    @update:model-value="$emit('update:visible', $event)"
-  >
-    <!-- 查询栏 -->
+  <!-- Element Plus 抽屉：展示在屏幕右侧，占用 50% 宽度 -->
+  <el-drawer title="货车列表" direction="rtl" size="50%" :model-value="visible"
+    @update:model-value="$emit('update:visible', $event)">
+
+    <!-- 顶部筛选表单 -->
     <el-form inline>
+      <!-- 车辆状态下拉筛选 -->
       <el-form-item label="车辆状态">
-        <el-select
-          placeholder="请选择"
-          style="width: 120px"
-          v-model="selectedStatus"
-        >
+        <el-select placeholder="请选择" style="width: 120px" v-model="selectedStatus">
           <el-option label="全部" value=""></el-option>
           <el-option label="空闲" :value="1"></el-option>
           <el-option label="接单行驶" :value="2"></el-option>
@@ -26,63 +20,59 @@
           <el-option label="维修" :value="8"></el-option>
         </el-select>
       </el-form-item>
+
+      <!-- 车牌号模糊搜索 -->
       <el-form-item label="车牌号">
-        <el-input
-          v-model="licenseKeyword"
-          placeholder="请输入车牌号"
-          style="width: 120px"
-        />
+        <el-input v-model="licenseKeyword" placeholder="请输入车牌号" style="width: 120px" />
       </el-form-item>
+
+      <!-- 操作按钮集 -->
       <el-form-item>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
         <el-button @click="handleReset">重置</el-button>
       </el-form-item>
     </el-form>
 
-    <!-- 表格 -->
-    <el-table
-      :data="pagedVehicleList"
-      @row-click="handleRowClick"
-      style="margin-top: 20px;"
-    >
+    <!-- 车辆数据表格 -->
+    <el-table :data="pagedVehicleList" @row-click="handleRowClick" style="margin-top: 20px;">
+      <!-- 车牌号列：渲染为链接样式 -->
       <el-table-column label="车牌号" prop="license">
         <template #default="{ row }">
           <el-link type="primary" :underline="false">{{ row.license }}</el-link>
         </template>
       </el-table-column>
+
+      <!-- 车辆状态列：调用翻译函数显示文本 -->
       <el-table-column label="车辆状态" prop="status">
         <template #default="{ row }">
           {{ getStatusText(row.status) }}
         </template>
       </el-table-column>
-      <!-- 可以根据需要添加更多列，例如速度 -->
+
+      <!-- 速度列：保留 1 位小数 -->
       <el-table-column label="速度 (km/h)" prop="speed" align="center">
-         <template #default="{ row }">
+        <template #default="{ row }">
           {{ row.speed !== undefined ? row.speed.toFixed(1) : '-' }}
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 分页区域 -->
-    <el-pagination
-      v-model:current-page="currentPage"
-      v-model:page-size="pageSize"
-      :total="filteredVehicleList.length"
-      :page-sizes="[10, 20, 30, 40]"
-      layout="total, sizes, prev, pager, next, jumper"
-      @size-change="handleSizeChange"
-      @current-change="handleCurrentChange"
-      style="margin-top: 20px; justify-content: end;"
-    />
+    <!-- 分页器：基于计算后的过滤列表长度进行分页 -->
+    <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="filteredVehicleList.length"
+      :page-sizes="[10, 20, 30, 40]" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
+      @current-change="handleCurrentChange" style="margin-top: 20px; justify-content: end;" />
   </el-drawer>
 </template>
 
 <script setup>
 import { ref, computed, defineProps, defineEmits } from 'vue';
-import { useMapStore } from '@/stores'; // 用于地图定位
-import { useVehicleStore } from '@/stores'; // 导入 useVehicleStore
+import { useMapStore } from '@/stores';
+import { useVehicleStore } from '@/stores';
 
-// 接收父组件传入的 visible 值
+/**
+ * 定义组件属性
+ * @property {boolean} visible - 控制抽屉显示的开关
+ */
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -90,28 +80,29 @@ const props = defineProps({
   },
 });
 
-// 定义 emit 事件，用于控制抽屉关闭
+/** 定义事件发送器 */
 const emit = defineEmits(['update:visible']);
 
-// 获取 mapStore，用于控制地图中心点
-const mapStore = useMapStore();
-// 获取 vehicleStore，用于获取车辆数据
-const vehicleStore = useVehicleStore();
+/** 状态库实例化 */
+const mapStore = useMapStore();      // 用于控制地图定位
+const vehicleStore = useVehicleStore(); // 用于获取实时车辆列表数据
 
-// 筛选条件
-const selectedStatus = ref(''); // 状态筛选
-const licenseKeyword = ref(''); // 车牌号搜索关键词
+/** 本地交互响应式变量 */
+const selectedStatus = ref('');     // 当前选中的状态过滤值
+const licenseKeyword = ref('');     // 当前输入的车牌搜索关键字
+const currentPage = ref(1);         // 当前页码
+const pageSize = ref(10);           // 每页显示条数
 
-// 当前页码和每页显示条数
-const currentPage = ref(1);
-const pageSize = ref(10);
-
-// 计算属性：根据筛选条件过滤车辆列表
+/**
+ * 计算属性：根据筛选条件对 Store 中的全量车辆数据进行过滤
+ */
 const filteredVehicleList = computed(() => {
   return vehicleStore.vehicleList.filter(vehicle => {
+    // 状态过滤逻辑
     if (selectedStatus.value !== '' && vehicle.status !== Number(selectedStatus.value)) {
       return false;
     }
+    // 车牌模糊匹配逻辑
     if (licenseKeyword.value && !vehicle.license.includes(licenseKeyword.value)) {
       return false;
     }
@@ -119,55 +110,64 @@ const filteredVehicleList = computed(() => {
   });
 });
 
-// 分页后的车辆列表
+/**
+ * 计算属性：对过滤后的结果进行前端分页切片
+ */
 const pagedVehicleList = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
   const end = start + pageSize.value;
   return filteredVehicleList.value.slice(start, end);
 });
 
-// 状态映射
+/** 状态码到中文的简易映射（注：此处映射与 script 内逻辑略有差异，实际以业务需求为准） */
 const statusMap = {
   0: '停运',
   1: '待命',
   2: '行驶中',
 };
 
-// 获取状态文本
+/**
+ * 获取状态描述文本
+ * @param {number} status 状态码
+ */
 const getStatusText = (status) => {
   return statusMap[status] || '未知状态';
 };
 
-// 搜索处理 (过滤逻辑在 computed 中)
+/** 执行搜索（目前主要用于触发逻辑统计或日志） */
 const handleSearch = () => {
   console.log('搜索条件:', { status: selectedStatus.value, keyword: licenseKeyword.value });
 };
 
-// 重置处理
+/** 重置搜索条件并跳回第一页 */
 const handleReset = () => {
   selectedStatus.value = '';
   licenseKeyword.value = '';
-  currentPage.value = 1; // 重置当前页码
+  currentPage.value = 1;
   console.log('重置筛选条件');
 };
 
-// 处理页面大小变化
+/** 处理每页条数变化 */
 const handleSizeChange = (newSize) => {
   pageSize.value = newSize;
-  currentPage.value = 1; // 改变页面大小时重置当前页码
+  currentPage.value = 1;
 };
 
-// 处理当前页码变化
+/** 处理页码切换 */
 const handleCurrentChange = (newPage) => {
   currentPage.value = newPage;
 };
 
-// 表格行点击事件
+/**
+ * 列表行点击事件处理
+ * 功能：将地图中心平滑移至选中车辆的当前位置，并关闭列表抽屉
+ * @param {Object} row 点击的车辆数据对象
+ */
 const handleRowClick = (row) => {
   if (row.currentPosition && Array.isArray(row.currentPosition) && row.currentPosition.length === 2) {
-    // 设置地图中心点到该车辆的当前位置
+    // 同步经纬度到地图 Store
     mapStore.setCenter(row.currentPosition);
-    // 设置缩放级别（可选）
+    // 设置地图缩放系数至较细颗粒度
     mapStore.setZoom(16);
     // 关闭抽屉
     emit('update:visible', false);
@@ -178,10 +178,11 @@ const handleRowClick = (row) => {
 </script>
 
 <style scoped>
-/* 可以根据需要添加一些样式 */
+/* 调整表单和表格的侧向边距，确保内容不贴边 */
 .el-form {
   padding: 0 20px;
 }
+
 .el-table {
   padding: 0 20px;
 }
