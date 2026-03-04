@@ -21,8 +21,6 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const isSliding = ref(false)
-
-// 在setup函数中添加两个新方法
 const animationPaused = ref(false)
 
 const pauseAnimation = () => {
@@ -42,8 +40,6 @@ const resumeAnimation = () => {
 }
 const handleWheel = (event) => {
     if (isSliding.value) return;
-
-    // 向下滚动时触发
     if (event.deltaY > 0) {
         isSliding.value = true
         navigateToLogin()
@@ -51,7 +47,6 @@ const handleWheel = (event) => {
 }
 
 const navigateToLogin = () => {
-    // 添加滑动动画
     const content = document.querySelector('.guide-content')
     if (content) {
         content.style.opacity = '0'
@@ -64,7 +59,6 @@ const navigateToLogin = () => {
     }, 500)
 }
 
-// 添加点击事件支持（可选）
 const handleClick = () => {
     if (!isSliding.value) {
         isSliding.value = true
@@ -83,14 +77,12 @@ const handleClick = () => {
     overflow: hidden;
     position: relative;
     cursor: pointer;
-    /* 显示可点击光标 */
 }
 
 .guide-content {
     text-align: center;
     color: white;
     transition: all 0.8s ease;
-    /* 统一过渡效果 */
     padding: 20px;
 }
 
@@ -139,7 +131,6 @@ h1 {
     animation: shine 1s ease-in infinite;
     font-family: 'Courier New', Courier, monospace;;
 }
- 
 
 @keyframes shine {
     0% {
@@ -200,7 +191,6 @@ p {
 }
 
 @keyframes bounce {
-
     0%,
     20%,
     50%,

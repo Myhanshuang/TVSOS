@@ -1,16 +1,26 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
+/**
+ * 选中/修改中的车辆状态管理 Store
+ * 用于处理非主地图场景（如管理后台或修改弹窗）下的车辆详情数据及文本翻译
+ */
 export const useModVehicleStore = defineStore('modvehicle', () => {
-    // 1. State: 存储当前被选中的特殊车辆的详细信息
+    /** 当前正在操作或查看的车辆详细数据对象 */
     const recentModVehicle = ref(null);
 
-    // 2. Actions: 定义修改 state 的方法
+    /**
+     * 更新当前选中的车辆数据
+     * @param {Object} vehicleData - 完整的车辆信息对象
+     */
     function recentModVehicleChange(vehicleData) {
         recentModVehicle.value = vehicleData;
     }
 
-    // 3. Getters: 定义派生状态（计算属性），用于格式化显示
+    /**
+     * 计算属性：根据车辆分类 ID 返回对应的中文分类名称
+     * @returns {string} 映射后的车辆分类文本
+     */
     const modVehicleCategoryText = computed(() => {
         if (!recentModVehicle.value) return '未知类型';
         const categoryMap = {
@@ -23,6 +33,10 @@ export const useModVehicleStore = defineStore('modvehicle', () => {
         return categoryMap[recentModVehicle.value.categoryId] || '未知类型';
     });
 
+    /**
+     * 计算属性：根据车辆状态码返回对应的中文状态描述
+     * @returns {string} 映射后的业务状态文本
+     */
     const modVehicleStatusText = computed(() => {
         if (!recentModVehicle.value) return '未知状态';
         const statusMap = {
@@ -39,11 +53,8 @@ export const useModVehicleStore = defineStore('modvehicle', () => {
     });
 
     return {
-        // State
         recentModVehicle,
-        // Actions
         recentModVehicleChange,
-        // Getters
         modVehicleCategoryText,
         modVehicleStatusText
     };

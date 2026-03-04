@@ -2,50 +2,30 @@
 import MapContainer from '@/components/mapContainer.vue'
 import Statistics from '@/components/statistics.vue';
 import taskManage from '@/components/taskManage.vue';
-
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useVisibleStore, useTargetStore, useImformStore,  } from '@/stores/index.js'
+import { useVisibleStore, useTargetStore } from '@/stores/index.js'
 
-
-const imform = useImformStore()
 const target = useTargetStore() 
 const visible =useVisibleStore()
-
-// // 👇 三个状态
-// const isFirstVisible = ref(false)
-// const isSecondVisible = ref(false)
-// const isThirdVisible = ref(false)
-
 const firstRef = ref(null)
 const secondRef = ref(null)
 const thirdRef = ref(null)
+
 let observer
 
 onMounted(() => {
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach(entry => {
-        if (entry.target.id === 'first') {
-          visible.isFirstVisible = entry.isIntersecting
-        } else if (entry.target.id === 'second') {
-          visible.isSecondVisible = entry.isIntersecting
-        } else if (entry.target.id === 'third') {
-          visible.isThirdVisible = entry.isIntersecting
-        }
-      })
-    },
-    {
-      // window 滚动用 null
-      root: null,       
-      // 10% 可见就触发
-      threshold: 0.1    
-    }
-  )
+  observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      const key = `is${id.charAt(0).toUpperCase() + id.slice(1)}Visible`;
+      visible[key] = entry.isIntersecting;
+    });
+  }, { threshold: 0.1 });
 
-  if (firstRef.value) observer.observe(firstRef.value)
-  if (secondRef.value) observer.observe(secondRef.value)
-  if (thirdRef.value) observer.observe(thirdRef.value)
-})
+  [firstRef, secondRef, thirdRef].forEach(refItem => {
+    if (refItem.value) observer.observe(refItem.value);
+  });
+});
 
 onUnmounted(() => {
   if (observer) {
@@ -54,19 +34,14 @@ onUnmounted(() => {
 })
 
 
-// 简化版 cubic-bezier 贝塞尔函数生成器
 function cubicBezier(p1x, p1y, p2x, p2y) {
   return function (t) {
     const u = 1 - t
-    // 三次贝塞尔公式
     return (3 * u * u * t * p1y) +
            (3 * u * t * t * p2y) +
            (t * t * t)
   }
 }
-
-
-// watch监测Lissoner是否有点击函数，触发翻页函数
 
 watch(() => target.watchLissoner, async () => {
   if (target.targetId) {
@@ -76,11 +51,8 @@ watch(() => target.watchLissoner, async () => {
       const targetTop = el.getBoundingClientRect().top + window.scrollY
       const startTop = window.scrollY
       const distance = targetTop - startTop
-      // 动画总时长控制
       const duration = 350
       const startTime = performance.now()
-
-      // 应用贝塞尔缓降函数
       const easing = cubicBezier(1,.01,.99,.01)
 
       function step(currentTime) {

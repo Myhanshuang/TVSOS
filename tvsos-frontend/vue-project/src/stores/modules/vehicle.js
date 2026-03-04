@@ -1,20 +1,32 @@
-// src/stores/modules/vehicle.js
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
+/**
+ * 实时车辆数据状态管理 Store
+ * 使用 Map 结构存储全量车辆信息，以支持高性能的 key-value 检索（按车牌号）
+ */
 export const useVehicleStore = defineStore('vehicle', () => {
-  // 使用 ref 存储车辆数据，key 为 license，value 为车辆对象
-  // 结构示例: { '粤B12345': { id: '粤B12345', license: '粤B12345', currentPosition: [lng, lat], status: 2, speed: 60, ... }, ... }
+  /** 
+   * 车辆原始数据的 Map 容器 
+   * Key: 车辆 License (车牌号), Value: 完整的车辆属性对象 
+   */
   const vehicles = ref(new Map());
 
-  // 设置单个车辆数据
+  /**
+   * 更新或新增单辆车的数据
+   * @param {Object} vehicleData - 车辆信息对象，必须包含 license 属性
+   */
   const setVehicle = (vehicleData) => {
     if (vehicleData && vehicleData.license) {
       vehicles.value.set(vehicleData.license, vehicleData);
     }
   };
 
-  // 批量设置车辆数据（通常用于轮询更新）
+  /**
+   * 批量更新车辆数据（全量覆盖）
+   * 通常用于从后端获取全量实时位置列表后的同步操作
+   * @param {Array} vehiclesArray - 车辆数据数组
+   */
   const setVehicles = (vehiclesArray) => {
     if (Array.isArray(vehiclesArray)) {
       const newMap = new Map();
@@ -23,31 +35,46 @@ export const useVehicleStore = defineStore('vehicle', () => {
           newMap.set(vehicle.license, vehicle);
         }
       });
-      vehicles.value = newMap; // 替换整个 Map 以触发响应式更新
+      // 整体替换以保持响应式更新
+      vehicles.value = newMap;
     }
   };
 
-  // 删除单个车辆
+  /**
+   * 根据车牌号移除指定车辆
+   * @param {string} license - 车牌号
+   */
   const removeVehicle = (license) => {
     vehicles.value.delete(license);
   };
 
-  // 清空所有车辆
+  /**
+   * 清空所有车辆数据
+   */
   const clearVehicles = () => {
     vehicles.value.clear();
   };
 
-  // 获取单个车辆信息
+  /**
+   * 精确查找：根据车牌号获取车辆对象
+   * @param {string} license - 车牌号
+   * @returns {Object|undefined} 车辆详情或 undefined
+   */
   const getVehicleByLicense = (license) => {
     return vehicles.value.get(license);
   };
 
-  // 计算属性：将 Map 转换为数组，方便在列表中使用
+  /** 
+   * 计算属性：将 Map 中的所有车辆值转换为数组格式 
+   * 方便在 Vue 模板中通过 v-for 进行列表遍历展示 
+   */
   const vehicleList = computed(() => {
     return Array.from(vehicles.value.values());
   });
 
-  // 计算属性：获取车辆总数
+  /** 
+   * 计算属性：返回当前监控中的车辆总数 
+   */
   const vehicleCount = computed(() => {
     return vehicles.value.size;
   });
