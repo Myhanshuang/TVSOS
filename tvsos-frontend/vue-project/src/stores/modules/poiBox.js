@@ -26,9 +26,9 @@ export const usePoiBoxStore = defineStore('poiBox', () => {
 
     // 转换状态编码：0 映射为正常，其余映射为异常
     if (recentPoi.value.status === 0) {
-      recentPoiStatus.value = "正常"
-    } else {
       recentPoiStatus.value = "异常"
+    } else {
+      recentPoiStatus.value = "正常"
     }
 
     // 获取 POI 类型编码并进行分支判断映射

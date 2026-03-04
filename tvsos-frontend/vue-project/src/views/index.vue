@@ -6,7 +6,9 @@ import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useVisibleStore, useTargetStore } from '@/stores/index.js'
 
 const target = useTargetStore() 
-const visible =useVisibleStore()
+const visible = useVisibleStore()
+const scrollContainer = ref(null)
+
 const firstRef = ref(null)
 const secondRef = ref(null)
 const thirdRef = ref(null)
@@ -14,13 +16,23 @@ const thirdRef = ref(null)
 let observer
 
 onMounted(() => {
+  // 1. 修改观察逻辑：使用较高的阈值 (0.6)，确保超过一半进入视口才切换
+  // 并增加相互排斥逻辑
   observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      const id = entry.target.id;
-      const key = `is${id.charAt(0).toUpperCase() + id.slice(1)}Visible`;
-      visible[key] = entry.isIntersecting;
-    });
-  }, { threshold: 0.1 });
+    // 寻找当前交叉比例最大的那个元素
+    const visibleEntry = entries.find(entry => entry.isIntersecting && entry.intersectionRatio > 0.5);
+    
+    if (visibleEntry) {
+      const id = visibleEntry.target.id;
+      // 重置所有状态，仅激活当前这一个
+      visible.isFirstVisible = (id === 'first');
+      visible.isSecondVisible = (id === 'second');
+      visible.isThirdVisible = (id === 'third');
+    }
+  }, { 
+    threshold: [0.5, 0.6], // 关键：只有过半时才触发
+    rootMargin: "-64px 0px 0px 0px" // 扣除顶部导航栏高度的影响
+  }); 
 
   [firstRef, secondRef, thirdRef].forEach(refItem => {
     if (refItem.value) observer.observe(refItem.value);
@@ -28,74 +40,80 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (observer) {
-    observer.disconnect()
-  }
+  if (observer) observer.disconnect()
 })
 
-
-function cubicBezier(p1x, p1y, p2x, p2y) {
-  return function (t) {
-    const u = 1 - t
-    return (3 * u * u * t * p1y) +
-           (3 * u * t * t * p2y) +
-           (t * t * t)
-  }
-}
-
+// 2. 优化滚动逻辑：使用原生的 scrollIntoView 配合 snap 效果更好
 watch(() => target.watchLissoner, async () => {
   if (target.targetId) {
     await nextTick()
     const el = document.getElementById(target.targetId)
     if (el) {
-      const targetTop = el.getBoundingClientRect().top + window.scrollY
-      const startTop = window.scrollY
-      const distance = targetTop - startTop
-      const duration = 350
-      const startTime = performance.now()
-      const easing = cubicBezier(1,.01,.99,.01)
-
-      function step(currentTime) {
-        const elapsed = currentTime - startTime
-        const progress = Math.min(elapsed / duration, 1)
-        const eased = easing(progress)
-        window.scrollTo(0, startTop + distance * eased)
-
-        if (progress < 1) {
-          requestAnimationFrame(step)
-        }
-      }
-
-      requestAnimationFrame(step)
+      // 停止 CSS 磁吸干预，执行平滑滚动
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 })
 </script>
 
 <template>
-  <div id='first' ref="firstRef" :class="{Component: 1, isVisible: visible.isFirstVisible}">
-    <MapContainer/>
-  </div>
-  <div id='second' ref="secondRef" :class="{Component: 1, isVisible: visible.isSecondVisible}">
-    <Statistics/>
-  </div>
-  <div id='third' ref="thirdRef" :class="{Component: 1, isVisible: visible.isThirdVisible}">
-    <taskManage/>
+  <!-- 整个容器作为滚动根，开启 CSS Snap -->
+  <div class="main-snap-container" ref="scrollContainer">
+    <div id='first' ref="firstRef" class="section-container">
+      <MapContainer/>
+    </div>
+    <div id='second' ref="secondRef" class="section-container">
+      <Statistics/>
+    </div>
+    <div id='third' ref="thirdRef" class="section-container">
+      <taskManage/>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.Component{
-  margin: 0px 0px 140px 0px;
-  padding: 60px 0px 0px 0px;
-
-  transform: translateY(10px);
-  opacity: 0;
-  transition: all 0.6s;
+.main-snap-container {
+  height: 100vh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory; /* 核心：垂直方向强制磁吸 */
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* 隐藏滚动条 (可选) */
 }
 
-.isVisible{
-  transform: translateY(0px);
+.main-snap-container::-webkit-scrollbar {
+  display: none;
+}
+
+.section-container {
+  width: 100%;
+  height: 100vh; /* 必须是 100vh 以配套磁吸 */
+  scroll-snap-align: start; /* 磁吸对齐位置 */
+  scroll-snap-stop: always; /* 强制用户一次只滚一屏，防止直接滑过中间组件 */
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+#first {
+  padding-top: 64px; /* 顶部导航栏高度 */
+}
+
+#second, #third {
+  padding-top: 80px;
+}
+
+/* 进场动画优化：基于 visible 状态的简单过渡 */
+.section-container > * {
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+/* 当组件所属的 ID 在 Store 中标记为可见时 */
+#first.section-container :deep(#firBorder),
+#second.section-container :deep(#secBorder),
+#third.section-container :deep(#thiBorder) {
+  /* 这里可以根据具体的子组件 ID 或类名微调 */
   opacity: 1;
+  transform: scale(1);
 }
 </style>
