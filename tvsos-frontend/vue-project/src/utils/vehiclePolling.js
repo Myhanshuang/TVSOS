@@ -4,7 +4,7 @@
  */
 import { getVehiclesData } from '@/api/vehicle';
 import { useVehicleStore } from '@/stores';
-
+import { useWebSocket } from '@vueuse/core'; //
 /** 轮询配置 */
 let pollingTimerId = null;
 const POLLING_DELAY = 2000;    // 刷新频率：2秒一次，与移动动画时长匹配以实现平滑过渡
@@ -145,33 +145,71 @@ const updateVehiclesOnMapLogic = async ({
         const isMovingTask = (carData.status === 2 || carData.status === 4);
         const needsPathUpdate = isMovingTask && (vehicle.fetchedPathForStatus !== carData.status);
 
-        if (needsPathUpdate && carData.polyline) {
-            vehicle.fullPathPoints = carData.polyline;
+        // if (needsPathUpdate && carData.polyline) {
+        //     vehicle.fullPathPoints = carData.polyline;
+        //     vehicle.fetchedPathForStatus = carData.status;
+
+        //     // 初始化或更新灰色底线轨迹 (全长)
+        //     if (!vehicle.fullPolyline) {
+        //         vehicle.fullPolyline = new AMapInstance.Polyline({
+        //             map: map, path: vehicle.fullPathPoints, strokeColor: "#999999",
+        //             strokeOpacity: 0.3, strokeWeight: 6, zIndex: 80
+        //         });
+        //     } else {
+        //         vehicle.fullPolyline.setPath(vehicle.fullPathPoints);
+        //     }
+
+        //     // 初始化或更新高亮进度轨迹 (已行驶)
+        //     const dynamicColor = getVehicleColor(carData.id);
+        //     if (!vehicle.passedPolyline) {
+        //         vehicle.passedPolyline = new AMapInstance.Polyline({
+        //             map: map, path: [], strokeColor: dynamicColor,
+        //             strokeOpacity: 0.9, strokeWeight: 6, zIndex: 81
+        //         });
+        //     } else {
+        //         vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
+        //         vehicle.passedPolyline.setPath([]);
+        //     }
+        // }
+        if (needsPathUpdate) {
             vehicle.fetchedPathForStatus = carData.status;
 
-            // 初始化或更新灰色底线轨迹 (全长)
-            if (!vehicle.fullPolyline) {
-                vehicle.fullPolyline = new AMapInstance.Polyline({
-                    map: map, path: vehicle.fullPathPoints, strokeColor: "#999999",
-                    strokeOpacity: 0.3, strokeWeight: 6, zIndex: 80
-                });
-            } else {
-                vehicle.fullPolyline.setPath(vehicle.fullPathPoints);
-            }
+            // 如果已有旧连接，先关闭
+            if (vehicle.wsClient) vehicle.wsClient.close();
 
-            // 初始化或更新高亮进度轨迹 (已行驶)
-            const dynamicColor = getVehicleColor(carData.id);
-            if (!vehicle.passedPolyline) {
-                vehicle.passedPolyline = new AMapInstance.Polyline({
-                    map: map, path: [], strokeColor: dynamicColor,
-                    strokeOpacity: 0.9, strokeWeight: 6, zIndex: 81
-                });
-            } else {
-                vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
-                vehicle.passedPolyline.setPath([]);
-            }
+            // 使用 WebSocket 获取对应小车路径（请把 ws://... 换成你的真实后端地址）
+            vehicle.wsClient = useWebSocket(`ws://你的后端真实地址/ws/vehicles/path/${carData.id}`, {
+                autoReconnect: true,
+                onMessage: (ws, event) => {
+                    const pathData = JSON.parse(event.data);
+                    if (pathData && pathData.length > 0) {
+                        vehicle.fullPathPoints = pathData;
+
+                        // 初始化或更新灰色底线轨迹 (全长)
+                        if (!vehicle.fullPolyline) {
+                            vehicle.fullPolyline = new AMapInstance.Polyline({
+                                map: map, path: vehicle.fullPathPoints, strokeColor: "#999999",
+                                strokeOpacity: 0.3, strokeWeight: 6, zIndex: 80
+                            });
+                        } else {
+                            vehicle.fullPolyline.setPath(vehicle.fullPathPoints);
+                        }
+
+                        // 初始化或更新高亮进度轨迹 (已行驶)
+                        const dynamicColor = getVehicleColor(carData.id);
+                        if (!vehicle.passedPolyline) {
+                            vehicle.passedPolyline = new AMapInstance.Polyline({
+                                map: map, path: [], strokeColor: dynamicColor,
+                                strokeOpacity: 0.9, strokeWeight: 6, zIndex: 81
+                            });
+                        } else {
+                            vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
+                            vehicle.passedPolyline.setPath([]);
+                        }
+                    }
+                }
+            });
         }
-
         // 4. 根据移动状态控制轨迹可见性
         if (!isMovingTask) {
             vehicle.fullPolyline?.hide();
@@ -179,6 +217,10 @@ const updateVehiclesOnMapLogic = async ({
             if (carData.status === 1) { // 任务彻底结束，重置状态位以待下次拉取任务路径
                 vehicle.fetchedPathForStatus = null;
                 vehicle.fullPathPoints = null;
+                if (vehicle.wsClient) {
+                    vehicle.wsClient.close();
+                    vehicle.wsClient = null;
+                }
             }
         } else {
             vehicle.fullPolyline?.show();
@@ -212,6 +254,7 @@ const updateVehiclesOnMapLogic = async ({
             vehicle.marker.setMap(null);
             vehicle.fullPolyline?.setMap(null);
             vehicle.passedPolyline?.setMap(null);
+            if (vehicle.wsClient) vehicle.wsClient.close();
             vehiclesMap.value.delete(id);
         }
     }
