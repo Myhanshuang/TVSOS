@@ -8,10 +8,10 @@ import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation'
 import PoiList from '@/components/poiList.vue'
 import VehicleList from '@/components/vehicleList.vue'
 // 导入图标
-import { 
-    MapLocation, DataAnalysis, List, 
-    Van, Location, VideoPlay, VideoPause, 
-    Box, SwitchButton, Odometer 
+import {
+    MapLocation, DataAnalysis, List,
+    Van, Location, VideoPlay, VideoPause,
+    Box, SwitchButton, Odometer, ArrowDown
 } from '@element-plus/icons-vue'
 
 const target = useTargetStore()
@@ -59,7 +59,7 @@ const initSpeed = async () => {
     try {
         const res = await getSimulationSpeed()
         if (res.data.code === 1) currentSpeed.value = res.data.data
-    } catch (error) {}
+    } catch (error) { }
 }
 
 onMounted(() => initSpeed())
@@ -69,82 +69,94 @@ onMounted(() => initSpeed())
     <header class="nav-header">
         <!-- 1. Logo 区域 -->
         <div class="logo-section">
-            <el-icon class="logo-icon"><MapLocation /></el-icon>
+            <el-icon class="logo-icon">
+                <MapLocation />
+            </el-icon>
             <span class="logo-text">TVSOS</span>
         </div>
 
         <!-- 2. 主导航区域 -->
         <div class="nav-main">
-            <div 
-                class="nav-item" 
-                :class="{ active: visible.isFirstVisible }" 
-                @click="target.targetChange('first')"
-            >
-                <el-icon><MapLocation /></el-icon>
-                <span>地图视图</span>
+            <div class="nav-item" :class="{ active: visible.isFirstVisible }" @click="target.targetChange('first')">
+                <el-icon>
+                    <MapLocation />
+                </el-icon>
+                <span class="nav-text">地图视图</span>
             </div>
-            <div 
-                class="nav-item" 
-                :class="{ active: visible.isSecondVisible }" 
-                @click="target.targetChange('second')"
-            >
-                <el-icon><DataAnalysis /></el-icon>
-                <span>统计分析</span>
+            <div class="nav-item" :class="{ active: visible.isSecondVisible }" @click="target.targetChange('second')">
+                <el-icon>
+                    <DataAnalysis />
+                </el-icon>
+                <span class="nav-text">统计分析</span>
             </div>
-            <div 
-                class="nav-item" 
-                :class="{ active: visible.isThirdVisible }" 
-                @click="target.targetChange('third')"
-            >
-                <el-icon><List /></el-icon>
-                <span>任务管理</span>
+            <div class="nav-item" :class="{ active: visible.isThirdVisible }" @click="target.targetChange('third')">
+                <el-icon>
+                    <List />
+                </el-icon>
+                <span class="nav-text">任务管理</span>
             </div>
         </div>
 
         <!-- 3. 数据列表入口 (小按钮组) -->
         <div class="data-group">
             <el-button-group>
-                <el-button @click="openVehicleDrawer" :icon="Van">车辆</el-button>
-                <el-button @click="openDrawer" :icon="Location">POI</el-button>
+                <el-button @click="openVehicleDrawer" :icon="Van">
+                    <span class="btn-text">车辆</span>
+                </el-button>
+                <el-button @click="openDrawer" :icon="Location">
+                    <span class="btn-text">POI</span>
+                </el-button>
             </el-button-group>
         </div>
 
         <!-- 4. 仿真控制区 (带背景的集成区域) -->
         <div class="simulation-panel">
             <div class="speed-control">
-                <el-icon><Odometer /></el-icon>
-                <el-radio-group v-model="currentSpeed" size="small" @change="handleSetSpeed">
-                    <el-radio-button v-for="s in speedOptions" :key="s" :label="s">{{s}}x</el-radio-button>
+                <el-icon>
+                    <Odometer />
+                </el-icon>
+                <!-- 宽屏显示的 Radio Group -->
+                <el-radio-group v-model="currentSpeed" size="small" @change="handleSetSpeed" class="speed-radio-group">
+                    <el-radio-button v-for="s in speedOptions" :key="s" :label="s">{{ s }}x</el-radio-button>
                 </el-radio-group>
+
+                <!-- 窄屏显示的 Dropdown -->
+                <el-dropdown trigger="click" @command="handleSetSpeed" class="speed-dropdown">
+                    <el-button size="small" type="primary" link>
+                        {{ currentSpeed }}x <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item v-for="s in speedOptions" :key="s" :command="s">
+                                {{ s }}x
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
             </div>
 
             <div class="action-btns">
-                <el-button 
-                    :type="isPollingActive ? 'info' : 'success'" 
-                    :icon="VideoPlay"
-                    circle
-                    @click="mapAnimationStore.startPolling" 
-                    :disabled="isPollingActive"
-                />
-                <el-button 
-                    :type="!isPollingActive ? 'info' : 'warning'" 
-                    :icon="VideoPause"
-                    circle
-                    @click="mapAnimationStore.pausePolling" 
-                    :disabled="!isPollingActive"
-                />
+                <el-button :type="isPollingActive ? 'info' : 'success'" :icon="VideoPlay" circle
+                    @click="mapAnimationStore.startPolling" :disabled="isPollingActive" />
+                <el-button :type="!isPollingActive ? 'info' : 'warning'" :icon="VideoPause" circle
+                    @click="mapAnimationStore.pausePolling" :disabled="!isPollingActive" />
             </div>
 
             <div class="mock-group">
-                <el-input-number v-model="mockCount" :min="1" size="small" controls-position="right" style="width: 80px;" />
-                <el-button type="primary" plain size="small" :icon="Box" @click="handleMockShipments">Mock</el-button>
+                <el-input-number v-model="mockCount" :min="1" size="small" controls-position="right"
+                    class="mock-input" />
+                <el-button type="primary" plain size="small" :icon="Box" @click="handleMockShipments">
+                    <span class="btn-text">Mock</span>
+                </el-button>
             </div>
         </div>
 
         <!-- 5. 用户退出 -->
         <div class="user-section">
             <router-link to="/login" class="exit-btn">
-                <el-icon><SwitchButton /></el-icon>
+                <el-icon>
+                    <SwitchButton />
+                </el-icon>
                 <span>退出登录</span>
             </router-link>
         </div>
@@ -180,10 +192,12 @@ onMounted(() => initSpeed())
     gap: 10px;
     margin-right: 40px;
 }
+
 .logo-icon {
     font-size: 24px;
     color: #409eff;
 }
+
 .logo-text {
     font-size: 22px;
     font-weight: 800;
@@ -201,6 +215,7 @@ onMounted(() => initSpeed())
     gap: 8px;
     height: 100%;
 }
+
 .nav-item {
     display: flex;
     align-items: center;
@@ -220,9 +235,11 @@ onMounted(() => initSpeed())
     color: #409eff;
     background: rgba(64, 158, 255, 0.05);
 }
+
 .nav-item.active {
     color: #409eff;
 }
+
 .nav-item.active::after {
     content: "";
     position: absolute;
@@ -276,6 +293,7 @@ onMounted(() => initSpeed())
 .user-section {
     margin-left: 20px;
 }
+
 .exit-btn {
     display: flex;
     align-items: center;
@@ -287,6 +305,7 @@ onMounted(() => initSpeed())
     border-radius: 8px;
     transition: all 0.3s;
 }
+
 .exit-btn:hover {
     color: #f56c6c;
     background: rgba(245, 108, 108, 0.1);
@@ -332,5 +351,80 @@ onMounted(() => initSpeed())
 .simulation-panel,
 .user-section {
     flex-shrink: 0;
+
+.speed-dropdown {
+    display: none;
+}
+
+/* 1. 中等屏幕 (1200px 以下)：隐藏导航文字和 Logo 文字 */
+@media screen and (max-width: 1200px) {
+
+    .logo-text,
+    .nav-text {
+        display: none;
+    }
+
+    .logo-section {
+        margin-right: 20px;
+    }
+
+    .nav-item {
+        padding: 0 12px;
+    }
+}
+
+/* 2. 窄屏幕 (1000px 以下)：速度切换变为下拉菜单，隐藏按钮文字 */
+@media screen and (max-width: 1000px) {
+
+    /* 隐藏所有次要文字 */
+    .btn-text,
+    .exit-btn span {
+        display: none;
+    }
+
+    /* 缩小间距 */
+    .nav-header {
+        padding: 0 12px;
+    }
+
+    .simulation-panel {
+        gap: 8px;
+        padding: 6px 10px;
+        margin-left: 10px;
+    }
+
+    .data-group,
+    .user-section {
+        margin-left: 10px;
+    }
+
+    /* 切换速度控制器：隐藏 Radio，显示 Dropdown */
+    .speed-radio-group {
+        display: none;
+    }
+
+    .speed-dropdown {
+        display: inline-flex;
+    }
+}
+
+/* 3. 极窄屏幕 (768px 以下)：进一步压缩 */
+@media screen and (max-width: 768px) {
+    .mock-input {
+        width: 60px !important;
+        /* 缩小输入框 */
+    }
+
+    .action-btns {
+        padding: 0 4px;
+        gap: 4px;
+    }
+
+    .simulation-panel {
+        background: transparent;
+        /* 节省空间，去掉背景 */
+        border: none;
+        padding: 0;
+    }
 }
 </style>
