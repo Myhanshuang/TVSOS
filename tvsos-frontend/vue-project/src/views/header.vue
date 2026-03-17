@@ -351,7 +351,7 @@ onMounted(() => initSpeed())
 .simulation-panel,
 .user-section {
     flex-shrink: 0;
-
+}
 .speed-dropdown {
     display: none;
 }
