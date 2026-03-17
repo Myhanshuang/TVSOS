@@ -205,7 +205,7 @@ onMounted(() => initSpeed())
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 16px;
+    padding: 0 5px;
     height: 100%;
     cursor: pointer;
     color: #606266;
@@ -241,10 +241,10 @@ onMounted(() => initSpeed())
 
 /* 仿真面板集成区 */
 .simulation-panel {
-    margin-left: auto; /* 推到右侧 */
+    margin-left:10px; /* 推到右侧 */
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 10px;
     background: #f5f7fa;
     padding: 6px 16px;
     border-radius: 32px;
@@ -297,5 +297,40 @@ onMounted(() => initSpeed())
     border-radius: 12px !important;
     margin: 0 2px;
     border: none !important;
+}
+.nav-item,
+.exit-btn,
+.logo-text {
+    white-space: nowrap;
+    flex-shrink: 0; 
+}
+
+/* 2. 修复“车辆”和“POI”按钮组变成上下排列的问题 */
+.data-group {
+    display: flex;
+    flex-shrink: 0;
+}
+:deep(.el-button-group) {
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+/* 3. 修复倍速控制（50x）掉到下一行的问题 */
+.speed-control {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+:deep(.el-radio-group) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+}
+
+/* 4. 防止几个主要大区块被过度压缩 */
+.logo-section,
+.nav-main,
+.simulation-panel,
+.user-section {
+    flex-shrink: 0;
 }
 </style>
