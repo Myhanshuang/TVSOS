@@ -209,20 +209,20 @@ onBeforeUnmount(() => {
     <div class="Border">
       <!-- 顶部汇总指标卡片区域 -->
       <div class="hangCards">
-        <div class="card">
+        <div class="card" data-hover-text="查看详情">
           <div class="card-title">车辆数量</div>
           <div class="data">{{ vehicleSum }} 辆</div>
         </div>
-        <div class="card">
+        <div class="card" data-hover-text="点位分布">
           <div class="card-title">POI 点总量</div>
           <div class="data">{{ poiSum }} 个</div>
         </div>
-        <div class="card">
+        <div class="card"  data-hover-text="人员管理">
           <div class="card-title">司机数量</div>
           <div class="data">{{ driverSum }} 位</div>
         </div>
-        <div class="card">
-          <div class="card-title">运输中的货物总量</div>
+        <div class="card" data-hover-text="物流监控">
+          <div class="card-title" >运输中的货物总量</div>
           <div class="data">{{ cargoSizeSum }} kg</div>
         </div>
       </div>
@@ -275,6 +275,64 @@ onBeforeUnmount(() => {
   background-color: white;
   border-radius: 6px;
   box-shadow: 2px 2px 2px #e1e1e1, -2px -2px 2px #e1e1e1;
+
+  /* 为了让右下角的符号能够绝对定位 */
+  position: relative; 
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+/* 设置文字样式 */
+.card::before {
+  content: attr(data-hover-text); 
+  position: absolute;
+  bottom: 15px;
+  right: 15px; 
+  font-size: 14px;
+  font-weight: 500;
+  color: #363636;
+  
+  opacity: 0;
+  transform: translateX(60px);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+/* 悬停时，图标向左移，文字浮现 */
+.card:hover::before {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+
+/* 确保图标不会挡住文字 */
+.card:hover::after {
+  opacity: 1;
+  /* 悬停时图标也向左移一点，给整体留出空间 */
+  transform: translateX(-60px); 
+
+}
+
+/* 利用伪元素生成右下角的 > */
+.card::after {
+  content: "";
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  /* 使用你项目中的图标路径 */
+  background: url("../../public/images/arrow-right.svg") no-repeat center;
+  background-size: contain;
+  opacity: 0.5;
+  transition: 0.3s;
+}
+
+/* 添加一个悬停变色效果 */
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 4px 4px 10px #d1d1d1;
 }
 
 /* 图表行布局 */
