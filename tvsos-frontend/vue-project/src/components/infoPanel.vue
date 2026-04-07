@@ -42,31 +42,33 @@ const getVehicleCategoryText = (category) => {
                     <h3 class="imfromTitle">
                         {{ currentInfoType === 'poi' ? 'POI 详细信息' : '车辆详细信息' }}
                     </h3>
-                    <el-button 
-                        class="close-btn" 
-                        :icon="Close" 
-                        circle 
-                        @click="imform.imformHide" 
-                    />
+                    <el-button class="close-btn" :icon="Close" circle @click="imform.imformHide" />
                 </div>
 
                 <div class="panel-content">
                     <!-- POI 详情 -->
                     <div v-if="currentInfoType === 'poi' && recentPoi" class="info-list">
-                        <div class="info-item"><span class="label">编号:</span><span class="value">{{ recentPoi.id }}</span></div>
-                        <div class="info-item"><span class="label">名称:</span><span class="value">{{ recentPoi.name }}</span></div>
-                        <div class="info-item"><span class="label">类型:</span><span class="value">{{ poiBox.recentPoiKind }}</span></div>
-                        <div class="info-item"><span class="label">状态:</span><span class="value status-tag">{{ poiBox.recentPoiStatus }}</span></div>
+                        <div class="info-item"><span class="label">编号:</span><span class="value">{{ recentPoi.id
+                                }}</span></div>
+                        <div class="info-item"><span class="label">名称:</span><span class="value">{{ recentPoi.name
+                                }}</span></div>
+                        <div class="info-item"><span class="label">类型:</span><span class="value">{{ poiBox.recentPoiKind
+                                }}</span></div>
+                        <div class="info-item"><span class="label">状态:</span><span class="value status-tag">{{
+                                poiBox.recentPoiStatus }}</span></div>
                     </div>
 
                     <!-- 车辆详情 -->
                     <div v-else-if="currentInfoType === 'vehicle' && recentVehicle" class="info-list">
-                        <div class="info-item"><span class="label">车牌号:</span><span class="value highlight">{{ recentVehicle.license }}</span></div>
-                        <div class="info-item"><span class="label">车辆类型:</span><span class="value">{{ getVehicleCategoryText(recentVehicle.categoryId) }}</span></div>
+                        <div class="info-item"><span class="label">车牌号:</span><span class="value highlight">{{
+                                recentVehicle.license }}</span></div>
+                        <div class="info-item"><span class="label">车辆类型:</span><span class="value">{{
+                            getVehicleCategoryText(recentVehicle.categoryId) }}</span></div>
                         <div class="info-item">
                             <span class="label">当前位置:</span>
                             <span class="value coords">
-                                {{ props.displayPosition?.[0]?.toFixed(5) }}, {{ props.displayPosition?.[1]?.toFixed(5) }}
+                                {{ props.displayPosition?.[0]?.toFixed(5) }}, {{ props.displayPosition?.[1]?.toFixed(5)
+                                }}
                             </span>
                         </div>
                         <div class="info-item">
@@ -75,16 +77,44 @@ const getVehicleCategoryText = (category) => {
                         </div>
                         <div class="info-item">
                             <span class="label">当前状态:</span>
-                            <span class="value status-tag active">{{ getVehicleStatusText(recentVehicle.status) }}</span>
+                            <span class="value status-tag active">{{ getVehicleStatusText(recentVehicle.status)
+                                }}</span>
                         </div>
                         <div class="info-divider"></div>
                         <div class="info-item">
                             <span class="label">运输距离:</span>
-                            <span class="value">{{ recentVehicle.distance?.toFixed(2) || '0.00' }} <small>km</small></span>
+                            <span class="value">{{ recentVehicle.distance?.toFixed(2) || '0.00' }}
+                                <small>km</small></span>
                         </div>
                         <div class="info-item">
                             <span class="label">预计耗时:</span>
-                            <span class="value">{{ recentVehicle.duration?.toFixed(2) || '0.00' }} <small>h</small></span>
+                            <span class="value">{{ recentVehicle.duration?.toFixed(2) || '0.00' }}
+                                <small>h</small></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">车辆载重:</span>
+                            <span class="value">{{ recentVehicle.capacity || '未知' }} <small>kg</small></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">车辆容积:</span>
+                            <span class="value">长:{{
+                                recentVehicle.length?.toFixed(2) || '未知'
+                                }}</span>
+                            <span class="value">宽:{{
+                                recentVehicle.width?.toFixed(2) || '未知'
+                                }}</span>
+                            <span class="value">高:{{
+                                recentVehicle.height?.toFixed(2) || '未知'
+                                }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">等待时间（当前/总计）:</span>
+                            <span class="value">{{ recentVehicle.waitTime?.toFixed(2) || '0.00' }} / {{ recentVehicle.totalWaitTime?.toFixed(2) || '0.00' }}
+                                <small>min</small></span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">空驶里程:</span>
+                            <span class="value">{{ recentVehicle.emptyMileage?.toFixed(2) || '0.00' }} <small>km</small></span>
                         </div>
                         <div class="info-item footer-time">
                             <span class="label">最后更新:</span>

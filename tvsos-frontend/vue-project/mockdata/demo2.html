@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+
+<head>
+    <meta charset="utf-8">
+    <title>POI 供应链地图版 - 仅悬停显示连线</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: '62811981d3bbc061b5a9c072921c9e3b', 
+        };
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=b9f5f2e6175bcab5b9c8e062ecd74349"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-extension-amap/dist/echarts-extension-amap.min.js"></script>
+    
+    <style>
+        #main { height: 100%; width: 100%; position: absolute; left: 0; top: 0; }
+    </style>
+</head>
+
+<body style="height: 100%; margin: 0">
+    <div id="main"></div>
+    <script type="text/javascript">
+        const typeMap = {
+            1: { name: '加油站', color: '#FF6347' }, 2: { name: '加气站', color: '#4682B4' },
+            3: { name: '充电站', color: '#32CD32' }, 4: { name: '工厂', color: '#FF8C00' },
+            5: { name: '购物中心', color: '#9932CC' }, 6: { name: '建材家具', color: '#8B4513' },
+            7: { name: '公司企业', color: '#00CED1' }, 8: { name: '物流', color: '#FFD700' },
+            9: { name: '社区休闲', color: '#EE82EE' }, 10: { name: '汽车维修', color: '#FF4500' },
+            11: { name: '养护中心', color: '#20B2AA' }, 12: { name: '专营店', color: '#9400D3' },
+            13: { name: '重卡维修', color: '#B22222' }, 14: { name: '汽车装饰', color: '#7B68EE' },
+            15: { name: '汽车销售', color: '#008080' }, 16: { name: '物流园区', color: '#DAA520' },
+            17: { name: '产业园区', color: '#800080' }, 18: { name: '服务中心', color: '#4B0082' },
+            19: { name: '货运站', color: '#556B2F' }, 20: { name: '机场货运', color: '#FF69B4' },
+            21: { name: '服装鞋帽', color: '#696969' }, 22: { name: '综合市场', color: '#CD853F' },
+            23: { name: '大型商场', color: '#000080' }
+        };
+
+        const myChart = echarts.init(document.getElementById('main'));
+        myChart.showLoading();
+
+        fetch('mockpoi_with_chain.json')
+            .then(res => res.json())
+            .then(data => {
+                myChart.hideLoading();
+
+                const nodeRawMap = {};
+                const nodes = [];
+                const links = [];
+
+                data.poi.forEach(item => {
+                    nodeRawMap[item.id.toString()] = item;
+
+                    nodes.push({
+                        id: item.id.toString(),
+                        name: item.name,
+                        value: [item.lon, item.lat, typeMap[item.type]?.name],
+                        symbolSize: 8,
+                        itemStyle: { color: typeMap[item.type]?.color || '#CCC' },
+                        z: 2,
+                        label: {
+                            show: false,
+                            position: 'right',
+                            distance: 8,
+                            color: '#333',
+                            fontSize: 11,
+                            backgroundColor: 'rgba(255,255,255,0.8)',
+                            padding: [2, 4],
+                            borderRadius: 2
+                        }
+                    });
+
+                    if (item.next !== null && item.next !== undefined) {
+                        links.push({
+                            source: item.id.toString(),
+                            target: item.next.toString(),
+                            // 【核心修改1】 默认透明度设为 0
+                            lineStyle: { opacity: 0 }
+                        });
+                    }
+                });
+
+                const option = {
+                    amap: {
+                        center: [data.poi[0].lon, data.poi[0].lat],
+                        zoom: 12,
+                        pitch: 0,
+                        viewMode: '2D',
+                        mapStyle: 'amap://styles/light',
+                        renderOnMoving: true,
+                        echartsLayerInteractive: true,
+                    },
+                    tooltip: { trigger: 'item' },
+                    series: [{
+                        type: 'graph',
+                        coordinateSystem: 'amap',
+                        data: nodes,
+                        links: links,
+                        edgeSymbol: ['none', 'arrow'],
+                        edgeSymbolSize: 5,
+                        labelLayout: { hideOverlap: true },
+                        // 【核心修改2】 全局默认线条颜色和宽度
+                        lineStyle: { color: '#ff4500', width: 3, curveness: 0.1 },
+                        emphasis: { disabled: true }
+                    }]
+                };
+
+                myChart.setOption(option);
+
+                function getChainIds(startId) {
+                    const chainIds = new Set();
+                    const sId = startId.toString();
+                    chainIds.add(sId);
+                    let curr = nodeRawMap[sId];
+                    while (curr && curr.prev !== null && curr.prev !== undefined) {
+                        const prevId = curr.prev.toString();
+                        if (chainIds.has(prevId)) break;
+                        chainIds.add(prevId);
+                        curr = nodeRawMap[prevId];
+                    }
+                    curr = nodeRawMap[sId];
+                    while (curr && curr.next !== null && curr.next !== undefined) {
+                        const nextId = curr.next.toString();
+                        if (chainIds.has(nextId)) break;
+                        chainIds.add(nextId);
+                        curr = nodeRawMap[nextId];
+                    }
+                    return chainIds;
+                }
+
+                myChart.on('mouseover', { dataType: 'node' }, (params) => {
+                    const activeIds = getChainIds(params.data.id);
+                    
+                    const newNodes = nodes.map(n => {
+                        const isActive = activeIds.has(n.id);
+                        return {
+                            ...n,
+                            label: { ...n.label, show: isActive },
+                            itemStyle: { ...n.itemStyle, opacity: isActive ? 1 : 0.2 }
+                        };
+                    });
+
+                    const newLinks = links.map(l => {
+                        // 【核心修改3】 只有属于当前链条的线才显示
+                        const isActive = activeIds.has(l.source) && activeIds.has(l.target);
+                        return {
+                            ...l,
+                            lineStyle: {
+                                ...l.lineStyle,
+                                opacity: isActive ? 0.9 : 0 // 激活时显示，否则全透明
+                            }
+                        };
+                    });
+                    
+                    myChart.setOption({ series: [{ data: newNodes, links: newLinks }] });
+                });
+
+                myChart.on('mouseout', { dataType: 'node' }, () => {
+                    // 【核心修改4】 鼠标移出时，恢复所有点全显，所有线全透明
+                    const resetNodes = nodes.map(n => ({
+                        ...n,
+                        label: { ...n.label, show: false },
+                        itemStyle: { ...n.itemStyle, opacity: 1 }
+                    }));
+                    
+                    const resetLinks = links.map(l => ({
+                        ...l,
+                        lineStyle: { ...l.lineStyle, opacity: 0 }
+                    }));
+
+                    myChart.setOption({ series: [{ data: resetNodes, links: resetLinks }] });
+                });
+            });
+
+        window.addEventListener('resize', () => myChart.resize());
+    </script>
+</body>
+</html>
