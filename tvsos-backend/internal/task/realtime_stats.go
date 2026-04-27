@@ -26,19 +26,19 @@ type NumericStatView struct {
 }
 
 type RealtimeSummary struct {
-	TotalThroughput      float64     `json:"total_throughput"`
-	CostValue            float64     `json:"cost_value"`
-	CargoPending         float64     `json:"cargo_pending"`
-	TransportEfficiency  float64     `json:"transport_efficiency"`
-	TotalWaitingTime     float64     `json:"total_waiting_time"`
-	TotalEmptyMileage    float64     `json:"total_empty_mileage"`
-	TotalLossTh          float64     `json:"total_loss_th"`
-	TotalCapacityTm      float64     `json:"total_capacity_tm"`
-	VehicleTypes         []NameValue `json:"vehicle_types"`
-	CargoDemand          []NameValue `json:"cargo_demand"`
-	EmptyFullRatio       float64     `json:"empty_full_ratio"`
-	WaitTransportRatio   float64     `json:"wait_transport_ratio"`
-	WorkTime             WorkTime    `json:"work_time"`
+	TotalThroughput     float64     `json:"total_throughput"`
+	CostValue           float64     `json:"cost_value"`
+	CargoPending        float64     `json:"cargo_pending"`
+	TransportEfficiency float64     `json:"transport_efficiency"`
+	TotalWaitingTime    float64     `json:"total_waiting_time"`
+	TotalEmptyMileage   float64     `json:"total_empty_mileage"`
+	TotalLossTh         float64     `json:"total_loss_th"`
+	TotalCapacityTm     float64     `json:"total_capacity_tm"`
+	VehicleTypes        []NameValue `json:"vehicle_types"`
+	CargoDemand         []NameValue `json:"cargo_demand"`
+	EmptyFullRatio      float64     `json:"empty_full_ratio"`
+	WaitTransportRatio  float64     `json:"wait_transport_ratio"`
+	WorkTime            WorkTime    `json:"work_time"`
 }
 
 type WorkTime struct {

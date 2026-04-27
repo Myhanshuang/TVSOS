@@ -94,7 +94,7 @@ func TestFullScheduleSimulation(t *testing.T) {
 	// 运行一两次移动模拟
 	tasks, _ := repository.GetRunningTasksOrderedByVehicle()
 	Logger.Logger.Info("推进车辆移动", zap.Int("runningTasks", len(tasks)))
-	
+
 	// 模拟几次移动循环
 	for i := 0; i < 3; i++ {
 		movingVehicles := make(map[uint]bool)

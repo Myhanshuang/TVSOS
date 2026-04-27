@@ -15,8 +15,8 @@ type RouteResponse struct {
 	Status   string `json:"status"`
 	Info     string `json:"info"`
 	InfoCode string `json:"infocode"`
-	Count string `json:"count"`
-	Route struct {
+	Count    string `json:"count"`
+	Route    struct {
 		Paths []struct {
 			Distance string `json:"distance"` // 行驶距离 米
 			Duration string `json:"duration"` // 估计用时 秒

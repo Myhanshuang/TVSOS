@@ -159,11 +159,32 @@ func calculateCostBreakdown(
 		weights.R2*stats.CargoWaitStats.StdDev +
 		weights.R3*stats.TransportTimeStats.StdDev
 
+	// 方向角计算逻辑，计算当前任务路径是否“南辕北辙”
+	var dirPenalty float64
+	if stats != nil && stats.vehicleDirLon != nil && v != nil && startPoi != nil && endPoi != nil {
+		vLon := stats.vehicleDirLon[v.Id]
+		vLat := stats.vehicleDirLat[v.Id]
+		if vLat != 0 || vLon != 0 {
+			taskDLon := endPoi.Lon - startPoi.Lon
+			taskDLat := endPoi.Lat - startPoi.Lat
+			len1 := vLon*vLon + vLat*vLat
+			len2 := taskDLon*taskDLon + taskDLat*taskDLat
+			if len1 > 1e-12 && len2 > 1e-12 {
+				cosTheta := (vLon*taskDLon + vLat*taskDLat) / (math.Sqrt(len1) * math.Sqrt(len2))
+				if cosTheta < 0 {
+					// 接了后续订单发生南辕北辙，夹角为钝角，大幅增加Cost值
+					dirPenalty = -cosTheta * (tripDistance + distToStart) * 5.0
+				}
+			}
+		}
+	}
+
 	costF := weights.Lambda1*costA +
 		weights.Lambda2*costB +
 		weights.Lambda3*costC +
 		weights.Lambda4*costD +
-		weights.Lambda5*costE
+		weights.Lambda5*costE +
+		dirPenalty
 
 	if Logger.Logger != nil {
 		Logger.Logger.Debug("Cost Calculation Breakdown",
@@ -205,6 +226,12 @@ func normalizeStats(stats *Statistics) *Statistics {
 		if stats.vehicleCapacityGapByVehicle == nil {
 			stats.vehicleCapacityGapByVehicle = make(map[uint]float64)
 		}
+		if stats.vehicleDirLon == nil {
+			stats.vehicleDirLon = make(map[uint]float64)
+		}
+		if stats.vehicleDirLat == nil {
+			stats.vehicleDirLat = make(map[uint]float64)
+		}
 		return stats
 	}
 	return &Statistics{
@@ -212,6 +239,8 @@ func normalizeStats(stats *Statistics) *Statistics {
 		cargoWaitByShipment:         make(map[uint]float64),
 		cargoWeightTonsByShipment:   make(map[uint]float64),
 		vehicleCapacityGapByVehicle: make(map[uint]float64),
+		vehicleDirLon:               make(map[uint]float64),
+		vehicleDirLat:               make(map[uint]float64),
 	}
 }
 

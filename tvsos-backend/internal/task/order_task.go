@@ -71,8 +71,6 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 	nfMu.Lock()
 	defer nfMu.Unlock()
 
-	options := getSchedulerOptions()
-
 	vehicles, err := repository.ListVehicles(0) // 获取所有车辆以进行 NF
 	if err != nil || len(vehicles) == 0 {
 		Logger.Logger.Warn("没有可用车辆")
@@ -94,6 +92,15 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 	unassigned := make([]*model.Shipment, 0)
 	assignedVehicles := make(map[uint]*model.Vehicle)
 
+	// SA 求解订单分配
+	pois, _ := repository.ListAllPois()
+	poiMap := make(map[uint]*model.Poi)
+	for _, p := range pois {
+		poiMap[p.Id] = p
+	}
+
+	bestAssignment := assignBySimulatedAnnealing(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
+
 	for _, shipment := range shipments {
 		cargo := getCargoByCache(cargoCache, shipment.CargoId)
 		if cargo == nil {
@@ -102,37 +109,22 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 			continue
 		}
 
-		startPoi, err := repository.GetPoi(int(shipment.StartPoiId))
-		if err != nil {
-			Logger.Logger.Error("查询起点POI失败", zap.Uint("shipmentId", shipment.Id), zap.Error(err))
-			unassigned = append(unassigned, shipment)
-			continue
-		}
-		endPoi, err := repository.GetPoi(int(shipment.EndPoiId))
-		if err != nil {
-			Logger.Logger.Error("查询终点POI失败", zap.Uint("shipmentId", shipment.Id), zap.Error(err))
+		v := bestAssignment[shipment.Id]
+		if v == nil {
+			Logger.Logger.Warn("订单无法匹配到合适车辆 (SA)", zap.Uint("shipmentId", shipment.Id))
 			unassigned = append(unassigned, shipment)
 			continue
 		}
 
-		candidates := collectNFCandidates(vehicles, projectedLoads, shipment, cargo, lastVehicleIdx, options.CandidateK)
-		if len(candidates) == 0 {
-			Logger.Logger.Warn("订单无法匹配到合适车辆", zap.Uint("shipmentId", shipment.Id), zap.Int("cargoWeight", cargo.Weight*shipment.Count))
-			unassigned = append(unassigned, shipment)
-			continue
-		}
-
-		chosen := selectBestCandidate(options, candidates, shipment, cargo, startPoi, endPoi, statsSnapshot)
 		shipmentLoad := cargo.Weight * shipment.Count
-		if !assignShipmentToVehicle(shipment, chosen.Vehicle, shipmentLoad) {
-			Logger.Logger.Warn("订单分配失败", zap.Uint("shipmentId", shipment.Id), zap.Uint("vehicleId", chosen.Vehicle.Id))
+		if !assignShipmentToVehicle(shipment, v, shipmentLoad) {
+			Logger.Logger.Warn("订单分配失败", zap.Uint("shipmentId", shipment.Id), zap.Uint("vehicleId", v.Id))
 			unassigned = append(unassigned, shipment)
 			continue
 		}
 
-		projectedLoads[chosen.Vehicle.Id] += shipmentLoad
-		lastVehicleIdx = chosen.Index
-		assignedVehicles[chosen.Vehicle.Id] = chosen.Vehicle
+		projectedLoads[v.Id] += shipmentLoad
+		assignedVehicles[v.Id] = v
 	}
 
 	for vehicleID, vehicle := range assignedVehicles {

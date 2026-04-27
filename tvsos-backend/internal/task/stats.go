@@ -38,6 +38,8 @@ type Statistics struct {
 	cargoWaitByShipment         map[uint]float64
 	cargoWeightTonsByShipment   map[uint]float64
 	vehicleCapacityGapByVehicle map[uint]float64
+	vehicleDirLon               map[uint]float64
+	vehicleDirLat               map[uint]float64
 }
 
 // VehicleOverview 车辆基础情况
@@ -198,6 +200,8 @@ func buildStatistics(
 		cargoWaitByShipment:         make(map[uint]float64),
 		cargoWeightTonsByShipment:   make(map[uint]float64),
 		vehicleCapacityGapByVehicle: make(map[uint]float64),
+		vehicleDirLon:               make(map[uint]float64),
+		vehicleDirLat:               make(map[uint]float64),
 	}
 
 	stats.calculateVehicleOverview(vehicles)
@@ -205,6 +209,7 @@ func buildStatistics(
 	stats.calculateTimeStats(vehicles, tasks, shipments, cargos, now)
 	stats.calculateCargoOverview(shipments, tasks, cargos)
 	stats.calculateDistanceStats(vehicles, tasks, shipments, pois)
+	stats.calculateVehicleDirection(vehicles, tasks, shipments, pois)
 	stats.calculateThroughputStats(vehicles, tasks, shipments, cargos, pois, now)
 	stats.calculatePendingLossStats(shipments, cargos)
 	stats.calculateLoadStats(shipments, cargos)
@@ -772,5 +777,53 @@ func computeBasicMetrics(data []float64) basicMetrics {
 		Avg:    avg,
 		Median: median,
 		StdDev: stdDev,
+	}
+}
+
+// calculateVehicleDirection 计算车辆当前规划的整体行进方向矢量
+func (s *Statistics) calculateVehicleDirection(
+	vehicles []*model.Vehicle,
+	tasks []*model.OrderTask,
+	shipments []*model.Shipment,
+	pois map[uint]*model.Poi,
+) {
+	if len(pois) == 0 {
+		return
+	}
+
+	lastEndPoi := make(map[uint]*model.Poi)
+	shipmentMap := make(map[uint]*model.Shipment, len(shipments))
+	for _, shipment := range shipments {
+		shipmentMap[shipment.Id] = shipment
+	}
+
+	for _, task := range tasks {
+		if task.Sequential >= constant.OrderTaskSequentialFinish {
+			continue
+		}
+
+		shipment := shipmentMap[task.ShipmentId]
+		if shipment == nil {
+			continue
+		}
+		endPoi := pois[shipment.EndPoiId]
+		if endPoi == nil {
+			continue
+		}
+		lastEndPoi[task.VehicleId] = endPoi
+	}
+
+	for _, vehicle := range vehicles {
+		endTarget := lastEndPoi[vehicle.Id]
+		if endTarget == nil {
+			continue
+		}
+		dLon := endTarget.Lon - vehicle.Lon
+		dLat := endTarget.Lat - vehicle.Lat
+
+		if dLon*dLon+dLat*dLat > 1e-8 {
+			s.vehicleDirLon[vehicle.Id] = dLon
+			s.vehicleDirLat[vehicle.Id] = dLat
+		}
 	}
 }

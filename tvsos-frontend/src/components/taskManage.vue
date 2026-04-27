@@ -15,11 +15,11 @@ const tableKey = ref(0)     // 表格更新标识符，用于强制重绘表格
  * 将后端返回的数字状态转换为对应的中文文本及 Element Plus 标签类型 
  */
 const statusMap = {
-  1: { text: '待拆分', type: 'info' },
-  2: { text: '待调度', type: 'warning' },
-  3: { text: '运输中', type: '' },
-  4: { text: '完成', type: 'success' },
-  5: { text: '取消', type: 'danger' },
+  1: { text: '待调度', type: 'info' },
+  2: { text: '待发车', type: 'warning' },
+  3: { text: '等待中', type: 'warning' },
+  4: { text: '运输中', type: '' },
+  5: { text: '已完成', type: 'success' },
   6: { text: '异常', type: 'danger' }
 }
 
@@ -65,11 +65,11 @@ onMounted(() => {
         <span style="margin-left: 15px; font-size: 14px;">状态筛选</span>
         <el-select placeholder="请选择" class="statusSelect" v-model="status">
           <el-option label="全部" value=""></el-option>
-          <el-option label="待拆分" :value="1"></el-option>
-          <el-option label="待调度" :value="2"></el-option>
-          <el-option label="运输中" :value="3"></el-option>
-          <el-option label="完成" :value="4"></el-option>
-          <el-option label="取消" :value="5"></el-option>
+          <el-option label="待调度" :value="1"></el-option>
+          <el-option label="待发车" :value="2"></el-option>
+          <el-option label="等待中" :value="3"></el-option>
+          <el-option label="运输中" :value="4"></el-option>
+          <el-option label="已完成" :value="5"></el-option>
           <el-option label="异常" :value="6"></el-option>
         </el-select>
 
