@@ -1,0 +1,46 @@
+{
+  "summary": {
+    "vehicle_total": 450,
+    "vehicle_types": [
+      { "name": "重型卡车", "value": 180 },
+      { "name": "中型卡车", "value": 120 },
+      { "name": "轻型货车", "value": 100 },
+      { "name": "冷链车", "value": 50 }
+    ],
+    "utilization": {
+      "by_count": 85.5,
+      "by_load": 72.3
+    },
+    "total_waiting_time": 1240,
+    "total_empty_mileage": 5600,
+    "cargo_demand": [
+      { "category": "工业原材料", "value": 4500 },
+      { "category": "生鲜食品", "value": 2100 },
+      { "category": "电子产品", "value": 1800 },
+      { "category": "日用百货", "value": 3200 }
+    ],
+    "cargo_allocated": 9800,
+    "cargo_pending": 1800,
+    "total_throughput": 45200,
+    "transport_efficiency": 94.2,
+    "total_capacity_tm": 85000,
+    "total_loss_th": 420,
+    "cost_value": 1258400,
+    "empty_full_ratio": 0.28,
+    "wait_transport_ratio": 0.15,
+    "work_time": {
+        "total_loading_time": 2800
+    }
+  },
+  "individual_stats": {
+    "truck_capacity": { "max": 40, "min": 12, "avg": 22.5, "median": 20 },
+    "factory_loss": { "max": 15, "min": 0.5, "avg": 4.2, "median": 3.8 },
+    "loading_time": { "max": 120, "min": 20, "avg": 45, "median": 40 }
+  },
+  "detail_trends": {
+    "throughput": [3800, 4200, 4100, 4900, 5200, 5800, 6100],
+    "pending": [2500, 2200, 1900, 2300, 2100, 1800, 1600],
+    "cost": [110000, 115000, 118000, 122000, 125000, 125840, 130000],
+    "efficiency": [88, 90, 92, 91, 93, 94.2, 95]
+  }
+}

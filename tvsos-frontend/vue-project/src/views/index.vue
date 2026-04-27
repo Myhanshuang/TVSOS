@@ -2,6 +2,7 @@
 import MapContainer from '@/components/mapContainer.vue'
 import Statistics from '@/components/statistics.vue';
 import taskManage from '@/components/taskManage.vue';
+import Statistics2 from '@/components/statistics2.vue';
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useVisibleStore, useTargetStore } from '@/stores/index.js'
 
@@ -63,7 +64,7 @@ watch(() => target.watchLissoner, async () => {
       <MapContainer/>
     </div>
     <div id='second' ref="secondRef" class="section-container">
-      <Statistics/>
+      <Statistics2/>
     </div>
     <div id='third' ref="thirdRef" class="section-container">
       <taskManage/>

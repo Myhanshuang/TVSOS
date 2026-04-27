@@ -264,6 +264,7 @@ onMounted(() => {
 
         /** 配置并启动全局车辆位置轮询服务 */
         mapAnimationStore.setPollingOptions(getServiceOptions());
+        mapAnimationStore.startPolling();
     });
 });
 

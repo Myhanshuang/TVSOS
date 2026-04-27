@@ -1,0 +1,79 @@
+# ========================================
+# Go/Gin 项目通用忽略规则
+# ========================================
+
+# ------------------------
+# 可执行文件和插件
+# ------------------------
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# 测试可执行文件，由 `go test -c` 生成
+*.test
+
+# 测试覆盖率文件和其他测试产物
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Go workspace 文件
+go.work
+go.work.sum
+
+# 依赖目录（如果你不想提交 vendor，请取消注释）
+# vendor/
+
+# 环境变量文件
+.env
+
+# ------------------------
+# 编辑器 / IDE 配置文件
+# ------------------------
+.idea/
+.vscode/
+
+# ------------------------
+# 操作系统生成文件
+# ------------------------
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux / Unix
+*~
+*.swp
+*.swo
+.nfs*
+
+# ------------------------
+# 日志、临时文件
+# ------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+
+# ------------------------
+# 打包 / 构建输出目录
+# ------------------------
+/bin/
+/build/
+/dist/
+/out/
+
+# 配置文件
+config-prod.yml
+config-dev.yml
+.codex/

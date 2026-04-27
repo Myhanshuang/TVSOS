@@ -17,8 +17,10 @@ export const useVehicleStore = defineStore('vehicle', () => {
    * @param {Object} vehicleData - 车辆信息对象，必须包含 license 属性
    */
   const setVehicle = (vehicleData) => {
-    if (vehicleData && vehicleData.license) {
-      vehicles.value.set(vehicleData.license, vehicleData);
+    if (!vehicleData) return;
+    const key = vehicleData.license || vehicleData.id;
+    if (key !== undefined && key !== null) {
+      vehicles.value.set(key, vehicleData);
     }
   };
 
@@ -31,8 +33,9 @@ export const useVehicleStore = defineStore('vehicle', () => {
     if (Array.isArray(vehiclesArray)) {
       const newMap = new Map();
       vehiclesArray.forEach(vehicle => {
-        if (vehicle.license) {
-          newMap.set(vehicle.license, vehicle);
+        const key = vehicle?.license || vehicle?.id;
+        if (key !== undefined && key !== null) {
+          newMap.set(key, vehicle);
         }
       });
       // 整体替换以保持响应式更新

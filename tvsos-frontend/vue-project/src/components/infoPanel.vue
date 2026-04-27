@@ -17,18 +17,18 @@ const { currentInfoType, recentVehicle, imformIf } = storeToRefs(imform);
 
 const getVehicleStatusText = (status) => {
     const statusMap = {
-        1: '空闲', 2: '接单行驶', 3: '装货', 4: '运货行驶',
-        5: '卸货中', 6: '停留等待', 7: '加油', 8: '维修'
+        1: '行驶中', 2: '空闲', 3: '待发车',
+        4: '运货行驶', 5: '卸货中', 6: '停留等待', 7: '加油', 8: '维修'
     };
     return statusMap[status] || '未知状态';
 };
 
 const getVehicleCategoryText = (category) => {
-    const statusMap = {
+    const categoryMap = {
         1: '平板货车', 2: '高护栏货车', 3: '厢式货车',
         4: '冷链运输车', 5: '危化品运输车',
     };
-    return statusMap[category] || '未知类型';
+    return categoryMap[category] || '未知类型';
 };
 </script>
 
@@ -61,9 +61,9 @@ const getVehicleCategoryText = (category) => {
                     <!-- 车辆详情 -->
                     <div v-else-if="currentInfoType === 'vehicle' && recentVehicle" class="info-list">
                         <div class="info-item"><span class="label">车牌号:</span><span class="value highlight">{{
-                                recentVehicle.license }}</span></div>
+                                recentVehicle.license || ('车辆-' + recentVehicle.id) }}</span></div>
                         <div class="info-item"><span class="label">车辆类型:</span><span class="value">{{
-                            getVehicleCategoryText(recentVehicle.categoryId) }}</span></div>
+                            getVehicleCategoryText(recentVehicle.categoryId || recentVehicle.tybe) }}</span></div>
                         <div class="info-item">
                             <span class="label">当前位置:</span>
                             <span class="value coords">
@@ -73,7 +73,7 @@ const getVehicleCategoryText = (category) => {
                         </div>
                         <div class="info-item">
                             <span class="label">行驶速度:</span>
-                            <span class="value">{{ recentVehicle.speed.toFixed(2) }} <small>km/h</small></span>
+                            <span class="value">{{ Number(recentVehicle.speed || 0).toFixed(2) }} <small>km/h</small></span>
                         </div>
                         <div class="info-item">
                             <span class="label">当前状态:</span>

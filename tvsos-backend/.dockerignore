@@ -1,0 +1,26 @@
+# 忽略操作系统的文件
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux / Unix
+*~
+*.swp
+*.swo
+.nfs*
+
+.git/
+.gitignore/
+.idea/
+config-dev.yml
+docs/
+LICENSE
+README.md
+swagger-docs/

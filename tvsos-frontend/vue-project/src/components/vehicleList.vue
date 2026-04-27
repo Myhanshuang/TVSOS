@@ -10,14 +10,9 @@
       <el-form-item label="车辆状态">
         <el-select placeholder="请选择" style="width: 120px" v-model="selectedStatus">
           <el-option label="全部" value=""></el-option>
-          <el-option label="空闲" :value="1"></el-option>
-          <el-option label="接单行驶" :value="2"></el-option>
-          <el-option label="装货" :value="3"></el-option>
-          <el-option label="运货行驶" :value="4"></el-option>
-          <el-option label="卸货中" :value="5"></el-option>
-          <el-option label="停留等待" :value="6"></el-option>
-          <el-option label="加油" :value="7"></el-option>
-          <el-option label="维修" :value="8"></el-option>
+            <el-option label="行驶中" :value="1"></el-option>
+            <el-option label="空闲" :value="2"></el-option>
+            <el-option label="待发车" :value="3"></el-option>
         </el-select>
       </el-form-item>
 
@@ -38,7 +33,7 @@
       <!-- 车牌号列：渲染为链接样式 -->
       <el-table-column label="车牌号" prop="license">
         <template #default="{ row }">
-          <el-link type="primary" :underline="false">{{ row.license }}</el-link>
+          <el-link type="primary" :underline="false">{{ row.license || ('车辆-' + row.id) }}</el-link>
         </template>
       </el-table-column>
 
@@ -58,7 +53,7 @@
     </el-table>
 
     <!-- 分页器：基于计算后的过滤列表长度进行分页 -->
-    <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="filteredVehicleList.length"
+    <el-pagination :current-page="currentPage" :page-size="pageSize" :total="filteredVehicleList.length"
       :page-sizes="[10, 20, 30, 40]" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
       @current-change="handleCurrentChange" style="margin-top: 20px; justify-content: end;" />
   </el-drawer>
@@ -103,8 +98,11 @@ const filteredVehicleList = computed(() => {
       return false;
     }
     // 车牌模糊匹配逻辑
-    if (licenseKeyword.value && !vehicle.license.includes(licenseKeyword.value)) {
-      return false;
+    if (licenseKeyword.value) {
+      const displayLicense = vehicle.license || `车辆-${vehicle.id}`;
+      if (!displayLicense.includes(licenseKeyword.value)) {
+        return false;
+      }
     }
     return true;
   });
@@ -121,9 +119,9 @@ const pagedVehicleList = computed(() => {
 
 /** 状态码到中文的简易映射（注：此处映射与 script 内逻辑略有差异，实际以业务需求为准） */
 const statusMap = {
-  0: '停运',
-  1: '待命',
-  2: '行驶中',
+  1: '行驶中',
+  2: '空闲',
+  3: '待发车',
 };
 
 /**

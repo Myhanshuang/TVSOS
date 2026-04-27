@@ -12,12 +12,15 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // 只要请求路径以 /api 开头，就会被代理到 http://localhost:8080
       '/api': {
-        target: 'http://127.0.0.1:4523/m1/7124866-6847792-6235619',
+        target: 'http://127.0.0.1:8088',
         changeOrigin: true,
-        // 可以加上 rewrite，如果后端不需要 /api 前缀：
         rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ws': {
+        target: 'ws://127.0.0.1:8088',
+        ws: true,
+        changeOrigin: true
       }
     }
   }

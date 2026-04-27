@@ -1,4 +1,9 @@
 import request from '@/utils/request'
+
+export const getRealtimeDashboard = (params = {}) => {
+  return request.get('/report/realtime', { params })
+}
+
 export const getVehicleCategory = (params = {}) => {
   return request.get('/report/vehicleCategory', { params })
 } 

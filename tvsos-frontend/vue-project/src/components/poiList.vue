@@ -59,7 +59,7 @@
     </el-table>
 
     <!-- 分页器：前端模拟分页控制 -->
-    <el-pagination v-model:current-page="params.pagenum" v-model:page-size="params.pagesize" :page-sizes="[2, 3, 5, 10]"
+    <el-pagination :current-page="params.pagenum" :page-size="params.pagesize" :page-sizes="[2, 3, 5, 10]"
       :background="true" layout="jumper,total, sizes,prev, pager, next" :total="total" pager-count="4"
       @size-change="onSizeChange" @current-change="onCurrentChange" style="margin-top: 20px; justify-content: end;" />
 
@@ -179,7 +179,7 @@ const loadData = async () => {
 
   try {
     // 2. 发起 Axios GET 请求
-    const res = await request.get('/poi', {
+    const res = await request.get('/pois', {
       params: {
         status: selectedStatus.value === '' ? null : selectedStatus.value,
         tybe: typeId // 注：后端字段名为 tybe

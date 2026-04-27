@@ -1,307 +1,694 @@
-/**
- * 车辆实时轮询与地图动画核心逻辑
- * 负责：定时拉取车辆数据、维护地图 Marker、绘制平滑移动动画、展示行驶轨迹轨迹以及同步全局 Store
- */
 import { getVehiclesData } from '@/api/vehicle';
 import { useVehicleStore } from '@/stores';
-import { useWebSocket } from '@vueuse/core'; //
-/** 轮询配置 */
-let pollingTimerId = null;
-const POLLING_DELAY = 2000;    // 刷新频率：2秒一次，与移动动画时长匹配以实现平滑过渡
-let isPollingRunning = false;  // 内部运行锁
 
-const DEFAULT_STATIC_VEHICLE_ANGLE = 90; // 默认车辆车头朝向
+let vehiclesSocket = null;
+const pathSockets = new Map();
+let reconnectTimer = null;
+let isRealtimeRunning = false;
+let runtimeOptions = null;
 
-/**
- * 根据 ID 生成固定的随机颜色
- * 确保同一辆车在地图上的轨迹颜色始终保持一致
- */
+const MOVE_DURATION_MS = 9000;
+const DEFAULT_STATIC_VEHICLE_ANGLE = 90;
+const MIN_MOVE_DISTANCE_M = 1;
+const MAX_JUMP_DISTANCE_M = 15000; // 15km to account for high-speed simulation
+const MIN_MOVE_DURATION_MS = 400;
+const MAX_MOVE_DURATION_MS = 4500;
+const SEGMENT_PAUSE_MS = 10;
+
+const toFiniteNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const parsePointToLngLat = (p) => {
+  if (!p) return null;
+
+  if (typeof p.getLng === 'function' && typeof p.getLat === 'function') {
+    const lon = toFiniteNumber(p.getLng());
+    const lat = toFiniteNumber(p.getLat());
+    return lon !== null && lat !== null ? [lon, lat] : null;
+  }
+
+  if (typeof p === 'string') {
+    const parts = p.split(',');
+    if (parts.length >= 2) {
+      const lon = toFiniteNumber(parts[0]);
+      const lat = toFiniteNumber(parts[1]);
+      return lon !== null && lat !== null ? [lon, lat] : null;
+    }
+    return null;
+  }
+
+  if (Array.isArray(p) && p.length >= 2) {
+    const lon = toFiniteNumber(p[0]);
+    const lat = toFiniteNumber(p[1]);
+    return lon !== null && lat !== null ? [lon, lat] : null;
+  }
+
+  const lon = toFiniteNumber(p.lon ?? p.Lon ?? p.lng ?? p.Lng ?? p.longitude ?? p.Longitude);
+  const lat = toFiniteNumber(p.lat ?? p.Lat ?? p.latitude ?? p.Latitude);
+  if (lon === null || lat === null) return null;
+  return [lon, lat];
+};
+
+const isValidLngLat = (point) => {
+  if (!Array.isArray(point) || point.length < 2) return false;
+  const lon = toFiniteNumber(point[0]);
+  const lat = toFiniteNumber(point[1]);
+  if (lon === null || lat === null) return false;
+  return lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90;
+};
+
+const sanitizePolylinePath = (rawPoints) => {
+  if (!Array.isArray(rawPoints)) return [];
+  const points = [];
+  for (const raw of rawPoints) {
+    const parsed = parsePointToLngLat(raw);
+    if (!isValidLngLat(parsed)) continue;
+    const prev = points[points.length - 1];
+    if (prev && prev[0] === parsed[0] && prev[1] === parsed[1]) continue;
+    points.push(parsed);
+  }
+  return points;
+};
+
+const safeSetPolylinePath = (polyline, rawPoints) => {
+  if (!polyline) return false;
+  const points = sanitizePolylinePath(rawPoints);
+  if (points.length < 2) {
+    polyline.hide();
+    return false;
+  }
+  polyline.setPath(points);
+  polyline.show();
+  return true;
+};
+
+const buildPassedPathByProgress = (vehicle, progressIndex, fallbackPoint) => {
+  const points = Array.isArray(vehicle?.fullPathPoints) ? vehicle.fullPathPoints : [];
+  if (points.length === 0) {
+    return sanitizePolylinePath(fallbackPoint ? [fallbackPoint] : []);
+  }
+
+  const idx = Number(progressIndex);
+  if (!Number.isFinite(idx)) {
+    return sanitizePolylinePath([points[0]]);
+  }
+
+  const safeIndex = Math.max(0, Math.min(points.length - 1, Math.floor(idx)));
+  const history = points.slice(0, safeIndex + 1);
+  return sanitizePolylinePath(history);
+};
+
+const calcMoveDurationMs = (vehicle, currentMessageTs, distanceMeters) => {
+  // Use timestamp delta to align with backend simulation cycle time, acting as a failsafe
+  if (vehicle && vehicle.lastVehicleMsgTs > 0 && currentMessageTs > vehicle.lastVehicleMsgTs) {
+    const delta = currentMessageTs - vehicle.lastVehicleMsgTs;
+    // Failsafe: if delta is within a reasonable simulation interval (e.g., 0.1s to 30s)
+    if (delta >= 100 && delta <= 30000) {
+      // Use 95% of delta to ensure animation finishes just before next point arrives
+      return Math.max(MIN_MOVE_DURATION_MS, delta * 0.95);
+    }
+  }
+  
+  // Fallback: backend VehicleSimulateMovingGap is 10s, if no delta, use ~9.5s
+  if (Number.isFinite(distanceMeters) && distanceMeters > 0) {
+    const duration = distanceMeters * 25; // legacy distance-based estimate
+    // but scale it closer to the 10s cycle
+    return Math.max(MIN_MOVE_DURATION_MS, Math.min(9500, duration));
+  }
+  return 9500;
+};
+
+const getMarkerLngLat = (marker) => {
+  if (!marker || typeof marker.getPosition !== 'function') return null;
+  return parsePointToLngLat(marker.getPosition());
+};
+
+const syncVehiclePassedPathWithPoint = (vehicle, currentPoint) => {
+  if (!vehicle?.passedPolyline) return;
+  const progressIdx = Number(vehicle.lastProgressIndex);
+  if (!Number.isFinite(progressIdx) || progressIdx < 0) return;
+  if (!isValidLngLat(currentPoint)) return;
+
+  const passedPath = buildPassedPathByProgress(vehicle, progressIdx, currentPoint);
+  vehicle.passedPathHistory = passedPath;
+  safeSetPolylinePath(vehicle.passedPolyline, passedPath);
+};
+
+const stopVehicleAnimation = (vehicle) => {
+  if (!vehicle) return;
+  if (vehicle.animationFrameId) {
+    cancelAnimationFrame(vehicle.animationFrameId);
+    vehicle.animationFrameId = null;
+  }
+  if (vehicle.segmentPauseTimer) {
+    clearTimeout(vehicle.segmentPauseTimer);
+    vehicle.segmentPauseTimer = null;
+  }
+  if (vehicle.onMovingHandler && vehicle.marker) {
+    vehicle.marker.off('moving', vehicle.onMovingHandler);
+    vehicle.onMovingHandler = null;
+  }
+};
+
+const animateMarkerSegment = (vehicle, marker, startPosition, endPosition, durationMs, pauseMs = SEGMENT_PAUSE_MS) => {
+  if (!vehicle || !marker || !isValidLngLat(startPosition) || !isValidLngLat(endPosition)) {
+    return;
+  }
+
+  stopVehicleAnimation(vehicle);
+
+  // Use AMap's built-in moveTo for strict straight line animation between cached points
+  const safeDuration = Math.max(1, durationMs || MIN_MOVE_DURATION_MS);
+  
+  if (typeof marker.moveTo === 'function') {
+    marker.moveTo(endPosition, {
+      duration: safeDuration,
+      autoRotation: false
+    });
+    
+    // To sync passed path we might need to listen to moving event
+    vehicle.onMovingHandler = () => {
+      const pos = marker.getPosition();
+      if (pos) {
+        syncVehiclePassedPathWithPoint(vehicle, [pos.getLng(), pos.getLat()]);
+      }
+    };
+    marker.on('moving', vehicle.onMovingHandler);
+    
+    vehicle.segmentPauseTimer = setTimeout(() => {
+      if (vehicle.onMovingHandler) {
+        marker.off('moving', vehicle.onMovingHandler);
+        vehicle.onMovingHandler = null;
+      }
+      vehicle.segmentPauseTimer = null;
+      syncVehiclePassedPathWithPoint(vehicle, endPosition);
+    }, safeDuration + 50);
+  } else {
+    // Fallback to manual requestAnimationFrame
+    const sx = startPosition[0];
+    const sy = startPosition[1];
+    const ex = endPosition[0];
+    const ey = endPosition[1];
+    const startedAt = performance.now();
+
+    const step = (now) => {
+      const elapsed = now - startedAt;
+      const t = Math.min(1, elapsed / safeDuration);
+      const lon = sx + (ex - sx) * t;
+      const lat = sy + (ey - sy) * t;
+      const framePoint = [lon, lat];
+      marker.setPosition(framePoint);
+      syncVehiclePassedPathWithPoint(vehicle, framePoint);
+
+      if (t < 1) {
+        vehicle.animationFrameId = requestAnimationFrame(step);
+        return;
+      }
+
+      vehicle.animationFrameId = null;
+      marker.setPosition(endPosition);
+      syncVehiclePassedPathWithPoint(vehicle, endPosition);
+      if (pauseMs > 0) {
+        vehicle.segmentPauseTimer = setTimeout(() => {
+          vehicle.segmentPauseTimer = null;
+        }, pauseMs);
+      }
+    };
+
+    vehicle.animationFrameId = requestAnimationFrame(step);
+  }
+};
+
 const getVehicleColor = (id) => {
-    const colors = [
-        '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF5',
-        '#F5FF33', '#FF8C33', '#8C33FF', '#33FF8C', '#FF3333'
-    ];
-    return colors[id % colors.length];
+  const colors = [
+    '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF5',
+    '#F5FF33', '#FF8C33', '#8C33FF', '#33FF8C', '#FF3333'
+  ];
+  return colors[id % colors.length];
 };
 
-/**
- * 获取并清洗车辆数据
- * 过滤掉坐标超范围或非法的脏数据
- */
-const fetchVehicleData = async () => {
+const getWsBase = () => {
+  const envBase = import.meta.env.VITE_WS_BASE;
+  if (envBase) {
+    return envBase.replace(/\/$/, '');
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+};
+
+const normalizeVehicle = (raw) => {
+  const id = Number(raw?.id ?? 0);
+  const lon = toFiniteNumber(raw?.lon);
+  const lat = toFiniteNumber(raw?.lat);
+  const status = toFiniteNumber(raw?.status);
+  const speed = toFiniteNumber(raw?.speed);
+  const categoryId = toFiniteNumber(raw?.categoryId ?? raw?.tybe);
+
+  return {
+    ...raw,
+    id,
+    lon,
+    lat,
+    status,
+    speed,
+    categoryId,
+    angle: toFiniteNumber(raw?.angle),
+    license: raw?.license,
+    currentPosition: [lon, lat]
+  };
+};
+
+const mergeVehicleData = (prevData, incomingData) => {
+  const merged = {
+    ...(prevData || {}),
+    ...(incomingData || {})
+  };
+
+  merged.id = Number(merged?.id ?? 0);
+  merged.lon = toFiniteNumber(merged?.lon);
+  merged.lat = toFiniteNumber(merged?.lat);
+  merged.status = toFiniteNumber(merged?.status) ?? 0;
+  merged.speed = toFiniteNumber(merged?.speed) ?? 0;
+  merged.categoryId = toFiniteNumber(merged?.categoryId ?? merged?.tybe) ?? 1;
+  merged.angle = toFiniteNumber(merged?.angle) ?? DEFAULT_STATIC_VEHICLE_ANGLE;
+  merged.license = merged?.license || `车辆-${merged.id}`;
+  merged.currentPosition = [merged.lon, merged.lat];
+
+  return merged;
+};
+
+const ensurePathSocket = (vehicleId, options) => {
+  if (pathSockets.has(vehicleId)) return;
+
+  const ws = new WebSocket(`${getWsBase()}/paths/${vehicleId}`);
+  pathSockets.set(vehicleId, ws);
+
+  ws.onmessage = (evt) => {
+    let msg;
     try {
-        const response = await getVehiclesData();
-        if (response.data.code === 1 && response.data.data) {
-            return response.data.data
-                .filter(backendCar => {
-                    const lon = parseFloat(backendCar.lon)
-                    const lat = parseFloat(backendCar.lat);
-                    // 中国陆地大致经纬度范围校验
-                    const isValidCoord = !isNaN(lon) && !isNaN(lat) &&
-                        lon >= 70 && lon <= 140 &&
-                        lat >= 3 && lat <= 55;
-                    return isValidCoord;
-                })
-                .map(backendCar => ({
-                    ...backendCar,
-                    currentPosition: [parseFloat(backendCar.lon), parseFloat(backendCar.lat)]
-                }));
-        }
-        return [];
-    } catch (error) {
-        console.error("从后端获取车辆数据失败:", error);
-        return [];
+      msg = JSON.parse(evt.data);
+    } catch {
+      return;
     }
-};
+    const payload = msg?.payload || {};
+    const event = msg?.event;
+    const ts = normalizeMessageTs(msg?.ts);
+    const vehicle = options.vehiclesMap.value.get(vehicleId);
+    if (!vehicle) return;
+    if (ts < (vehicle.lastPathMsgTs || 0)) return;
+    vehicle.lastPathMsgTs = ts;
 
-/**
- * 实时更新“已行驶”部分的路径
- * 算法逻辑：在完整路径点集中找到离当前位置最近的点，截取该点之前的轨迹进行高亮显示
- */
-const updatePassedPath = (vehicle, carData, AMapInstance) => {
-    if (!vehicle.fullPathPoints || vehicle.fullPathPoints.length === 0) return;
+    if (event === 'full_path') {
+      const points = sanitizePolylinePath(payload.points);
+      const routeVersion = payload.routeVersion ?? payload.RouteVersion ?? null;
+      const snapshotProgress = Number(payload.progress);
 
-    const currentPos = new AMapInstance.LngLat(carData.currentPosition[0], carData.currentPosition[1]);
-    let minDistance = Infinity;
-    let closestIndex = 0;
+      if (points.length < 2) {
+        vehicle.fullPolyline?.setMap(null);
+        vehicle.passedPolyline?.setMap(null);
+        vehicle.fullPolyline = null;
+        vehicle.passedPolyline = null;
+        vehicle.fullPathPoints = null;
+        return;
+      }
 
-    // 寻找最近路径索引点
-    for (let i = 0; i < vehicle.fullPathPoints.length; i++) {
-        const pt = vehicle.fullPathPoints[i];
-        const dist = AMapInstance.GeometryUtil.distance(currentPos, [pt[0], pt[1]]);
-        if (dist < minDistance) {
-            minDistance = dist;
-            closestIndex = i;
-        }
-    }
-
-    // 截取 0 到 closestIndex 的点作为蓝色/有色高亮路径
-    const passedPath = vehicle.fullPathPoints.slice(0, closestIndex + 1);
-    passedPath.push(carData.currentPosition); // 末尾连接到车身当前真实点
-
-    if (vehicle.passedPolyline) {
-        vehicle.passedPolyline.setPath(passedPath);
-    }
-};
-
-/**
- * 核心引擎：地图车辆及路径更新主逻辑
- */
-const updateVehiclesOnMapLogic = async ({
-    AMapInstance,
-    map,
-    vehiclesMap,
-    VEHICLE_ICONS,
-    imformStore
-}) => {
-    if (!AMapInstance || !map) return;
-
-    // 1. 获取新数据并同步到 Pinia 全局状态
-    const newVehicleDataList = await fetchVehicleData();
-    const vehicleStore = useVehicleStore();
-    vehicleStore.setVehicles(newVehicleDataList);
-
-    const currentCarIds = new Set();
-
-    for (const carData of newVehicleDataList) {
-        currentCarIds.add(carData.id);
-        let vehicle = vehiclesMap.value.get(carData.id);
-
-        const newPosition = carData.currentPosition;
-        if (!newPosition) continue;
-
-        // 2. 如果是新车辆，初始化 Marker 和事件
-        if (!vehicle) {
-            const iconUrl = VEHICLE_ICONS[carData.categoryId] || VEHICLE_ICONS.default;
-            vehicle = {
-                id: carData.id,
-                marker: new AMapInstance.Marker({
-                    map: map,
-                    position: newPosition,
-                    icon: new AMapInstance.Icon({
-                        size: new AMapInstance.Size(40, 64),
-                        image: iconUrl,
-                        imageSize: new AMapInstance.Size(40, 64)
-                    }),
-                    offset: new AMapInstance.Pixel(-20, -32),
-                    angle: carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE
-                }),
-                fullPolyline: null,     // 灰色底线
-                passedPolyline: null,   // 彩色行驶线
-                fullPathPoints: null,
-                fetchedPathForStatus: null
-            };
-
-            // 点击车辆 Marker 展示右侧详情面板
-            vehicle.marker.on('click', () => {
-                imformStore.imformShow('vehicle', carData);
-                map.setCenter(vehicle.marker.getPosition());
-            });
-
-            vehiclesMap.value.set(carData.id, vehicle);
-        }
-
-        // 3. 路径维护逻辑 (仅在状态 2:接单 或 4:运货中 显示路径)
-        const isMovingTask = (carData.status === 2 || carData.status === 4);
-        const needsPathUpdate = isMovingTask && (vehicle.fetchedPathForStatus !== carData.status);
-
-        // if (needsPathUpdate && carData.polyline) {
-        //     vehicle.fullPathPoints = carData.polyline;
-        //     vehicle.fetchedPathForStatus = carData.status;
-
-        //     // 初始化或更新灰色底线轨迹 (全长)
-        //     if (!vehicle.fullPolyline) {
-        //         vehicle.fullPolyline = new AMapInstance.Polyline({
-        //             map: map, path: vehicle.fullPathPoints, strokeColor: "#999999",
-        //             strokeOpacity: 0.3, strokeWeight: 6, zIndex: 80
-        //         });
-        //     } else {
-        //         vehicle.fullPolyline.setPath(vehicle.fullPathPoints);
-        //     }
-
-        //     // 初始化或更新高亮进度轨迹 (已行驶)
-        //     const dynamicColor = getVehicleColor(carData.id);
-        //     if (!vehicle.passedPolyline) {
-        //         vehicle.passedPolyline = new AMapInstance.Polyline({
-        //             map: map, path: [], strokeColor: dynamicColor,
-        //             strokeOpacity: 0.9, strokeWeight: 6, zIndex: 81
-        //         });
-        //     } else {
-        //         vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
-        //         vehicle.passedPolyline.setPath([]);
-        //     }
-        // }
-        if (needsPathUpdate) {
-            vehicle.fetchedPathForStatus = carData.status;
-
-            // 如果已有旧连接，先关闭
-            if (vehicle.wsClient) vehicle.wsClient.close();
-
-            // 使用 WebSocket 获取对应小车路径（请把 ws://... 换成你的真实后端地址）
-            vehicle.wsClient = useWebSocket(`ws://你的后端真实地址/ws/vehicles/path/${carData.id}`, {
-                autoReconnect: true,
-                onMessage: (ws, event) => {
-                    const pathData = JSON.parse(event.data);
-                    if (pathData && pathData.length > 0) {
-                        vehicle.fullPathPoints = pathData;
-
-                        // 初始化或更新灰色底线轨迹 (全长)
-                        if (!vehicle.fullPolyline) {
-                            vehicle.fullPolyline = new AMapInstance.Polyline({
-                                map: map, path: vehicle.fullPathPoints, strokeColor: "#999999",
-                                strokeOpacity: 0.3, strokeWeight: 6, zIndex: 80
-                            });
-                        } else {
-                            vehicle.fullPolyline.setPath(vehicle.fullPathPoints);
-                        }
-
-                        // 初始化或更新高亮进度轨迹 (已行驶)
-                        const dynamicColor = getVehicleColor(carData.id);
-                        if (!vehicle.passedPolyline) {
-                            vehicle.passedPolyline = new AMapInstance.Polyline({
-                                map: map, path: [], strokeColor: dynamicColor,
-                                strokeOpacity: 0.9, strokeWeight: 6, zIndex: 81
-                            });
-                        } else {
-                            vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
-                            vehicle.passedPolyline.setPath([]);
-                        }
-                    }
-                }
-            });
-        }
-        // 4. 根据移动状态控制轨迹可见性
-        if (!isMovingTask) {
-            vehicle.fullPolyline?.hide();
-            vehicle.passedPolyline?.hide();
-            if (carData.status === 1) { // 任务彻底结束，重置状态位以待下次拉取任务路径
-                vehicle.fetchedPathForStatus = null;
-                vehicle.fullPathPoints = null;
-                if (vehicle.wsClient) {
-                    vehicle.wsClient.close();
-                    vehicle.wsClient = null;
-                }
-            }
-        } else {
-            vehicle.fullPolyline?.show();
-            vehicle.passedPolyline?.show();
-        }
-
-        // 5. 执行平滑移动动画
-        // duration 设为与轮询频率一致的 2000ms，确保 Marker 在视觉上持续运动而不停顿
-        vehicle.marker.moveTo(newPosition, {
-            duration: POLLING_DELAY,
-            autoRotation: false
+      vehicle.fullPathPoints = points;
+      vehicle.activeRouteVersion = routeVersion;
+      vehicle.activeShipmentId = Number(payload.shipmentId ?? payload.ShipmentId ?? 0) || null;
+      vehicle.passedPathHistory = [];
+      vehicle.lastProgressIndex = Number.isFinite(snapshotProgress) ? snapshotProgress : -1;
+      if (!vehicle.fullPolyline) {
+        vehicle.fullPolyline = new options.AMapInstance.Polyline({
+          map: options.map,
+          path: points,
+          strokeColor: '#999999',
+          strokeOpacity: 0.3,
+          strokeWeight: 6,
+          zIndex: 80
         });
+      } else {
+        safeSetPolylinePath(vehicle.fullPolyline, points);
+      }
 
-        // 6. 更新 Marker 车头角度
-        if (carData.angle !== undefined) vehicle.marker.setAngle(carData.angle);
+      const dynamicColor = getVehicleColor(vehicleId);
+      if (!vehicle.passedPolyline) {
+        vehicle.passedPolyline = new options.AMapInstance.Polyline({
+          map: options.map,
+          strokeColor: dynamicColor,
+          strokeOpacity: 0.9,
+          strokeWeight: 6,
+          zIndex: 81
+        });
+        vehicle.passedPolyline.hide();
+      } else {
+        vehicle.passedPolyline.setOptions({ strokeColor: dynamicColor });
+        vehicle.passedPolyline.hide();
+      }
 
-        // 7. 更新已行驶轨迹的显示
-        if (vehicle.passedPolyline && vehicle.fullPathPoints) {
-            updatePassedPath(vehicle, carData, AMapInstance);
+      if (Number.isFinite(snapshotProgress) && snapshotProgress >= 0) {
+        const anchorPoint = vehicle.lastReportedPosition || getMarkerLngLat(vehicle.marker);
+        if (isValidLngLat(anchorPoint)) {
+          syncVehiclePassedPathWithPoint(vehicle, anchorPoint);
         }
-
-        // 8. 若当前右侧面板正展示此车辆，通过 Store 同步最新动态
-        if (imformStore.recentVehicle?.id === carData.id) {
-            imformStore.imformShow('vehicle', carData);
-        }
+      }
     }
 
-    // 9. 清理逻辑：移除数据库中已删除或不再返回的车辆
-    for (const [id, vehicle] of vehiclesMap.value.entries()) {
-        if (!currentCarIds.has(id)) {
-            vehicle.marker.setMap(null);
-            vehicle.fullPolyline?.setMap(null);
-            vehicle.passedPolyline?.setMap(null);
-            if (vehicle.wsClient) vehicle.wsClient.close();
-            vehiclesMap.value.delete(id);
-        }
+    if (event === 'progress') {
+      const shipmentId = Number(payload.shipmentId ?? payload.ShipmentId ?? 0) || null;
+      const routeVersion = payload.routeVersion ?? payload.RouteVersion ?? null;
+      if (vehicle.activeShipmentId && shipmentId && vehicle.activeShipmentId !== shipmentId) {
+        return;
+      }
+      if (vehicle.activeRouteVersion && routeVersion && vehicle.activeRouteVersion !== routeVersion) {
+        return;
+      }
+
+      const progressIdx = Number(payload.progress);
+      if (Number.isFinite(progressIdx) && progressIdx < (vehicle.lastProgressIndex ?? -1)) {
+        return;
+      }
+      if (Number.isFinite(progressIdx)) {
+        vehicle.lastProgressIndex = progressIdx;
+      }
+
+      const anchorPoint = getMarkerLngLat(vehicle.marker) || vehicle.lastReportedPosition;
+      if (isValidLngLat(anchorPoint)) {
+        syncVehiclePassedPathWithPoint(vehicle, anchorPoint);
+      }
     }
+
+    if (event === 'clear') {
+      const routeVersion = payload.routeVersion ?? payload.RouteVersion ?? null;
+      if (vehicle.activeRouteVersion && routeVersion && vehicle.activeRouteVersion !== routeVersion) {
+        return;
+      }
+      vehicle.fullPolyline?.setMap(null);
+      vehicle.passedPolyline?.setMap(null);
+      vehicle.fullPolyline = null;
+      vehicle.passedPolyline = null;
+      vehicle.fullPathPoints = null;
+      vehicle.activeRouteVersion = null;
+      vehicle.activeShipmentId = null;
+      vehicle.passedPathHistory = [];
+      vehicle.lastProgressIndex = -1;
+    }
+  };
+
+  ws.onclose = () => {
+    pathSockets.delete(vehicleId);
+  };
 };
 
-/**
- * 轮询递归调度器
- */
-const pollingLoop = async (options) => {
-    if (!isPollingRunning) return;
-    await updateVehiclesOnMapLogic(options);
-    if (isPollingRunning) {
-        pollingTimerId = setTimeout(() => pollingLoop(options), POLLING_DELAY);
-    }
+const closePathSocket = (vehicleId) => {
+  const ws = pathSockets.get(vehicleId);
+  if (ws) {
+    ws.close();
+    pathSockets.delete(vehicleId);
+  }
 };
 
-/**
- * [导出接口] 启动轮询与动画
- */
+const normalizeMessageTs = (ts) => {
+  const n = Number(ts);
+  return Number.isFinite(n) ? n : Date.now();
+};
+
+const removeVehicleFromMap = (id, options) => {
+  const vehicle = options.vehiclesMap.value.get(id);
+  if (!vehicle) return;
+  stopVehicleAnimation(vehicle);
+  vehicle.marker?.stopMove();
+  vehicle.marker?.setMap(null);
+  vehicle.fullPolyline?.setMap(null);
+  vehicle.passedPolyline?.setMap(null);
+  options.vehiclesMap.value.delete(id);
+  closePathSocket(id);
+};
+
+const applyVehicleUpdate = (rawVehicle, options, meta = {}) => {
+  const messageTs = normalizeMessageTs(meta.ts);
+  let shouldAnimate = Boolean(meta.animate);
+
+  const incomingCarData = normalizeVehicle(rawVehicle);
+  if (!isValidLngLat(incomingCarData.currentPosition)) return;
+
+  let vehicle = options.vehiclesMap.value.get(incomingCarData.id);
+  const previousVehicleData = vehicle?.latestData;
+  const carData = mergeVehicleData(previousVehicleData, incomingCarData);
+  const newPosition = carData.currentPosition;
+
+  const vehicleStore = useVehicleStore();
+  vehicleStore.setVehicle(carData);
+
+  if (!vehicle) {
+    const iconUrl = options.VEHICLE_ICONS[carData.categoryId] || options.VEHICLE_ICONS.default;
+    vehicle = {
+      id: carData.id,
+      marker: new options.AMapInstance.Marker({
+        map: options.map,
+        position: newPosition,
+        icon: new options.AMapInstance.Icon({
+          size: new options.AMapInstance.Size(40, 64),
+          image: iconUrl,
+          imageSize: new options.AMapInstance.Size(40, 64)
+        }),
+        offset: new options.AMapInstance.Pixel(-20, -32),
+        angle: carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE
+      }),
+      fullPolyline: null,
+      passedPolyline: null,
+      fullPathPoints: null,
+      lastPosition: [...newPosition],
+      lastVehicleMsgTs: 0,
+      lastPathMsgTs: 0,
+      activeShipmentId: null,
+      activeRouteVersion: null,
+      passedPathHistory: [],
+      lastProgressIndex: -1,
+      lastReportedPosition: [...newPosition],
+      animationFrameId: null,
+      segmentPauseTimer: null,
+      latestData: carData
+    };
+
+    vehicle.marker.on('click', () => {
+      options.imformStore.imformShow('vehicle', vehicle.latestData);
+      options.map.setCenter(vehicle.marker.getPosition());
+    });
+
+    options.vehiclesMap.value.set(carData.id, vehicle);
+  } else {
+    vehicle.latestData = carData;
+  }
+
+  vehicle.latestData = carData;
+
+  if (messageTs < (vehicle.lastVehicleMsgTs || 0)) {
+    return;
+  }
+  const previousMessageTs = vehicle.lastVehicleMsgTs || 0;
+  vehicle.lastVehicleMsgTs = messageTs;
+
+  if (carData.status === 1) {
+    ensurePathSocket(carData.id, options);
+    vehicle.fullPolyline?.show();
+  } else {
+    stopVehicleAnimation(vehicle);
+    vehicle.marker.stopMove();
+    vehicle.fullPolyline?.hide();
+    vehicle.passedPolyline?.hide();
+    closePathSocket(carData.id);
+    shouldAnimate = false; // Add insurance to prevent animation for non-running vehicles
+  }
+
+  const markerCurrentPosition = vehicle.marker.getPosition();
+  const currentPosition = markerCurrentPosition
+    ? [markerCurrentPosition.getLng(), markerCurrentPosition.getLat()]
+    : vehicle.lastPosition;
+
+  const previousReportedPosition = isValidLngLat(vehicle.lastReportedPosition)
+    ? [...vehicle.lastReportedPosition]
+    : null;
+  vehicle.lastReportedPosition = [...newPosition];
+
+  const distanceFromCurrent = isValidLngLat(currentPosition)
+    ? options.AMapInstance.GeometryUtil.distance(currentPosition, newPosition)
+    : Number.POSITIVE_INFINITY;
+
+  if (!shouldAnimate) {
+    stopVehicleAnimation(vehicle);
+    vehicle.marker.stopMove();
+    vehicle.marker.setPosition(newPosition);
+    syncVehiclePassedPathWithPoint(vehicle, newPosition);
+  } else if (!Number.isFinite(distanceFromCurrent) || distanceFromCurrent >= MAX_JUMP_DISTANCE_M) {
+    stopVehicleAnimation(vehicle);
+    vehicle.marker.stopMove();
+    vehicle.marker.setPosition(newPosition);
+    syncVehiclePassedPathWithPoint(vehicle, newPosition);
+  } else if (distanceFromCurrent <= MIN_MOVE_DISTANCE_M) {
+    stopVehicleAnimation(vehicle);
+    vehicle.marker.stopMove();
+    vehicle.marker.setPosition(newPosition);
+    syncVehiclePassedPathWithPoint(vehicle, newPosition);
+  } else {
+    // Insurance mechanism: Always start the next segment's animation from the previous 
+    // exact destination. If the animation hasn't finished, it inherently "snaps" to that corner
+    // preventing diagonal arc-cutting across corners or teleportation.
+    const segmentStart = isValidLngLat(previousReportedPosition)
+      ? previousReportedPosition
+      : currentPosition;
+
+    const segmentDistance = isValidLngLat(segmentStart)
+      ? options.AMapInstance.GeometryUtil.distance(segmentStart, newPosition)
+      : Number.POSITIVE_INFINITY;
+
+    if (!Number.isFinite(segmentDistance) || segmentDistance <= MIN_MOVE_DISTANCE_M) {
+      stopVehicleAnimation(vehicle);
+      vehicle.marker.stopMove();
+      vehicle.marker.setPosition(newPosition);
+      syncVehiclePassedPathWithPoint(vehicle, newPosition);
+      vehicle.lastPosition = [...newPosition];
+      vehicle.marker.setAngle(carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE);
+      if (options.imformStore.recentVehicle?.id === carData.id) {
+        options.imformStore.imformShow('vehicle', carData);
+      }
+      return;
+    }
+
+    if (isValidLngLat(segmentStart)) {
+      vehicle.marker.setPosition(segmentStart);
+      syncVehiclePassedPathWithPoint(vehicle, segmentStart);
+    }
+    
+    const durationMs = calcMoveDurationMs({ lastVehicleMsgTs: previousMessageTs }, messageTs, segmentDistance);
+    animateMarkerSegment(vehicle, vehicle.marker, segmentStart, newPosition, durationMs);
+  }
+
+  vehicle.lastPosition = [...newPosition];
+
+  vehicle.marker.setAngle(carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE);
+
+  if (options.imformStore.recentVehicle?.id === carData.id) {
+    options.imformStore.imformShow('vehicle', carData);
+  }
+};
+
+const applyVehicleSnapshot = (vehicles, options) => {
+  const normalized = Array.isArray(vehicles) ? vehicles.map(normalizeVehicle) : [];
+
+  const vehicleStore = useVehicleStore();
+  vehicleStore.setVehicles(normalized);
+
+  const incomingIds = new Set();
+  normalized.forEach((v) => {
+    incomingIds.add(v.id);
+    applyVehicleUpdate(v, options, { animate: false, ts: Date.now() });
+  });
+
+  for (const [id] of options.vehiclesMap.value.entries()) {
+    if (!incomingIds.has(id)) {
+      removeVehicleFromMap(id, options);
+    }
+  }
+};
+
+const fetchVehicleSnapshot = async () => {
+  try {
+    const response = await getVehiclesData();
+    if (response?.data?.code === 1 && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+  } catch (error) {
+    console.error('车辆快照拉取失败:', error);
+  }
+  return [];
+};
+
+const connectVehiclesSocket = async (options) => {
+  const snapshot = await fetchVehicleSnapshot();
+  applyVehicleSnapshot(snapshot, options);
+
+  vehiclesSocket = new WebSocket(`${getWsBase()}/vehicles`);
+
+  vehiclesSocket.onmessage = (evt) => {
+    let msg;
+    try {
+      msg = JSON.parse(evt.data);
+    } catch {
+      return;
+    }
+
+    const payload = msg?.payload || {};
+    const event = msg?.event;
+
+    if (event === 'snapshot') {
+      applyVehicleSnapshot(payload.vehicles || [], options);
+      return;
+    }
+
+    if (event === 'vehicle_move' || event === 'vehicle_update') {
+      applyVehicleUpdate(payload, options, { animate: true, ts: msg?.ts });
+    }
+  };
+
+  vehiclesSocket.onclose = () => {
+    vehiclesSocket = null;
+    if (!isRealtimeRunning) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      if (isRealtimeRunning && runtimeOptions) {
+        connectVehiclesSocket(runtimeOptions);
+      }
+    }, 2000);
+  };
+
+  vehiclesSocket.onerror = () => {
+    vehiclesSocket?.close();
+  };
+};
+
 export const startPollingAndAnimation = (options) => {
-    if (!options.AMapInstance || !options.map || isPollingRunning) return;
-    isPollingRunning = true;
-    options.isPollingActiveRef.value = true;
-    pollingLoop(options);
+  if (!options?.AMapInstance || !options?.map || isRealtimeRunning) return;
+  runtimeOptions = options;
+  isRealtimeRunning = true;
+  options.isPollingActiveRef.value = true;
+  connectVehiclesSocket(options);
 };
 
-/**
- * [导出接口] 暂停轮询与动画
- * 停止刷新数据，并让现有小车停止移动
- */
 export const pausePollingAndAnimation = (options) => {
-    isPollingRunning = false;
-    if (pollingTimerId) {
-        clearTimeout(pollingTimerId);
-        pollingTimerId = null;
-    }
-    options.isPollingActiveRef.value = false;
-    options.vehiclesMap.value.forEach(car => car.marker?.stopMove());
+  isRealtimeRunning = false;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (vehiclesSocket) {
+    vehiclesSocket.close();
+    vehiclesSocket = null;
+  }
+  for (const vehicleId of pathSockets.keys()) {
+    closePathSocket(vehicleId);
+  }
+  options.isPollingActiveRef.value = false;
+  options.vehiclesMap.value.forEach((car) => {
+    stopVehicleAnimation(car);
+    car.marker?.stopMove();
+    car.passedPolyline?.hide();
+  });
 };
 
-/**
- * [导出接口] 彻底停止（用于销毁组件）
- */
 export const stopPolling = () => {
-    isPollingRunning = false;
-    if (pollingTimerId) {
-        clearTimeout(pollingTimerId);
-        pollingTimerId = null;
-    }
+  isRealtimeRunning = false;
+  runtimeOptions = null;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (vehiclesSocket) {
+    vehiclesSocket.close();
+    vehiclesSocket = null;
+  }
+  for (const vehicleId of pathSockets.keys()) {
+    closePathSocket(vehicleId);
+  }
 };
