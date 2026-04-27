@@ -297,12 +297,15 @@ const ensurePathSocket = (vehicleId, options) => {
     const ts = normalizeMessageTs(msg?.ts);
     const vehicle = options.vehiclesMap.value.get(vehicleId);
     if (!vehicle) return;
-    if (ts < (vehicle.lastPathMsgTs || 0)) return;
-    vehicle.lastPathMsgTs = ts;
+
+    const routeVersion = payload.routeVersion ?? payload.RouteVersion ?? null;
+    const isNewRoute = event === 'full_path' && routeVersion !== vehicle.activeRouteVersion;
+
+    if (!isNewRoute && ts < (vehicle.lastPathMsgTs || 0)) return;
+    vehicle.lastPathMsgTs = Math.max(ts, vehicle.lastPathMsgTs || 0);
 
     if (event === 'full_path') {
       const points = sanitizePolylinePath(payload.points);
-      const routeVersion = payload.routeVersion ?? payload.RouteVersion ?? null;
       const snapshotProgress = Number(payload.progress);
 
       if (points.length < 2) {
