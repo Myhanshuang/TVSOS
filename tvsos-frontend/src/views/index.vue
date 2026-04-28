@@ -1,8 +1,8 @@
 <script setup>
 import MapContainer from '@/components/mapContainer.vue'
-import Statistics from '@/components/statistics.vue';
 import taskManage from '@/components/taskManage.vue';
 import Statistics2 from '@/components/statistics2.vue';
+import AlgoDemo from '@/views/algoDemo.vue';
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useVisibleStore, useTargetStore } from '@/stores/index.js'
 
@@ -13,6 +13,7 @@ const scrollContainer = ref(null)
 const firstRef = ref(null)
 const secondRef = ref(null)
 const thirdRef = ref(null)
+const fourthRef = ref(null)
 
 let observer
 
@@ -29,13 +30,14 @@ onMounted(() => {
       visible.isFirstVisible = (id === 'first');
       visible.isSecondVisible = (id === 'second');
       visible.isThirdVisible = (id === 'third');
+      visible.isFourthVisible = (id === 'fourth');
     }
   }, { 
     threshold: [0.5, 0.6], // 关键：只有过半时才触发
     rootMargin: "-64px 0px 0px 0px" // 扣除顶部导航栏高度的影响
   }); 
 
-  [firstRef, secondRef, thirdRef].forEach(refItem => {
+  [firstRef, secondRef, thirdRef, fourthRef].forEach(refItem => {
     if (refItem.value) observer.observe(refItem.value);
   });
 });
@@ -69,6 +71,9 @@ watch(() => target.watchLissoner, async () => {
     <div id='third' ref="thirdRef" class="section-container">
       <taskManage/>
     </div>
+    <div id='fourth' ref="fourthRef" class="section-container bg-fourth">
+      <AlgoDemo/>
+    </div>
   </div>
 </template>
 
@@ -98,8 +103,12 @@ watch(() => target.watchLissoner, async () => {
   padding-top: 64px; /* 顶部导航栏高度 */
 }
 
-#second, #third {
+#second, #third, #fourth {
   padding-top: 80px;
+}
+
+.bg-fourth {
+  background-color: #f7f9fa;
 }
 
 /* 进场动画优化：基于 visible 状态的简单过渡 */
@@ -112,7 +121,8 @@ watch(() => target.watchLissoner, async () => {
 /* 当组件所属的 ID 在 Store 中标记为可见时 */
 #first.section-container :deep(#firBorder),
 #second.section-container :deep(#secBorder),
-#third.section-container :deep(#thiBorder) {
+#third.section-container :deep(#thiBorder),
+#fourth.section-container :deep(#fouBorder) {
   /* 这里可以根据具体的子组件 ID 或类名微调 */
   opacity: 1;
   transform: scale(1);

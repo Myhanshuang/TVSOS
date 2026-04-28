@@ -19,8 +19,10 @@ import (
 // @Success 200 {object} result.Result{data=[]model.Vehicle}
 // @Failure 400 {object} result.Result
 // @Router /vehicles [get]
-// 目前查询条件有 status
-// TODO 后续可能有更新的查询条件
+//
+// ListVehicles 处理客户端获取车辆信息的请求。
+// 支持按照 status 过滤查询数据库中各个状态的车辆详情。
+// 该请求最终返回所有指定状态（或默认查状态0）的车队概览信息包装后的 VehicleView。
 func ListVehicles(c *gin.Context) {
 	Logger.Logger.Info("查询/筛选车辆列表...")
 	statusStr := c.DefaultQuery("status", "0")

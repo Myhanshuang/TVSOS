@@ -25,7 +25,9 @@ type shipmentListItem struct {
 	Status       int       `json:"status"`
 }
 
-// ListShipments 查询订单列表，兼容前端 taskManage 字段
+// ListShipments 处理客户端查询运单(Shipment)列表的请求。
+// 兼容前端 taskManage 组件的搜索字段，支持用 ID (num) 和 状态(status) 进行筛选过滤。
+// 自动组装起点(StartPoi)和终点(EndPoi)的经纬度数据并返回。
 func ListShipments(c *gin.Context) {
 	shipments, err := repository.ListShipments()
 	if err != nil {
@@ -84,7 +86,9 @@ func ListShipments(c *gin.Context) {
 	result.Success(c, items)
 }
 
-// MockShipments 生成模拟订单
+// MockShipments 处理客户端生成模拟大批量运单的请求 (多用于并发压力测试与调度算法可视化演示)。
+// 根据传入的数量(count)参数，随机选择起终点 POI 和货物类型(Cargo)，
+// 并将生成的批量 Shipment 落库，状态初始化为 Pending。
 func MockShipments(c *gin.Context) {
 	count, err := strconv.Atoi(c.Param("count"))
 	if err != nil || count <= 0 {

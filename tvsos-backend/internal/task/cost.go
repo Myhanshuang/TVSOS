@@ -59,7 +59,8 @@ var DefaultWeights = CostWeights{
 	Lambda1: 0.2, Lambda2: 0.2, Lambda3: 0.2, Lambda4: 0.2, Lambda5: 0.2,
 }
 
-// CalculateCost 根据白板公式计算综合成本
+// CalculateCost 计算将指定运单派发给当前车辆时产生的综合成本 (F)
+// 该函数是对底层各项指标多维组合和加权后的对外调用入口，返回最终加权成本。
 func CalculateCost(
 	v *model.Vehicle,
 	shipment *model.Shipment,
@@ -71,6 +72,8 @@ func CalculateCost(
 	return calculateCostBreakdown(v, shipment, stats, cargo, startPoi, endPoi, time.Now()).F
 }
 
+// calculateCostBreakdown 根据调度平台设定的加权公式具体计算成本的各个维度子指标
+// 包含了 A(直接运输成本), B(效率快件成本), C(公平性与闲置成本), D(全局利益), E(风险控制) 及 F(总加权成本)
 func calculateCostBreakdown(
 	v *model.Vehicle,
 	shipment *model.Shipment,

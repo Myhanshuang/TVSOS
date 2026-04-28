@@ -34,6 +34,9 @@ type VehicleView struct {
 	Angle         float64   `json:"angle"`
 }
 
+// BuildVehicleView 用于将底层的 model.Vehicle 模型转换为前端可直接展示的 DTO 对象 (VehicleView)。
+// 同时对一些空字段(缺省车牌License和朝向Angle)赋予默认值，
+// 并计算如果处于空闲状态，依据 update_time 动态叠加并推演实时的 WaitTime。
 func BuildVehicleView(v *model.Vehicle) *VehicleView {
 	if v == nil {
 		return nil
@@ -84,6 +87,8 @@ func BuildVehicleView(v *model.Vehicle) *VehicleView {
 	}
 }
 
+// BuildVehicleViews 是一个辅助生成函数。
+// 用于遍历组装切片，将多个 model.Vehicle 转换为对应的 VehicleView 切片集合并返回。
 func BuildVehicleViews(vehicles []*model.Vehicle) []*VehicleView {
 	views := make([]*VehicleView, 0, len(vehicles))
 	for _, v := range vehicles {

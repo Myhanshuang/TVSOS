@@ -16,7 +16,9 @@ const (
 	denseVehicleNearestNeighborThreshold = 1500.0
 )
 
-// Statistics 统计模块入口结构
+// Statistics 调度系统的核心内粗数据统计模块入口结构。
+// 包含了所有当前大盘以及计算成本函数所需的中间态指标：
+// 如利用率、运能分布、全局等待时间、空驶状况等。这是 SA 调度算法和报表展示的基石。
 type Statistics struct {
 	VehicleStats       VehicleOverview      // 车辆概况
 	UtilizationStats   UtilizationMetrics   // 利用率指标
@@ -152,7 +154,9 @@ type LoadMetrics struct {
 	Estimated bool // 当前无装卸事件日志，只能按重量比例估算
 }
 
-// CalculateGlobalStats 计算并获取全局所有统计指标
+// CalculateGlobalStats 采集数据库并计算当前系统全局的所有统计指标。
+// 包含了运能、在线率、总距离、等待延迟、运单分发比例等，
+// 一次性构建完整的系统运行状况快照，是生成大屏看板数据和 Cost 动态算子的核心入口。
 func CalculateGlobalStats() (*Statistics, error) {
 	vehicles, err := repository.ListVehicles(0)
 	if err != nil {
@@ -187,6 +191,8 @@ func CalculateGlobalStats() (*Statistics, error) {
 	return buildStatistics(vehicles, tasks, shipments, cargoMap, poiMap, time.Now()), nil
 }
 
+// buildStatistics 将入参中传递的内存字典组装映射为 `Statistics` 通用大结构。
+// 分步骤执行所有的子维度指标汇总逻辑。
 func buildStatistics(
 	vehicles []*model.Vehicle,
 	tasks []*model.OrderTask,
@@ -218,7 +224,8 @@ func buildStatistics(
 	return stats
 }
 
-// calculateVehicleOverview 计算车辆基础指标
+// calculateVehicleOverview 归纳车辆的基础全局大盘。
+// 包括车辆总数、不同类型的映射数量以及全局的车舱空载/重载分布与位置散点等。
 func (s *Statistics) calculateVehicleOverview(vehicles []*model.Vehicle) {
 	s.VehicleStats.TotalCount = len(vehicles)
 	s.VehicleStats.TypeCountMap = make(map[int]int)
@@ -236,7 +243,8 @@ func (s *Statistics) calculateVehicleOverview(vehicles []*model.Vehicle) {
 	s.VehicleStats.LocationDistribution = computeLocationDistribution(vehicles)
 }
 
-// calculateUtilization 计算利用率指标
+// calculateUtilization 汇总整个车队系统维度的调度运力利用率表现。
+// 计算在所有总运能当中的已占用部分，并得到总体利用率百分比。
 func (s *Statistics) calculateUtilization(vehicles []*model.Vehicle) {
 	if len(vehicles) == 0 {
 		return
@@ -260,7 +268,8 @@ func (s *Statistics) calculateUtilization(vehicles []*model.Vehicle) {
 	}
 }
 
-// calculateTimeStats 计算车辆等待、货物等待、运输时间
+// calculateTimeStats 采集计算车辆与运单货物的各项时间延迟和等待开销。
+// 分析所有处于空闲状态的车辆挂机时长及所有待处理/排队中运单货物的滞留时长，以此用作全局效率惩罚函数的参考。
 func (s *Statistics) calculateTimeStats(
 	vehicles []*model.Vehicle,
 	tasks []*model.OrderTask,

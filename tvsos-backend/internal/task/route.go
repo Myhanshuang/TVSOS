@@ -27,6 +27,9 @@ type RouteResponse struct {
 	} `json:"route"`
 }
 
+// PlanRoute 路线规划功能封装。
+// 根据传入的起终点经纬坐标，拼接出高德地图 (AMap) 驾车路径规划 API 的参数包，并向其发起远端 GET 请求。
+// 处理返回后的 JSON 数据结构并映射为本地实体返回，为车辆实际导航提供距离、用时及轨迹坐标点串。
 func PlanRoute(startLon float64, startLat float64, endLon float64, endLat float64) (*RouteResponse, error) {
 	// 获取 apikey
 	apiKey := config.VP.GetString("amap.key")

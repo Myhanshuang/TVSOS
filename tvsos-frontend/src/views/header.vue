@@ -2,7 +2,7 @@
 import request from '@/utils/request.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMapAnimationStore, useVisibleStore, useTargetStore } from '@/stores'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation'
 import PoiList from '@/components/poiList.vue'
@@ -13,7 +13,10 @@ import {
     Van, Location, VideoPlay, VideoPause,
     Box, SwitchButton, Odometer, ArrowDown
 } from '@element-plus/icons-vue'
+import { useRouter, useRoute } from 'vue-router'
 
+const router = useRouter()
+const route = useRoute()
 const target = useTargetStore()
 const visible = useVisibleStore()
 const drawerVisible = ref(false)
@@ -66,6 +69,7 @@ onMounted(() => initSpeed())
 </script>
 
 <template>
+  <div class="layout-container">
     <header class="nav-header">
         <!-- 1. Logo 区域 -->
         <div class="logo-section">
@@ -77,23 +81,29 @@ onMounted(() => initSpeed())
 
         <!-- 2. 主导航区域 -->
         <div class="nav-main">
-            <div class="nav-item" :class="{ active: visible.isFirstVisible }" @click="target.targetChange('first')">
+            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isFirstVisible }" @click="() => { router.push('/admin/home'); target.targetChange('first') }">
                 <el-icon>
                     <MapLocation />
                 </el-icon>
                 <span class="nav-text">地图视图</span>
             </div>
-            <div class="nav-item" :class="{ active: visible.isSecondVisible }" @click="target.targetChange('second')">
+            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isSecondVisible }" @click="() => { router.push('/admin/home'); target.targetChange('second') }">
                 <el-icon>
                     <DataAnalysis />
                 </el-icon>
                 <span class="nav-text">统计分析</span>
             </div>
-            <div class="nav-item" :class="{ active: visible.isThirdVisible }" @click="target.targetChange('third')">
+            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isThirdVisible }" @click="() => { router.push('/admin/home'); target.targetChange('third') }">
                 <el-icon>
                     <List />
                 </el-icon>
                 <span class="nav-text">任务管理</span>
+            </div>
+            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isFourthVisible }" @click="() => { router.push('/admin/home'); target.targetChange('fourth') }">
+                <el-icon>
+                    <DataAnalysis />
+                </el-icon>
+                <span class="nav-text">算法演示</span>
             </div>
         </div>
 
@@ -165,6 +175,7 @@ onMounted(() => initSpeed())
     <poi-list :visible="drawerVisible" @update:visible="drawerVisible = $event" />
     <vehicle-list :visible="vehicleDrawerVisible" @update:visible="vehicleDrawerVisible = $event" />
     <RouterView></RouterView>
+  </div>
 </template>
 
 <style scoped>

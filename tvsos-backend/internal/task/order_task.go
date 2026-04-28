@@ -49,7 +49,8 @@ type SchedulerOptions struct {
 	CostFallback string
 }
 
-// 定时任务 给待创建任务的订单创建任务 (Next Fit 算法版)
+// CreateOrderTask 后台守护常驻轮询任务：循环扫描调度休眠装运(Sleeping Shipment)集合。
+// 定时去数据库把刚产生、还没指派车的运单拉出，交由模拟退火引擎（或备用的 Next Fit 引擎）批量分配并发车。
 func CreateOrderTask() {
 	for {
 		shipments, err := repository.GetSleepingShipment()
@@ -67,6 +68,10 @@ func CreateOrderTask() {
 	}
 }
 
+// doCreateOrderTaskBatch 全局最核心指派下发逻辑（单批次处理函数）。
+// 使用互斥资源防止并发出错。在这里抓取当前全部车辆状态和当前的大盘评估快照 (statsSnapshot) ，
+// 将该批次的待分配运单数组(shipments)输入 SA 求解器引擎进行全局代价最小的最优分配。
+// 并循环地落实分配结果即创建 OrderTask。最后还会自动检查车斗满载/发车情况并驱动车子发车。
 func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 	nfMu.Lock()
 	defer nfMu.Unlock()
@@ -137,6 +142,8 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 	}
 }
 
+// assignShipmentToVehicle 原子核心落地操作：当订单分配在算法层面敲定车牌后执行的事务处理。
+// 新增 OrderTask，同时增加该车的预占预估载重、并原子更新所属 Shipment 状态(为排队待拉走)。
 func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmentLoad int) bool {
 	// 创建任务
 	newTask := &model.OrderTask{

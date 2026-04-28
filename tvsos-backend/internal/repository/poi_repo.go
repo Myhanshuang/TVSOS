@@ -7,6 +7,9 @@ import (
 )
 
 // ListPois 筛选/获取poi列表
+// 接收 ListPoisReq 结构体参数，对数据库的 Poi 数据进行条件查询。
+// 对于 Name 字段执行模糊匹配 LIKE 查询，对类型和状态进行精确查询，
+// 当参数为零值时自动忽略该条件的过滤。
 func ListPois(listPoisReq *dto.ListPoisReq) ([]*model.Poi, error) {
 	// 存放返回结果
 	var pois []*model.Poi
@@ -29,7 +32,9 @@ func ListPois(listPoisReq *dto.ListPoisReq) ([]*model.Poi, error) {
 	return pois, err
 }
 
-// GetPoi 根据id获取poi
+// GetPoi 根据id获取poi (Interest Point)
+// 查询数据库，按主键获取特定的单个兴趣点数据(如车场、收发货仓等)。
+// 返回指定的 Poi 模型实例或错误信息。
 func GetPoi(id int) (*model.Poi, error) {
 	// 存放返回结果
 	poi := model.Poi{}
@@ -40,7 +45,9 @@ func GetPoi(id int) (*model.Poi, error) {
 	return &poi, err
 }
 
-// ListAllPois 查询全部 POI
+// ListAllPois 查询全部 POI 列表集
+// 不包含过滤条件，查询并返回全量 Poi 指标对象切片。
+// 通常在预热加载、随机生成测试数据时调用。
 func ListAllPois() ([]*model.Poi, error) {
 	var pois []*model.Poi
 	db := database.DB.Model(&model.Poi{})

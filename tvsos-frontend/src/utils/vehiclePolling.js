@@ -100,31 +100,32 @@ const buildPassedPathByProgress = (vehicle, progressIndex, fallbackPoint) => {
   return sanitizePolylinePath(history);
 };
 
+// ... 此处保留旧代码 ...
+
 const calcMoveDurationMs = (vehicle, currentMessageTs, distanceMeters) => {
-  // Use timestamp delta to align with backend simulation cycle time, acting as a failsafe
+  // 根据后台时间戳差作为实际补间(Tween)或者 MoveTo 的运行周期长短计算。
+  // 使前端小车在两点间动画更平滑匹配到后台刷新间隔 (Failsafe)。
   if (vehicle && vehicle.lastVehicleMsgTs > 0 && currentMessageTs > vehicle.lastVehicleMsgTs) {
     const delta = currentMessageTs - vehicle.lastVehicleMsgTs;
-    // Failsafe: if delta is within a reasonable simulation interval (e.g., 0.1s to 30s)
     if (delta >= 100 && delta <= 30000) {
-      // Use 95% of delta to ensure animation finishes just before next point arrives
       return Math.max(MIN_MOVE_DURATION_MS, delta * 0.95);
     }
   }
   
-  // Fallback: backend VehicleSimulateMovingGap is 10s, if no delta, use ~9.5s
   if (Number.isFinite(distanceMeters) && distanceMeters > 0) {
-    const duration = distanceMeters * 25; // legacy distance-based estimate
-    // but scale it closer to the 10s cycle
+    const duration = distanceMeters * 25; 
     return Math.max(MIN_MOVE_DURATION_MS, Math.min(9500, duration));
   }
   return 9500;
-};
+}
 
+// 辅助方法：提取高德 Marker 对象对应的经纬度
 const getMarkerLngLat = (marker) => {
   if (!marker || typeof marker.getPosition !== 'function') return null;
   return parsePointToLngLat(marker.getPosition());
 };
 
+// 同步并将一辆车已经走过的经过轨迹与其实时点重新绘制连线并更新至地图层
 const syncVehiclePassedPathWithPoint = (vehicle, currentPoint) => {
   if (!vehicle?.passedPolyline) return;
   const progressIdx = Number(vehicle.lastProgressIndex);
@@ -136,6 +137,7 @@ const syncVehiclePassedPathWithPoint = (vehicle, currentPoint) => {
   safeSetPolylinePath(vehicle.passedPolyline, passedPath);
 };
 
+// 中止或销毁某一个特定车辆所有正在演进中的动画周期与监听器
 const stopVehicleAnimation = (vehicle) => {
   if (!vehicle) return;
   if (vehicle.animationFrameId) {

@@ -17,6 +17,9 @@ const (
 	SAPenaltyInf          = 1e9
 )
 
+// assignBySimulatedAnnealing 核心调度算法：基于模拟退火(Simulated Annealing)完成运单到车辆的分配
+// 通过多次迭代以及目标温度衰减（Metropolis接受准则）跳出局部最优，寻找综合代价(Cost)最小的派单策略。
+// 返回: 运单ID (Shipment ID) 到分配的车辆 (Vehicle) 的映射字典
 func assignBySimulatedAnnealing(
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
@@ -77,6 +80,8 @@ func assignBySimulatedAnnealing(
 	return result
 }
 
+// generateSANeighbor 邻域动作生成函数：生成模拟退火算法的下一个状态(邻居解)
+// 主要通过交换两运单的指派车辆(Swap)或直接修改某一运单的指派车辆(Move)实现状态扰动
 func generateSANeighbor(current []int, numVehicles int) (string, []int) {
 	next := make([]int, len(current))
 	copy(next, current)
@@ -97,6 +102,8 @@ func generateSANeighbor(current []int, numVehicles int) (string, []int) {
 	return "move", next
 }
 
+// evaluateStateCost 代价评估函数：计算当前全局状态的综合代价值
+// 在派车场景中，系统Cost包含了超载惩罚、绕跑惩罚、空闲惩罚、未完成运单积压惩罚等多维指标的加权总和。
 func evaluateStateCost(
 	assigned []int,
 	shipments []*model.Shipment,

@@ -22,7 +22,9 @@ import (
 // @Success 200 {object} result.Result{data=[]model.Poi}
 // @Failure 400 {object} result.Result
 // @Router /pois [get]
-// 目前查询条件有 name tybe status
+//
+// ListPois 接收客户端根据过滤条件 (名称、类型、状态) 获取兴趣点(POI)列表的请求。
+// 借助 GIN 的 ShouldBindQuery 自动绑定 GET 查询参数至 DTO 结构体中然后落库查询。
 func ListPois(c *gin.Context) {
 	Logger.Logger.Info("筛选/获取poi列表...")
 	// 声明用于接受请求参数的结构体对象
@@ -53,6 +55,8 @@ func ListPois(c *gin.Context) {
 // @Success 200 {object} result.Result{data=model.Poi}
 // @Failure 400 {object} result.Result
 // @Router /pois/{id} [get]
+//
+// GetPoi 处理客户端通过 URI 参数 (id) 获取特定一处 POI 实体详细属性的操作。
 func GetPoi(c *gin.Context) {
 	Logger.Logger.Info("根据id获取poi信息...")
 	idStr := c.Param("id")

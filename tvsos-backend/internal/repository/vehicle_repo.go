@@ -24,7 +24,8 @@ func ListVehicles(status int) ([]*model.Vehicle, error) {
 	return vehicles, err
 }
 
-// UpdateVehicleLocation 更新车辆位置
+// UpdateVehicleLocation 更新车辆在地图上的实时经纬度坐标。
+// 同时重置车辆的 wait_time 为 0，并刷新 update_time。
 func UpdateVehicleLocation(id int, lon float64, lat float64) error {
 	// 获取数据库连接对象
 	db := database.DB.Model(&model.Vehicle{})
@@ -38,7 +39,8 @@ func UpdateVehicleLocation(id int, lon float64, lat float64) error {
 	return err
 }
 
-// AddVehicleTravelMetrics 累加运输指标
+// AddVehicleTravelMetrics 累加车辆的总体运输指标（如空驶里程、运输总距离和总行驶时长）。
+// 运用 gorm.Expr 表达式对数据库对应字段进行原子递增操作。
 func AddVehicleTravelMetrics(id int, emptyMileageDelta float64, transportDistanceDelta float64, durationDeltaHour float64) error {
 	updates := map[string]interface{}{
 		"empty_mileage": gorm.Expr("empty_mileage + ?", emptyMileageDelta),
@@ -51,8 +53,9 @@ func AddVehicleTravelMetrics(id int, emptyMileageDelta float64, transportDistanc
 	return db.Updates(updates).Error
 }
 
-// UpdateVehicleStatus 更新车辆状态，基于旧状态进行 CAS 更新
-// 返回错误通常表示车辆不存在，或状态已变（RowsAffected == 0）
+// UpdateVehicleStatus 基于乐观锁（CAS - Compare And Swap）机制安全地更新车辆状态。
+// 必须匹配预期的旧状态(`oldStatus`)，能有效防止并发调度中车辆状态被覆盖修改而导致逻辑错误。
+// 若 RowsAffected == 0，即表示因状态变化导致的更新失败。
 func UpdateVehicleStatus(id int, status int, oldStatus int) error {
 	db := database.DB.Model(&model.Vehicle{})
 	db = db.Where("id = ? and status = ?", id, oldStatus)
@@ -77,7 +80,7 @@ func UpdateVehicleSize(id int, size int) error {
 	return err
 }
 
-// UpdateVehicleReservedSize 更新车辆预占载重
+// UpdateVehicleReservedSize 更新车辆被算法"预占"的未来预估载重，用于算法在决策排单并入排在队列尾部时作前置可用载重判定。
 func UpdateVehicleReservedSize(id int, reservedSize int) error {
 	db := database.DB.Model(&model.Vehicle{})
 	db = db.Where("id = ?", id)
