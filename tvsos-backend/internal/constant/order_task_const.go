@@ -2,7 +2,7 @@ package constant
 
 const (
 	// 任务创建间隔时间
-	OrderTaskCreatingGap = 20 // 20s执行一次
+	OrderTaskCreatingGap = 5 // 5s执行一次
 
 	// 任务阶段
 	OrderTaskSequentialPlanned      = 1 // 已分配待发车

@@ -25,8 +25,8 @@ const getVehicleStatusText = (status) => {
 
 const getVehicleCategoryText = (category) => {
     const categoryMap = {
-        1: '平板货车', 2: '高护栏货车', 3: '厢式货车',
-        4: '冷链运输车', 5: '危化品运输车',
+        1: '普通厢式货车', 2: '冷藏车', 3: '平板车',
+        4: '危化品罐车', 5: '高栏车', 6: '微型面包车'
     };
     return categoryMap[category] || '未知类型';
 };

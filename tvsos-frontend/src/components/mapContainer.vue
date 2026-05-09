@@ -36,7 +36,8 @@ const VEHICLE_ICONS = {
     2: "/images/货车2.png",
     3: "/images/货车3.png",
     4: "/images/货车4.png",
-    5: "/images/货车5.png"
+    5: "/images/货车5.png",
+    6: "/images/货车6.png",
 };
 /** 地图轨迹线颜色配置 */
 const VEHICLE_FULL_PATH_COLOR = "#28F"; // 全程路径颜色
@@ -108,32 +109,16 @@ const iconMap = {
     8: "/images/机场.webp",
     9: "/images/购物中心.webp",
     10: "/images/家具建材市场.webp",
+    11: "/images/公司企业.webp",
 };
 
 /**
  * POI 类型编码转换逻辑
- * 将后端返回的细分类型 ID 映射到前端展示的 10 大类图标中
+ * 将后端返回的细分类型 ID 映射到前端展示的 11 大类图标中
  * @params {number} originalType - 原始分类 ID
  */
 const mapPoiType = (originalType) => {
-    if (originalType >= 1 && originalType <= 3) {
-        return originalType;
-    } else if (originalType >= 4 && originalType <= 9) {
-        return 4; // 工厂
-    } else if (originalType >= 10 && originalType <= 15) {
-        return 5; // 汽修厂
-    } else if (originalType >= 16 && originalType <= 18) {
-        return 6; // 物流园
-    } else if (originalType === 19) {
-        return 7; // 火车站
-    } else if (originalType === 20) {
-        return 8; // 机场
-    } else if (originalType >= 21 && originalType <= 22) {
-        return 9; // 购物中心
-    } else if (originalType >= 23 && originalType <= 25) {
-        return 10; // 家具建材市场
-    }
-    return 1; // 兜底类型
+    return (originalType >= 1 && originalType <= 11) ? originalType : 11;
 };
 
 onMounted(() => {

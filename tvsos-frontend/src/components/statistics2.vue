@@ -173,23 +173,58 @@ const initCharts = () => {
   if (!chartInstances.ratioChart && ratioChartRef.value) chartInstances.ratioChart = echarts.init(ratioChartRef.value)
 }
 
+const getCargoName = (name) => {
+  if (name.startsWith('货类')) {
+    const id = parseInt(name.replace('货类', ''));
+    const map = {
+      1: '普通包裹', 2: '生鲜食品', 3: '大型机械', 4: '建材石料', 5: '危险化学品',
+      6: '农副产品', 7: '医药及疫苗', 8: '家用电器', 9: '汽车配件', 10: '生猪活禽'
+    };
+    return map[id] || name;
+  }
+  return name;
+};
+
+const getVehicleName = (name) => {
+  if (name.startsWith('类型')) {
+    const id = parseInt(name.replace('类型', ''));
+    const map = {
+      1: '普通厢式货车', 2: '冷藏车', 3: '平板车',
+      4: '危化品罐车', 5: '高栏车', 6: '微型面包车'
+    };
+    return map[id] || name;
+  }
+  return name;
+};
+
 const renderAllCharts = () => {
   if (!rawData.value) return
   initCharts()
 
   const summary = rawData.value.summary
+  
+  const vehicleData = (summary.vehicle_types || []).map(v => ({
+    name: getVehicleName(v.name),
+    value: v.value
+  }));
+
   chartInstances.pieVeh?.setOption({
     title: { text: '车辆分布', left: 'center', textStyle: { fontSize: 14 } },
     tooltip: { trigger: 'item' },
-    series: [{ type: 'pie', radius: ['40%', '70%'], data: summary.vehicle_types }]
+    series: [{ type: 'pie', radius: ['40%', '70%'], data: vehicleData }]
   }, { notMerge: true })
 
+  const cargoDemand = summary.cargo_demand || [];
   chartInstances.barDemand?.setOption({
     title: { text: '货物需求构成 (吨)', left: 'center', textStyle: { fontSize: 14 } },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', data: summary.cargo_demand.map((i) => i.category) },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '25%', containLabel: true },
+    xAxis: { 
+      type: 'category', 
+      data: cargoDemand.map((i) => getCargoName(i.name)),
+      axisLabel: { interval: 0, rotate: 30, fontSize: 10 }
+    },
     yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: summary.cargo_demand.map((i) => i.value), itemStyle: { color: '#5470c6' } }]
+    series: [{ type: 'bar', data: cargoDemand.map((i) => i.value), itemStyle: { color: '#5470c6' } }]
   }, { notMerge: true })
 
   chartInstances.gaugeUtil?.setOption({

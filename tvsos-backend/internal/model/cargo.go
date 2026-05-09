@@ -5,9 +5,9 @@ func (cargo Cargo) TableName() string {
 }
 
 type Cargo struct {
-	Id     uint `gorm:"primaryKey" json:"id"`
-	Name   uint `json:"name"`
-	Tybe   int  `json:"tybe"`
-	Pack   int  `json:"pack"`
-	Weight int  `json:"weight"`
+	Id     uint   `gorm:"primaryKey" json:"id"`
+	Name   string `json:"name"`
+	Tybe   int    `json:"tybe"`
+	Pack   int    `json:"pack"`
+	Weight int    `json:"weight"`
 }

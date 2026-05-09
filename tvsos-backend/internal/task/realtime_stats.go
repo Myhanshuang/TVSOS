@@ -97,7 +97,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			CargoPending:        stats.CargoStats.PendingDemandTons,
 			TransportEfficiency: stats.UtilizationStats.ByCapacity * 100,
 			TotalWaitingTime:    stats.VehicleWaitStats.Total / 3600,
-			TotalEmptyMileage:   stats.EmptyDistStats.TotalEmpty,
+			TotalEmptyMileage:   stats.EmptyDistStats.TotalEmpty / 1000.0,
 			TotalLossTh:         stats.PendingLossStats.TotalLoss,
 			TotalCapacityTm:     stats.TransportWorkStats.TotalTonDistance,
 			VehicleTypes:        vehicleTypes,

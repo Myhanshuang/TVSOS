@@ -5,18 +5,10 @@
 
 /** 
  * POI 类型编码规格化 
- * 将后端返回的多种业务类型 ID (1-25) 映射为前端预定义的 10 种图标 ID
+ * 将后端返回的多种业务类型 ID (1-11) 映射为前端预定义的图标 ID
  */
 const mapPoiType = (originalType) => {
-    if (originalType >= 1 && originalType <= 3) return originalType;
-    if (originalType >= 4 && originalType <= 9) return 4;
-    if (originalType >= 10 && originalType <= 15) return 5;
-    if (originalType >= 16 && originalType <= 18) return 6;
-    if (originalType === 19) return 7;
-    if (originalType === 20) return 8;
-    if (originalType >= 21 && originalType <= 22) return 9;
-    if (originalType >= 23 && originalType <= 25) return 10;
-    return 1;
+    return (originalType >= 1 && originalType <= 11) ? originalType : 11;
 };
 
 /** 图标资源映射表 */
@@ -24,7 +16,7 @@ const ICON_MAP = {
     1: "/images/加油站.webp", 2: "/images/加气站.webp", 3: "/images/其他能源站.webp",
     4: "/images/工厂.webp", 5: "/images/汽修厂.webp", 6: "/images/物流园.webp",
     7: "/images/火车站.webp", 8: "/images/机场.webp", 9: "/images/购物中心.webp",
-    10: "/images/家具建材市场.webp",
+    10: "/images/家具建材市场.webp", 11: "/images/公司企业.webp",
 };
 
 /** 顶点着色器：处理点的位置转换（经纬度像素 -> WebGL 裁剪空间坐标） */
