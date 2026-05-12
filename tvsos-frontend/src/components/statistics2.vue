@@ -89,7 +89,7 @@ const buildRecentLabels = (count) => {
 
 const sanitizeSeries = (series, fallback = 0) => series.map((v) => {
   const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : fallback
 })
 
 const buildDetailSeries = (type, fallbackBuilder) => {
@@ -205,7 +205,7 @@ const renderAllCharts = () => {
   
   const vehicleData = (summary.vehicle_types || []).map(v => ({
     name: getVehicleName(v.name),
-    value: v.value
+    value: Number(Number(v.value).toFixed(2))
   }));
 
   chartInstances.pieVeh?.setOption({
@@ -224,7 +224,7 @@ const renderAllCharts = () => {
       axisLabel: { interval: 0, rotate: 30, fontSize: 10 }
     },
     yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: cargoDemand.map((i) => i.value), itemStyle: { color: '#5470c6' } }]
+    series: [{ type: 'bar', data: cargoDemand.map((i) => Number(Number(i.value).toFixed(2))), itemStyle: { color: '#5470c6' } }]
   }, { notMerge: true })
 
   chartInstances.gaugeUtil?.setOption({
@@ -247,7 +247,7 @@ const renderAllCharts = () => {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: { type: 'value', max: 1 },
     yAxis: { type: 'category', data: ['空满占比', '等运占比'] },
-    series: [{ type: 'bar', data: [summary.empty_full_ratio, summary.wait_transport_ratio], itemStyle: { color: '#91cc75' } }]
+    series: [{ type: 'bar', data: [Number(Number(summary.empty_full_ratio || 0).toFixed(2)), Number(Number(summary.wait_transport_ratio || 0).toFixed(2))], itemStyle: { color: '#91cc75' } }]
   }, { notMerge: true })
 }
 
@@ -531,19 +531,19 @@ onBeforeUnmount(() => {
           <div class="carousel-card">
             <h4>个体货车运能 (T·km)</h4>
             <div class="grid-4">
-              <div><span>最大</span><p>{{ rawData?.individual_stats.truck_capacity.max }}</p></div>
-              <div><span>最小</span><p>{{ rawData?.individual_stats.truck_capacity.min }}</p></div>
-              <div><span>平均</span><p>{{ rawData?.individual_stats.truck_capacity.avg }}</p></div>
-              <div><span>中位</span><p>{{ rawData?.individual_stats.truck_capacity.median }}</p></div>
+              <div><span>最大</span><p>{{ formatFixed(rawData?.individual_stats.truck_capacity.max, 2) }}</p></div>
+              <div><span>最小</span><p>{{ formatFixed(rawData?.individual_stats.truck_capacity.min, 2) }}</p></div>
+              <div><span>平均</span><p>{{ formatFixed(rawData?.individual_stats.truck_capacity.avg, 2) }}</p></div>
+              <div><span>中位</span><p>{{ formatFixed(rawData?.individual_stats.truck_capacity.median, 2) }}</p></div>
             </div>
           </div>
           <div class="carousel-card">
             <h4>工厂装卸耗时 (min)</h4>
             <div class="grid-4">
-              <div><span>最大</span><p>{{ rawData?.individual_stats.loading_time.max }}</p></div>
-              <div><span>最小</span><p>{{ rawData?.individual_stats.loading_time.min }}</p></div>
-              <div><span>平均</span><p>{{ rawData?.individual_stats.loading_time.avg }}</p></div>
-              <div><span>中位</span><p>{{ rawData?.individual_stats.loading_time.median }}</p></div>
+              <div><span>最大</span><p>{{ formatFixed(rawData?.individual_stats.loading_time.max, 2) }}</p></div>
+              <div><span>最小</span><p>{{ formatFixed(rawData?.individual_stats.loading_time.min, 2) }}</p></div>
+              <div><span>平均</span><p>{{ formatFixed(rawData?.individual_stats.loading_time.avg, 2) }}</p></div>
+              <div><span>中位</span><p>{{ formatFixed(rawData?.individual_stats.loading_time.median, 2) }}</p></div>
             </div>
           </div>
         </div>

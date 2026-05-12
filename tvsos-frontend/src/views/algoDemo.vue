@@ -18,7 +18,7 @@
     <!-- 算法动画演示区 -->
     <div class="animation-stage">
       <div class="stage-header">
-        <h3>退火算法推演：寻找全局最优解</h3>
+        <h3>退火算法推演：尽量跳出局部最优解</h3>
         <el-button type="primary" @click="startAnimation" :disabled="isAnimating">
           开始推演 (退火降温)
         </el-button>
