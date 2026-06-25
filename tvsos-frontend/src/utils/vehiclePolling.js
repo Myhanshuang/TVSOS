@@ -167,7 +167,7 @@ const animateMarkerSegment = (vehicle, marker, startPosition, endPosition, durat
   if (typeof marker.moveTo === 'function') {
     marker.moveTo(endPosition, {
       duration: safeDuration,
-      autoRotation: false
+      autoRotation: true
     });
     
     // To sync passed path we might need to listen to moving event
@@ -201,6 +201,18 @@ const animateMarkerSegment = (vehicle, marker, startPosition, endPosition, durat
       const lon = sx + (ex - sx) * t;
       const lat = sy + (ey - sy) * t;
       const framePoint = [lon, lat];
+      
+      // 添加偏转角逻辑
+      if (t < 1) {
+        const dx = ex - sx;
+        const dy = ey - sy;
+        if (dx !== 0 || dy !== 0) {
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+          const adjustedAngle = 90 - angle;
+          marker.setAngle(adjustedAngle);
+        }
+      }
+
       marker.setPosition(framePoint);
       syncVehiclePassedPathWithPoint(vehicle, framePoint);
 
@@ -572,7 +584,10 @@ const applyVehicleUpdate = (rawVehicle, options, meta = {}) => {
 
   vehicle.lastPosition = [...newPosition];
 
-  vehicle.marker.setAngle(carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE);
+  // 动画状态下使用自身的角度（由moveTo的autoRotation或者内部raf控制），静止或近距离跳跃则使用设定值
+  if (!shouldAnimate || distanceFromCurrent <= MIN_MOVE_DISTANCE_M) {
+    vehicle.marker.setAngle(carData.angle || DEFAULT_STATIC_VEHICLE_ANGLE);
+  }
 
   if (options.imformStore.recentVehicle?.id === carData.id) {
     options.imformStore.imformShow('vehicle', carData);
