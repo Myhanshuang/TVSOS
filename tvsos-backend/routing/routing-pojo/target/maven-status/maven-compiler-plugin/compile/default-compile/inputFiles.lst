@@ -1,0 +1,7 @@
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/constant/StatusConstant.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/dto/PoiQueryDTO.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/dto/VehicleQueryDTO.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/entity/Poi.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/entity/Vehicle.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/exception/BaseException.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-pojo/src/main/java/result/Result.java

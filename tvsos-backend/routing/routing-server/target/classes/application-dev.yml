@@ -1,0 +1,14 @@
+routing:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    host: localhost
+    port: 3306
+    database: routing
+    username: root
+    password: 1234
+  redis:
+    host: localhost
+    port: 6379
+    database: 1
+  amap:
+    key: 2e86f3f0adbbefbd5f938e8dc0995705

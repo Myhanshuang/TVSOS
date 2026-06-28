@@ -126,12 +126,15 @@ func MockShipments(c *gin.Context) {
 		}
 
 		cargo := cargos[rng.Intn(len(cargos))]
+		now := time.Now()
 		shipment := &model.Shipment{
 			StartPoiId: uint(pois[startIndex].Id),
 			EndPoiId:   uint(pois[endIndex].Id),
 			Status:     constant.ShipmentStatusSleeping,
 			CargoId:    cargo.Id,
 			Count:      rng.Intn(5) + 1,
+			CreateTime: now,
+			UpdateTime: now,
 		}
 		if createErr := repository.CreateShipment(shipment); createErr == nil {
 			created++

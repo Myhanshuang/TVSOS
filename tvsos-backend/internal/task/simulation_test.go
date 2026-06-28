@@ -41,8 +41,8 @@ func TestFullScheduleSimulation(t *testing.T) {
 	}
 
 	// 2. Cargos
-	c1 := model.Cargo{Name: 1, Tybe: 1, Weight: 10} // 普货
-	c2 := model.Cargo{Name: 2, Tybe: 2, Weight: 20} // 冷链
+	c1 := model.Cargo{Name: "普货", Tybe: 1, Weight: 10}
+	c2 := model.Cargo{Name: "冷链", Tybe: 2, Weight: 20}
 	db.Create(&c1)
 	db.Create(&c2)
 

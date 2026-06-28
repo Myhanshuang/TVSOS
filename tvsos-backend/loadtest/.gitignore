@@ -1,0 +1,4 @@
+results/server.log
+results/server-diagnostic.log
+results/server.pid
+scripts/__pycache__/
