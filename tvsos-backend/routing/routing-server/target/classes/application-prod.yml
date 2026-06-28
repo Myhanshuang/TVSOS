@@ -1,0 +1,12 @@
+routing:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    host: 172.18.0.1
+    port: 3306
+    database: routing
+    username: routing_user
+    password: 1234
+  redis:
+    host: localhost
+    port: 6379
+    database: 0

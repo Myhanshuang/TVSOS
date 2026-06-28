@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.tvsos.mapper.VehicleMapper">
+    <update id="update">
+        update vehicle
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="cargoSize != null">
+                cargo_size = #{cargoSize},
+            </if>
+            <if test="speed != null">
+                speed = #{speed},
+            </if>
+            <if test="updateTime != null">
+                update_time = #{updateTime},
+            </if>
+            <if test="lon != null">
+                lon = #{lon},
+            </if>
+            <if test="lat != null">
+                lat = #{lat},
+            </if>
+            <if test="angle != null">
+                angle = #{angle},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <select id="list" resultType="entity.Vehicle">
+        select * from vehicle
+        <where>
+            <if test="status != null">
+                status = #{status}
+            </if>
+            <if test="license != null">
+                and license = #{license}
+            </if>
+            <if test="categoryId != null">
+                and category_id = #{categoryId}
+            </if>
+        </where>
+    </select>
+</mapper>

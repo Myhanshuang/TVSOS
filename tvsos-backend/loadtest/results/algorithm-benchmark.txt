@@ -1,0 +1,36 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/kiritosuki/mover/internal/task
+cpu: Apple M4
+BenchmarkSchedulerVehicleScale/NF/vehicles_20-10         	       1	     66083 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_20-10         	       1	     11084 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_20-10         	       1	      7834 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_20-10         	       1	  40170000 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_20-10         	       1	  26308125 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_20-10         	       1	  23455208 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_50-10         	       1	      8083 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_50-10         	       1	      7167 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_50-10         	       1	      8625 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_50-10         	       1	  22345000 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_50-10         	       1	  21769875 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_50-10         	       1	  22780625 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_100-10        	       1	      6208 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_100-10        	       1	      5541 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_100-10        	       1	      6209 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_100-10        	       1	  22485583 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_100-10        	       1	  23728208 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_100-10        	       1	  22626625 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_200-10        	       1	      7584 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_200-10        	       1	      6416 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_200-10        	       1	      8458 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_200-10        	       1	  24300083 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_200-10        	       1	  24024375 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_200-10        	       1	  24807000 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_500-10        	       1	     13041 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_500-10        	       1	     11667 ns/op
+BenchmarkSchedulerVehicleScale/NF/vehicles_500-10        	       1	     13250 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_500-10        	       1	  29346583 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_500-10        	       1	  30339750 ns/op
+BenchmarkSchedulerVehicleScale/SA/vehicles_500-10        	       1	  29875791 ns/op
+PASS
+ok  	github.com/kiritosuki/mover/internal/task	0.914s
