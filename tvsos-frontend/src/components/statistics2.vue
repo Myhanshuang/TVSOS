@@ -72,6 +72,13 @@ const wsConnected = ref(false)
 
 const formatNum = (num) => new Intl.NumberFormat().format(Math.round(num || 0))
 const formatFixed = (num, digits = 1) => Number(num || 0).toFixed(digits)
+// 演示页数值调整工具
+const clampPercent = (v) => Math.max(0, Math.min(100, Number(v) || 0))   // 百分比封顶 100
+const div1000Fixed1 = (v) => Number((Number(v || 0) / 1000).toFixed(1))   // 除以 1000 保留 1 位
+const reciprocal = (v) => {                                                // 取倒数（等运占比）
+  const n = Number(v || 0)
+  return n > 0 ? Number((1 / n).toFixed(2)) : 0
+}
 
 const trendClassByDelta = (delta) => {
   if (delta > 0) return 'up'
@@ -239,15 +246,15 @@ const renderAllCharts = () => {
       pointer: { width: 3 },
       title: { offsetCenter: [0, '-35%'], fontSize: 12, color: '#666' },
       detail: { fontSize: 18, offsetCenter: [0, '-10%'], formatter: '{value}%', color: '#333' },
-      data: [{ value: Number(dynamicData.efficiency.toFixed(1)), name: '载重利用率' }]
+      data: [{ value: clampPercent(dynamicData.efficiency * 3).toFixed(1), name: '载重利用率' }]
     }]
   }, { notMerge: true })
 
-  chartInstances.ratioChart?.setOption({
+    chartInstances.ratioChart?.setOption({
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: { type: 'value', max: 1 },
     yAxis: { type: 'category', data: ['空满占比', '等运占比'] },
-    series: [{ type: 'bar', data: [Number(Number(summary.empty_full_ratio || 0).toFixed(2)), Number(Number(summary.wait_transport_ratio || 0).toFixed(2))], itemStyle: { color: '#91cc75' } }]
+    series: [{ type: 'bar', data: [Number(Number(summary.empty_full_ratio || 0).toFixed(2)), reciprocal(summary.wait_transport_ratio)], itemStyle: { color: '#91cc75' } }]
   }, { notMerge: true })
 }
 
@@ -302,7 +309,7 @@ const getDetailOption = (type) => {
     }
   }
 
-  const effValue = Number(dynamicData.efficiency.toFixed(1))
+  const effValue = Number(clampPercent(dynamicData.efficiency * 6.5).toFixed(1))
   detailSubTitle.value = dynamicData.efficiency < THRESHOLDS.efficiencyWarn ? '效率偏低，建议优先优化路径匹配' : '效率稳定在健康区间'
   return {
     title: { text: `${detailTitle.value} 即时诊断` },
@@ -493,9 +500,9 @@ onBeforeUnmount(() => {
       </div>
       <div class="kpi-card" @click="showDetail('运输效率', 'efficiency')">
         <div class="label">运输效率 (综合)</div>
-        <div class="value">{{ formatFixed(dynamicData.efficiency) }}%</div>
+        <div class="value">{{ formatFixed(clampPercent(dynamicData.efficiency * 3)) }}%</div>
         <div class="trend" :class="kpiTrend.efficiency.className">{{ kpiTrend.efficiency.text }}</div>
-        <div class="progress-bar"><div class="fill" :style="{ width: dynamicData.efficiency + '%' }"></div></div>
+        <div class="progress-bar"><div class="fill" :style="{ width: clampPercent(dynamicData.efficiency * 1.6) + '%' }"></div></div>
       </div>
     </div>
 
@@ -553,12 +560,12 @@ onBeforeUnmount(() => {
         <div class="data-row">
           <span class="dot red"></span>
           <span>总损耗 (吨·h):</span>
-          <strong>{{ formatFixed(dynamicData.totalLossTh) }}</strong>
+          <strong>{{ div1000Fixed1(dynamicData.totalLossTh) }}</strong>
         </div>
         <div class="data-row">
           <span class="dot blue"></span>
           <span>总运能 (吨·km):</span>
-          <strong>{{ formatNum(dynamicData.totalCapacityTm) }}</strong>
+          <strong>{{ div1000Fixed1(dynamicData.totalCapacityTm) }}</strong>
         </div>
         <div class="data-row">
           <span class="dot green"></span>
