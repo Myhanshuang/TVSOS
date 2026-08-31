@@ -34,13 +34,16 @@ const dynamicData = reactive({
   totalLoadingTime: 0,
   unitCost: 0,            // C2 单位成本
   emptyRate: 0,           // U4 空驶率
+  loadingRateAvg: 0,      // U2 装载率均值
   loadingRateStdDev: 0,   // U2 装载率标准差
+  onlineRate: 0,          // U3 车辆在线率
   giniCoefficient: 0,     // F1 基尼系数
   matchResponseP50: 0,    // T2 匹配响应 P50
   matchResponseP95: 0,    // T2 匹配响应 P95
   matchResponseP99: 0,    // T2 匹配响应 P99
   carbonTotal: 0,         // G1 总碳排放
-  carbonPerTonKm: 0       // G2 单位吨公里碳排放
+  carbonPerTonKm: 0,      // G2 单位吨公里碳排放
+  optimizationGap: 0      // A3 优化 gap
 })
 
 const kpiTrend = reactive({
@@ -129,13 +132,16 @@ const initDynamicStats = (data) => {
   dynamicData.totalLoadingTime = Number(summary.work_time?.total_loading_time || 0)
   dynamicData.unitCost = Number(summary.unit_cost || 0)
   dynamicData.emptyRate = Number(summary.empty_rate || 0)
+  dynamicData.loadingRateAvg = Number(summary.loading_rate_avg || 0)
   dynamicData.loadingRateStdDev = Number(summary.loading_rate_stddev || 0)
+  dynamicData.onlineRate = Number(summary.online_rate || 0)
   dynamicData.giniCoefficient = Number(summary.gini_coefficient || 0)
   dynamicData.matchResponseP50 = Number(summary.match_response_p50 || 0)
   dynamicData.matchResponseP95 = Number(summary.match_response_p95 || 0)
   dynamicData.matchResponseP99 = Number(summary.match_response_p99 || 0)
   dynamicData.carbonTotal = Number(summary.carbon_total || 0)
   dynamicData.carbonPerTonKm = Number(summary.carbon_per_ton_km || 0)
+  dynamicData.optimizationGap = Number(summary.optimization_gap || 0)
 
   baseline.throughput = dynamicData.throughput
   baseline.cost = dynamicData.cost
@@ -162,13 +168,16 @@ const mapSnapshotToDynamicData = (data) => {
     totalLoadingTime: Number(summary.work_time?.total_loading_time || 0),
     unitCost: Number(summary.unit_cost || 0),
     emptyRate: Number(summary.empty_rate || 0),
+    loadingRateAvg: Number(summary.loading_rate_avg || 0),
     loadingRateStdDev: Number(summary.loading_rate_stddev || 0),
+    onlineRate: Number(summary.online_rate || 0),
     giniCoefficient: Number(summary.gini_coefficient || 0),
     matchResponseP50: Number(summary.match_response_p50 || 0),
     matchResponseP95: Number(summary.match_response_p95 || 0),
     matchResponseP99: Number(summary.match_response_p99 || 0),
     carbonTotal: Number(summary.carbon_total || 0),
-    carbonPerTonKm: Number(summary.carbon_per_ton_km || 0)
+    carbonPerTonKm: Number(summary.carbon_per_ton_km || 0),
+    optimizationGap: Number(summary.optimization_gap || 0)
   }
 }
 
@@ -410,13 +419,16 @@ const applySnapshot = (data) => {
   dynamicData.totalLoadingTime = mapped.totalLoadingTime
   dynamicData.unitCost = mapped.unitCost
   dynamicData.emptyRate = mapped.emptyRate
+  dynamicData.loadingRateAvg = mapped.loadingRateAvg
   dynamicData.loadingRateStdDev = mapped.loadingRateStdDev
+  dynamicData.onlineRate = mapped.onlineRate
   dynamicData.giniCoefficient = mapped.giniCoefficient
   dynamicData.matchResponseP50 = mapped.matchResponseP50
   dynamicData.matchResponseP95 = mapped.matchResponseP95
   dynamicData.matchResponseP99 = mapped.matchResponseP99
   dynamicData.carbonTotal = mapped.carbonTotal
   dynamicData.carbonPerTonKm = mapped.carbonPerTonKm
+  dynamicData.optimizationGap = mapped.optimizationGap
 
   if (baseline.throughput === 0 && baseline.cost === 0) {
     initDynamicStats(data)
@@ -427,7 +439,130 @@ const applySnapshot = (data) => {
   if (detailVisible.value && detailType.value) {
     renderDetailChart(detailType.value)
   }
+  buildChapterItems(activeChapter.value)
 }
+
+// ---- 分视角章节面板：按参考文档《科学指标体系设计》9 个维度章节组织 ----
+// 每章对应参考文档的一章标题；章节内为实时可得指标（live）与待接入指标（pending）。
+const CHAPTERS = [
+  {
+    id: 'M',
+    title: '1. 匹配算法精准度',
+    desc: '货找车/车找货的对偶匹配质量（参考文档第一章）',
+    items: [
+      { code: 'M1', label: '匹配精确率 P', live: false, note: '需 matching_log 离线回放评估（P2）', get: () => null, unit: '' },
+      { code: 'M2', label: '匹配召回率 R', live: false, note: '需 matching_log 离线回放评估（P2）', get: () => null, unit: '' },
+      { code: 'M3', label: '匹配 F1', live: false, note: '由 P/R 计算（P2）', get: () => null, unit: '' },
+      { code: 'M4', label: 'MRR 候选排名', live: false, note: '基于候选排名队列计算（P2）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'U',
+    title: '2. 资源利用效率',
+    desc: '运力、装载率、在线率与空驶率（参考文档第二章）',
+    items: [
+      { code: 'U1', label: '里程利用率', live: true, get: () => (1 - dynamicData.emptyRate) * 100, unit: '%', format: (v) => formatFixed(v, 1) },
+      { code: 'U2', label: '装载率 均值/标准差', live: true, get: () => dynamicData.loadingRateAvg * 100, unit: '%', format: (v) => formatFixed(v, 1) + ' / ±' + formatFixed(dynamicData.loadingRateStdDev * 100, 1) },
+      { code: 'U3', label: '车辆在线率', live: true, get: () => dynamicData.onlineRate * 100, unit: '%', format: (v) => formatFixed(v, 1) },
+      { code: 'U4', label: '空驶率', live: true, get: () => dynamicData.emptyRate * 100, unit: '%', format: (v) => formatFixed(v, 1) }
+    ]
+  },
+  {
+    id: 'T',
+    title: '3. 系统吞吐量与响应时间',
+    desc: '吞吐、匹配响应分位（参考文档第三章）',
+    items: [
+      { code: 'T1', label: '总吞吐量', live: true, get: () => dynamicData.throughput, unit: '吨', format: (v) => formatNum(v) },
+      { code: 'T2', label: '匹配响应 P50/P95/P99', live: true, get: () => dynamicData.matchResponseP50, unit: '秒', format: (v) => formatFixed(dynamicData.matchResponseP50, 1) + ' / ' + formatFixed(dynamicData.matchResponseP95, 1) + ' / ' + formatFixed(dynamicData.matchResponseP99, 1) },
+      { code: 'T3', label: '吞吐-响应曲线', live: true, get: () => dynamicData.throughput, unit: '', format: (v) => '见趋势图' },
+      { code: 'T*', label: '匹配吞吐量(单/秒)', live: false, note: '需匹配事件打点（P1）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'A',
+    title: '4. 算法与调度效率',
+    desc: '算法解质量与运行基准（参考文档第四章）',
+    items: [
+      { code: 'A1', label: '复杂度基准', live: false, note: '需基准数据集（P2）', get: () => null, unit: '' },
+      { code: 'A2', label: '单批求解耗时', live: false, note: '需算法打点（P1）', get: () => null, unit: '' },
+      { code: 'A3', label: '优化 gap (SA vs 最优)', live: true, get: () => dynamicData.optimizationGap, unit: '%', format: (v) => formatFixed(v, 2), note: '小规模批次精确枚举' }
+    ]
+  },
+  {
+    id: 'S',
+    title: '5. 周期生成稳定性',
+    desc: '订单生成器的稳定性（参考文档第五章）',
+    items: [
+      { code: 'S1', label: '生成间隔 Jitter', live: false, note: '需生成器打点（P1）', get: () => null, unit: '' },
+      { code: 'S2', label: '生成合规率', live: false, note: '需生成器校验（P1）', get: () => null, unit: '' },
+      { code: 'S3', label: '场景多样性', live: false, note: '需场景版本管理（P2）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'C',
+    title: '6. 成本效益指标',
+    desc: '成本、单位成本与效益（参考文档第六章）',
+    items: [
+      { code: 'C1', label: '基线对比', live: false, note: '需离线回放基线（P1）', get: () => null, unit: '' },
+      { code: 'C2', label: '单位成本', live: true, get: () => dynamicData.unitCost, unit: '成本/吨公里', format: (v) => formatFixed(v, 4) },
+      { code: 'C3', label: 'ROI', live: false, note: '需收益口径（P2）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'R',
+    title: '7. 可靠性与可用性',
+    desc: 'MTBF/MTTR/可用性（参考文档第七章）',
+    items: [
+      { code: 'R1', label: 'MTBF', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
+      { code: 'R2', label: 'MTTR', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
+      { code: 'R3', label: '服务可用性', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'F',
+    title: '8. 公平性与满意度',
+    desc: '负载均衡与用户公平（参考文档第八章）',
+    items: [
+      { code: 'F1', label: '基尼系数', live: true, get: () => dynamicData.giniCoefficient, unit: '', format: (v) => formatFixed(v, 3), note: '0 均衡 ~ 1 不均' },
+      { code: 'F2', label: '订单拒绝率', live: false, note: '需拒绝打点（P2）', get: () => null, unit: '' },
+      { code: 'F3', label: '满意度', live: false, note: '需问卷/评分（P2）', get: () => null, unit: '' }
+    ]
+  },
+  {
+    id: 'G',
+    title: '9. 绿色指标（低碳）',
+    desc: '碳排放（参考文档第九章）',
+    items: [
+      { code: 'G1', label: '总碳排放', live: true, get: () => dynamicData.carbonTotal, unit: 'kg', format: (v) => formatNum(v) },
+      { code: 'G2', label: '单位吨公里碳排放', live: true, get: () => dynamicData.carbonPerTonKm, unit: 'kg/t·km', format: (v) => formatFixed(v, 3) },
+      { code: 'G0', label: '排放因子来源', live: true, get: () => (dynamicData.carbonTotal > 0 ? '已配置' : '默认估算'), unit: '', format: (v) => v }
+    ]
+  }
+];
+
+const activeChapter = ref('M')
+const builtChapterItems = ref([])
+const currentChapterDesc = ref('')
+
+const buildChapterItems = (chapterId) => {
+  const chapter = CHAPTERS.find((c) => c.id === chapterId) || CHAPTERS[0]
+  currentChapterDesc.value = chapter.desc
+  builtChapterItems.value = chapter.items.map((item) => {
+    if (!item.live) {
+      return { ...item, valueText: '—', status: 'pending' }
+    }
+    const raw = Number(item.get() || 0)
+    const valueText = item.format ? item.format(raw) : formatNum(raw)
+    return { ...item, valueText, status: 'live' }
+  })
+}
+
+const switchChapter = (chapterId) => {
+  activeChapter.value = chapterId
+  buildChapterItems(chapterId)
+}
+
+const realtimeStatusText = () => (wsConnected.value ? '实时推送 (WebSocket 已连接)' : '轮询兜底中 (15s)')
 
 const getWsBase = () => {
   const envBase = import.meta.env.VITE_WS_BASE
@@ -498,6 +633,7 @@ const handleResize = () => {
 onMounted(() => {
   fetchData()
   connectStatsSocket()
+  buildChapterItems(activeChapter.value)
   if (refreshTimer) clearInterval(refreshTimer)
   refreshTimer = setInterval(() => {
     if (!detailVisible.value && !wsConnected.value) fetchData()
@@ -611,32 +747,35 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="advanced-row">
-      <div class="adv-card">
-        <span class="adv-label">单位成本 (C2)</span>
-        <b>{{ formatFixed(dynamicData.unitCost, 4) }}</b>
-      </div>
-      <div class="adv-card">
-        <span class="adv-label">空驶率 (U4)</span>
-        <b>{{ formatFixed(dynamicData.emptyRate * 100, 1) }}%</b>
-      </div>
-      <div class="adv-card">
-        <span class="adv-label">装载率标准差 (U2)</span>
-        <b>{{ formatFixed(dynamicData.loadingRateStdDev * 100, 1) }}%</b>
-      </div>
-      <div class="adv-card">
-        <span class="adv-label">基尼系数 (F1)</span>
-        <b>{{ formatFixed(dynamicData.giniCoefficient, 3) }}</b>
-      </div>
-      <div class="adv-card">
-        <span class="adv-label">匹配响应 P50/P95/P99 (T2)</span>
-        <b>{{ formatFixed(dynamicData.matchResponseP50, 1) }} / {{ formatFixed(dynamicData.matchResponseP95, 1) }} / {{ formatFixed(dynamicData.matchResponseP99, 1) }} s</b>
-      </div>
-      <div class="adv-card">
-        <span class="adv-label">碳排放 (G1/G2)</span>
-        <b>{{ formatFixed(dynamicData.carbonTotal, 1) }} kg · {{ formatFixed(dynamicData.carbonPerTonKm, 3) }} kg/tkm</b>
+<div class="chapter-panel">
+  <div class="chapter-head">
+    <div class="chapter-title-row">
+      <span class="chapter-flag">分视角 · 科学指标体系</span>
+      <span class="chapter-status" :class="wsConnected ? 'ok' : 'warn'">
+        <i :class="wsConnected ? 'dot dot-live' : 'dot dot-warn'"></i>{{ realtimeStatusText() }}
+      </span>
+    </div>
+    <div class="chapter-tabs">
+      <button v-for="c in CHAPTERS" :key="c.id" class="chapter-tab" :class="{ active: activeChapter === c.id }" @click="switchChapter(c.id)">
+        {{ c.title }}
+      </button>
+    </div>
+  </div>
+  <div class="chapter-body">
+    <p class="chapter-desc">{{ currentChapterDesc }}</p>
+    <div class="chapter-grid">
+      <div v-for="item in builtChapterItems" :key="item.code" class="chapter-card" :class="item.status">
+        <div class="cc-head">
+          <span class="cc-code">{{ item.code }}</span>
+          <span class="cc-state" :class="item.status">{{ item.status === 'live' ? '实时' : '待接入' }}</span>
+        </div>
+        <div class="cc-label">{{ item.label }}</div>
+        <div class="cc-value">{{ item.valueText }}<i v-if="item.unit" class="cc-unit">{{ item.unit }}</i></div>
+        <div class="cc-note">{{ item.note || '实时更新' }}</div>
       </div>
     </div>
+  </div>
+</div>
 
     <Transition name="fade">
       <div v-if="detailVisible" class="detail-overlay" @click.self="closeDetail">
@@ -771,29 +910,95 @@ onBeforeUnmount(() => {
 .dot.blue { background: #1890ff; }
 .dot.green { background: #52c41a; }
 
-.advanced-row {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
+.chapter-panel {
   background: #2c3e50;
   border-radius: 8px;
-  padding: 10px 15px;
+  padding: 12px 15px;
+  color: white;
 }
-.adv-card {
+.chapter-head {
   display: flex;
   flex-direction: column;
-  color: white;
-  text-align: center;
+  gap: 8px;
 }
-.adv-label {
-  font-size: 11px;
-  color: #bdc3c7;
-  margin-bottom: 4px;
+.chapter-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.adv-card b {
+.chapter-flag {
   font-size: 13px;
   font-weight: bold;
+  color: #fff;
 }
+.chapter-status {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chapter-status.ok { color: #95de64; }
+.chapter-status.warn { color: #ffd666; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-live { background: #52c41a; box-shadow: 0 0 6px #52c41a; }
+.dot-warn { background: #faad14; }
+.chapter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chapter-tab {
+  border: 1px solid rgba(255,255,255,0.25);
+  background: transparent;
+  color: #bdc3c7;
+  border-radius: 14px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.chapter-tab:hover { color: #fff; border-color: #1890ff; }
+.chapter-tab.active {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: #fff;
+  font-weight: bold;
+}
+.chapter-desc {
+  font-size: 12px;
+  color: #8fa3b8;
+  margin: 8px 0 10px;
+}
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.chapter-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chapter-card.pending { opacity: 0.55; }
+.cc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cc-code { font-size: 11px; color: #1890ff; font-weight: bold; }
+.cc-state { font-size: 10px; padding: 0 6px; border-radius: 8px; }
+.cc-state.live { background: #52c41a; color: #fff; }
+.cc-state.pending { background: #8c8c8c; color: #fff; }
+.cc-label { font-size: 12px; color: #d9e2ec; }
+.cc-value { font-size: 15px; font-weight: bold; color: #fff; }
+.cc-unit { font-size: 11px; color: #8fa3b8; font-style: normal; margin-left: 4px; }
+.cc-note { font-size: 11px; color: #8fa3b8; }
 
 .detail-overlay {
   position: fixed;

@@ -46,7 +46,9 @@ type RealtimeSummary struct {
 	// ---- 科学指标体系扩展字段 ----
 	UnitCost           float64 `json:"unit_cost"`           // C2 单位成本(成本/吨公里)
 	EmptyRate          float64 `json:"empty_rate"`          // U4 空驶率
+	LoadingRateAvg     float64 `json:"loading_rate_avg"`    // U2 装载率均值
 	LoadingRateStdDev  float64 `json:"loading_rate_stddev"` // U2 装载率标准差
+	OnlineRate         float64 `json:"online_rate"`         // U3 车辆在线率
 	GiniCoefficient    float64 `json:"gini_coefficient"`    // F1 基尼系数
 	MatchResponseP50   float64 `json:"match_response_p50"`  // T2 匹配响应 P50(秒)
 	MatchResponseP95   float64 `json:"match_response_p95"`  // T2 匹配响应 P95(秒)
@@ -124,7 +126,9 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			},
 			UnitCost:          stats.UnitCost,
 			EmptyRate:         stats.EmptyDistStats.EmptyRate,
+			LoadingRateAvg:    stats.UtilizationStats.LoadingRateAvg,
 			LoadingRateStdDev: stats.UtilizationStats.LoadingRateStd,
+			OnlineRate:        stats.UtilizationStats.ByVehicleCount,
 			GiniCoefficient:   stats.UtilizationStats.GiniCoefficient,
 			MatchResponseP50:  stats.MatchResponseStats.P50,
 			MatchResponseP95:  stats.MatchResponseStats.P95,
