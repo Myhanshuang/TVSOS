@@ -22,15 +22,9 @@ export const useVisibleStore = defineStore('visible', () => {
    */
   const isThirdVisible = ref(false)
 
-  /** 
-   * 第四组件（答辩演示页面）的可见性开关 
-   */
-  const isFourthVisible = ref(false)
-
   return {
     isFirstVisible,
     isSecondVisible,
-    isThirdVisible,
-    isFourthVisible
+    isThirdVisible
   }
 })

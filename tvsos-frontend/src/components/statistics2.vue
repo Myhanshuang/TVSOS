@@ -31,7 +31,16 @@ const dynamicData = reactive({
   emptyMileage: 0,
   totalLossTh: 0,
   totalCapacityTm: 0,
-  totalLoadingTime: 0
+  totalLoadingTime: 0,
+  unitCost: 0,            // C2 单位成本
+  emptyRate: 0,           // U4 空驶率
+  loadingRateStdDev: 0,   // U2 装载率标准差
+  giniCoefficient: 0,     // F1 基尼系数
+  matchResponseP50: 0,    // T2 匹配响应 P50
+  matchResponseP95: 0,    // T2 匹配响应 P95
+  matchResponseP99: 0,    // T2 匹配响应 P99
+  carbonTotal: 0,         // G1 总碳排放
+  carbonPerTonKm: 0       // G2 单位吨公里碳排放
 })
 
 const kpiTrend = reactive({
@@ -118,6 +127,15 @@ const initDynamicStats = (data) => {
   dynamicData.totalLossTh = Number(summary.total_loss_th || 0)
   dynamicData.totalCapacityTm = Number(summary.total_capacity_tm || 0)
   dynamicData.totalLoadingTime = Number(summary.work_time?.total_loading_time || 0)
+  dynamicData.unitCost = Number(summary.unit_cost || 0)
+  dynamicData.emptyRate = Number(summary.empty_rate || 0)
+  dynamicData.loadingRateStdDev = Number(summary.loading_rate_stddev || 0)
+  dynamicData.giniCoefficient = Number(summary.gini_coefficient || 0)
+  dynamicData.matchResponseP50 = Number(summary.match_response_p50 || 0)
+  dynamicData.matchResponseP95 = Number(summary.match_response_p95 || 0)
+  dynamicData.matchResponseP99 = Number(summary.match_response_p99 || 0)
+  dynamicData.carbonTotal = Number(summary.carbon_total || 0)
+  dynamicData.carbonPerTonKm = Number(summary.carbon_per_ton_km || 0)
 
   baseline.throughput = dynamicData.throughput
   baseline.cost = dynamicData.cost
@@ -141,7 +159,16 @@ const mapSnapshotToDynamicData = (data) => {
     emptyMileage: Number(summary.total_empty_mileage || 0),
     totalLossTh: Number(summary.total_loss_th || 0),
     totalCapacityTm: Number(summary.total_capacity_tm || 0),
-    totalLoadingTime: Number(summary.work_time?.total_loading_time || 0)
+    totalLoadingTime: Number(summary.work_time?.total_loading_time || 0),
+    unitCost: Number(summary.unit_cost || 0),
+    emptyRate: Number(summary.empty_rate || 0),
+    loadingRateStdDev: Number(summary.loading_rate_stddev || 0),
+    giniCoefficient: Number(summary.gini_coefficient || 0),
+    matchResponseP50: Number(summary.match_response_p50 || 0),
+    matchResponseP95: Number(summary.match_response_p95 || 0),
+    matchResponseP99: Number(summary.match_response_p99 || 0),
+    carbonTotal: Number(summary.carbon_total || 0),
+    carbonPerTonKm: Number(summary.carbon_per_ton_km || 0)
   }
 }
 
@@ -381,6 +408,15 @@ const applySnapshot = (data) => {
   dynamicData.totalLossTh = mapped.totalLossTh
   dynamicData.totalCapacityTm = mapped.totalCapacityTm
   dynamicData.totalLoadingTime = mapped.totalLoadingTime
+  dynamicData.unitCost = mapped.unitCost
+  dynamicData.emptyRate = mapped.emptyRate
+  dynamicData.loadingRateStdDev = mapped.loadingRateStdDev
+  dynamicData.giniCoefficient = mapped.giniCoefficient
+  dynamicData.matchResponseP50 = mapped.matchResponseP50
+  dynamicData.matchResponseP95 = mapped.matchResponseP95
+  dynamicData.matchResponseP99 = mapped.matchResponseP99
+  dynamicData.carbonTotal = mapped.carbonTotal
+  dynamicData.carbonPerTonKm = mapped.carbonPerTonKm
 
   if (baseline.throughput === 0 && baseline.cost === 0) {
     initDynamicStats(data)
@@ -575,6 +611,33 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div class="advanced-row">
+      <div class="adv-card">
+        <span class="adv-label">单位成本 (C2)</span>
+        <b>{{ formatFixed(dynamicData.unitCost, 4) }}</b>
+      </div>
+      <div class="adv-card">
+        <span class="adv-label">空驶率 (U4)</span>
+        <b>{{ formatFixed(dynamicData.emptyRate * 100, 1) }}%</b>
+      </div>
+      <div class="adv-card">
+        <span class="adv-label">装载率标准差 (U2)</span>
+        <b>{{ formatFixed(dynamicData.loadingRateStdDev * 100, 1) }}%</b>
+      </div>
+      <div class="adv-card">
+        <span class="adv-label">基尼系数 (F1)</span>
+        <b>{{ formatFixed(dynamicData.giniCoefficient, 3) }}</b>
+      </div>
+      <div class="adv-card">
+        <span class="adv-label">匹配响应 P50/P95/P99 (T2)</span>
+        <b>{{ formatFixed(dynamicData.matchResponseP50, 1) }} / {{ formatFixed(dynamicData.matchResponseP95, 1) }} / {{ formatFixed(dynamicData.matchResponseP99, 1) }} s</b>
+      </div>
+      <div class="adv-card">
+        <span class="adv-label">碳排放 (G1/G2)</span>
+        <b>{{ formatFixed(dynamicData.carbonTotal, 1) }} kg · {{ formatFixed(dynamicData.carbonPerTonKm, 3) }} kg/tkm</b>
+      </div>
+    </div>
+
     <Transition name="fade">
       <div v-if="detailVisible" class="detail-overlay" @click.self="closeDetail">
         <div class="detail-content">
@@ -707,6 +770,30 @@ onBeforeUnmount(() => {
 .dot.red { background: #ff4d4f; }
 .dot.blue { background: #1890ff; }
 .dot.green { background: #52c41a; }
+
+.advanced-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  background: #2c3e50;
+  border-radius: 8px;
+  padding: 10px 15px;
+}
+.adv-card {
+  display: flex;
+  flex-direction: column;
+  color: white;
+  text-align: center;
+}
+.adv-label {
+  font-size: 11px;
+  color: #bdc3c7;
+  margin-bottom: 4px;
+}
+.adv-card b {
+  font-size: 13px;
+  font-weight: bold;
+}
 
 .detail-overlay {
   position: fixed;

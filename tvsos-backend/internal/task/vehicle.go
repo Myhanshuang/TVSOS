@@ -120,11 +120,21 @@ func handlePathFinished(task *model.OrderTask) {
 	// 到达起点（准备装货）
 	case constant.OrderTaskSequentialAccepting:
 		Logger.Logger.Info("车辆到达起点，开始装货", zap.Uint("shipment", task.ShipmentId))
+		// 记录阶段时间戳：到达提货点 + 开始装货
+		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
+			"reach_pickup_time": time.Now(),
+			"load_start_time":   time.Now(),
+		})
 		// 装货（增加载重）
 		err := LoadCargo(task)
 		if err != nil {
 			Logger.Logger.Error("装货失败", zap.Error(err))
 		}
+		// 记录阶段时间戳：完成装货 + 开始运输
+		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
+			"load_end_time":        time.Now(),
+			"transport_start_time": time.Now(),
+		})
 		// 更新订单状态：待取货 -> 运输中
 		// CAS锁一律格式 旧的status放后面的参数
 		err = repository.UpdateShipmentStatus(int(task.ShipmentId), constant.ShipmentStatusWorking, constant.ShipmentStatusWaiting)
@@ -170,11 +180,21 @@ func handlePathFinished(task *model.OrderTask) {
 	// 到达终点（完成任务）
 	case constant.OrderTaskSequentialTransporting:
 		Logger.Logger.Info("车辆到达终点，任务完成", zap.Uint("shipment", task.ShipmentId))
+		// 记录阶段时间戳：到达收货点 + 开始卸货
+		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
+			"reach_delivery_time": time.Now(),
+			"unload_start_time":   time.Now(),
+		})
 		// 卸货（减少载重）
 		err := UnloadCargo(task)
 		if err != nil {
 			Logger.Logger.Error("卸货失败", zap.Error(err))
 		}
+		// 记录阶段时间戳：完成卸货 + 签收完成
+		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
+			"unload_end_time": time.Now(),
+			"signoff_time":    time.Now(),
+		})
 
 		// 更新任务阶段
 		err = repository.UpdateTaskSequential(int(task.Id), constant.OrderTaskSequentialFinish, constant.OrderTaskSequentialTransporting)

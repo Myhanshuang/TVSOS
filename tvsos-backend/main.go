@@ -25,6 +25,12 @@ func main() {
 	database.InitRedis()
 	// 恢复运行时任务与车辆状态，避免数据库状态与内存路线脱节
 	task.RecoverRuntimeState()
+	// 加载排放因子配置（绿色指标 G1/G2），无配置时使用默认估算因子
+	task.LoadEmissionFactors()
+	// 加载装卸时间系数配置（handling_config），无配置时保持默认 60 秒/吨
+	task.LoadHandlingConfig()
+	// 记录服务启动事件（可靠性指标 R1-R3 数据源）
+	task.RecordSystemEvent("startup", "info", "mover服务启动", "")
 
 	// gin 框架 返回默认引擎
 	// 默认引擎注册了默认的 Logger() 和 Recovery
@@ -46,6 +52,9 @@ func main() {
 	Logger.Logger.Info("启动实时统计推送go程...")
 	go task.BroadcastStatsLoop()
 	Logger.Logger.Info("实时统计推送 done")
+	Logger.Logger.Info("启动指标历史采样go程...")
+	go task.MetricSnapshotLoop()
+	Logger.Logger.Info("指标历史采样 done")
 
 	// 启动 mover 服务
 	port := config.VP.GetString("server.port")

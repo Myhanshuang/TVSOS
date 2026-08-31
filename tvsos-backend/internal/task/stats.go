@@ -12,9 +12,12 @@ import (
 
 const (
 	defaultVehicleSpeedMPS               = 10.0
-	estimatedHandlingSecondsPerTon       = 60.0
 	denseVehicleNearestNeighborThreshold = 1500.0
 )
+
+// estimatedHandlingSecondsPerTon 装卸时间估算系数(秒/吨)。
+// 可通过 handling_config 表配置键 handling_seconds_per_ton 覆盖（LoadHandlingConfig）。
+var estimatedHandlingSecondsPerTon = 60.0
 
 // Statistics 调度系统的核心内粗数据统计模块入口结构。
 // 包含了所有当前大盘以及计算成本函数所需的中间态指标：
@@ -35,6 +38,9 @@ type Statistics struct {
 	LoadStats          LoadMetrics          // 装卸/载重指标
 	GlobalCost         CostBreakdown        // 基于当前快照的全局 cost
 	TotalCost          float64              // GlobalCost.F
+	UnitCost           float64              // 单位成本 = 总成本 / 总吨公里 (C2)
+	MatchResponseStats TimeMetrics          // 匹配响应时间分布(T2)：运单创建 -> 被分配车辆
+	CarbonStats        CarbonMetrics        // 绿色指标(G1/G2)
 
 	vehicleWaitByVehicle        map[uint]float64
 	cargoWaitByShipment         map[uint]float64
@@ -65,13 +71,17 @@ type LocationDistributionMetric struct {
 
 // UtilizationMetrics 利用率指标
 type UtilizationMetrics struct {
-	ByVehicleCount float64 // 按车辆数计算的利用率
-	ByCapacity     float64 // 按载重/容量计算的利用率
-	TotalCapacity  int     // 总运能
-	UsedCapacity   int     // 实际已使用运能
+	ByVehicleCount   float64 // 按车辆数计算的利用率
+	ByCapacity       float64 // 按载重/容量计算的利用率
+	TotalCapacity    int     // 总运能
+	UsedCapacity     int     // 实际已使用运能
+	LoadingRateAvg   float64 // 单车装载率均值 (U2)
+	LoadingRateStd   float64 // 单车装载率标准差 (U2)
+	GiniCoefficient  float64 // 车辆间负载均衡基尼系数 (F1)
 }
 
 // NumericMetrics 通用数值统计量
+// 增加了 P50/P95/P99 分位数，用于描述匹配响应时间、装卸耗时等分布的尾部特征(报告 T2/A2)。
 type NumericMetrics struct {
 	Total  float64
 	Max    float64
@@ -79,9 +89,13 @@ type NumericMetrics struct {
 	Avg    float64
 	Median float64
 	StdDev float64
+	P50    float64
+	P95    float64
+	P99    float64
 }
 
 // TimeMetrics 时间相关统计量
+// 增加了 P50/P95/P99 分位数，用于描述等待时间、空驶时间、运输时间的分布特征(报告 T2/A2)。
 type TimeMetrics struct {
 	Total  float64
 	Max    float64
@@ -89,6 +103,9 @@ type TimeMetrics struct {
 	Avg    float64
 	Median float64
 	StdDev float64
+	P50    float64
+	P95    float64
+	P99    float64
 }
 
 // CargoOverviewMetrics 货物概况
@@ -140,12 +157,20 @@ type DistanceMetrics struct {
 	MedianEmpty    float64
 	StdDevEmpty    float64
 	EmptyFullRatio float64 // 空驶/重载
+	EmptyRate      float64 // 空驶率 = 空驶里程 / 总里程 (U4)
 }
 
 // AdvancedMetrics 高阶比例指标
 type AdvancedMetrics struct {
 	EmptyLoadedRatio   float64
 	WaitTransportRatio float64
+}
+
+// CarbonMetrics 绿色低碳指标
+type CarbonMetrics struct {
+	TotalCarbon    float64 // 总碳排放(kg CO2)
+	CarbonPerTonKm float64 // 单位吨公里碳排放(kg CO2 / 吨公里) (G2)
+	Estimated      bool    // 是否基于估算(缺省排放因子)
 }
 
 // LoadMetrics 装卸相关指标
@@ -213,6 +238,7 @@ func buildStatistics(
 	stats.calculateVehicleOverview(vehicles)
 	stats.calculateUtilization(vehicles)
 	stats.calculateTimeStats(vehicles, tasks, shipments, cargos, now)
+	stats.calculateMatchResponseStats(tasks, shipments, now)
 	stats.calculateCargoOverview(shipments, tasks, cargos)
 	stats.calculateDistanceStats(vehicles, tasks, shipments, pois)
 	stats.calculateVehicleDirection(vehicles, tasks, shipments, pois)
@@ -221,6 +247,7 @@ func buildStatistics(
 	stats.calculateLoadStats(shipments, cargos)
 	stats.calculateAdvancedStats()
 	stats.calculateSnapshotCost()
+	stats.calculateCarbonStats(vehicles)
 	return stats
 }
 
@@ -266,6 +293,22 @@ func (s *Statistics) calculateUtilization(vehicles []*model.Vehicle) {
 	if totalCap > 0 {
 		s.UtilizationStats.ByCapacity = float64(usedCap) / float64(totalCap)
 	}
+
+	// U2 装载率分布：单车 size/capacity 的均值与标准差
+	var loadRates []float64
+	for _, v := range vehicles {
+		if v.Capacity <= 0 {
+			continue
+		}
+		loadRates = append(loadRates, float64(v.Size)/float64(v.Capacity))
+	}
+	if len(loadRates) > 0 {
+		s.UtilizationStats.LoadingRateAvg = sumFloat(loadRates) / float64(len(loadRates))
+		s.UtilizationStats.LoadingRateStd = stdDevFloat(loadRates)
+	}
+
+	// F1 基尼系数：基于单车装载率衡量负载均衡度(0 完全均衡, 1 极端不均)
+	s.UtilizationStats.GiniCoefficient = giniCoefficient(loadRates)
 }
 
 // calculateTimeStats 采集计算车辆与运单货物的各项时间延迟和等待开销。
@@ -410,6 +453,9 @@ func (s *Statistics) calculateDistanceStats(
 	}
 	if totalLoaded > 0 {
 		s.EmptyDistStats.EmptyFullRatio = totalEmpty / totalLoaded
+	}
+	if s.EmptyDistStats.TotalDistance > 0 {
+		s.EmptyDistStats.EmptyRate = totalEmpty / s.EmptyDistStats.TotalDistance
 	}
 	s.EmptyTimeStats = newTimeMetrics(emptyTimes)
 }
@@ -585,6 +631,11 @@ func (s *Statistics) calculateSnapshotCost() {
 		F: costF,
 	}
 	s.TotalCost = costF
+
+	// C2 单位成本 = 总成本 / 总吨公里
+	if s.TransportWorkStats.TotalTonDistance > 0 {
+		s.UnitCost = costF / s.TransportWorkStats.TotalTonDistance
+	}
 }
 
 func computeLocationDistribution(vehicles []*model.Vehicle) LocationDistributionMetric {
@@ -726,6 +777,9 @@ func newNumericMetrics(data []float64) NumericMetrics {
 		Avg:    m.Avg,
 		Median: m.Median,
 		StdDev: m.StdDev,
+		P50:    m.P50,
+		P95:    m.P95,
+		P99:    m.P99,
 	}
 }
 
@@ -753,6 +807,9 @@ type basicMetrics struct {
 	Avg    float64
 	Median float64
 	StdDev float64
+	P50    float64
+	P95    float64
+	P99    float64
 }
 
 func computeBasicMetrics(data []float64) basicMetrics {
@@ -786,7 +843,30 @@ func computeBasicMetrics(data []float64) basicMetrics {
 		Avg:    avg,
 		Median: median,
 		StdDev: stdDev,
+		P50:    computePercentile(values, 50),
+		P95:    computePercentile(values, 95),
+		P99:    computePercentile(values, 99),
 	}
+}
+
+// computePercentile 基于已排序切片计算线性插值分位数(p 为 0-100)。
+// 采用最常用最近秩(Nearest-rank)与线性插值混合：rank = p/100 * (n-1)。
+func computePercentile(sorted []float64, p float64) float64 {
+	n := len(sorted)
+	if n == 0 {
+		return 0
+	}
+	if n == 1 {
+		return sorted[0]
+	}
+	rank := (p / 100.0) * float64(n-1)
+	lower := int(rank)
+	upper := lower + 1
+	if upper >= n {
+		upper = n - 1
+	}
+	weight := rank - float64(lower)
+	return sorted[lower]*(1-weight) + sorted[upper]*weight
 }
 
 // calculateVehicleDirection 计算车辆当前规划的整体行进方向矢量
@@ -836,3 +916,141 @@ func (s *Statistics) calculateVehicleDirection(
 		}
 	}
 }
+
+// --- 科学指标体系扩展方法 ---
+
+// sumFloat 求浮点切片和
+func sumFloat(values []float64) float64 {
+	total := 0.0
+	for _, v := range values {
+		total += v
+	}
+	return total
+}
+
+// stdDevFloat 求浮点切片总体标准差
+func stdDevFloat(values []float64) float64 {
+	n := len(values)
+	if n == 0 {
+		return 0
+	}
+	avg := sumFloat(values) / float64(n)
+	var sqSum float64
+	for _, v := range values {
+		sqSum += (v - avg) * (v - avg)
+	}
+	return math.Sqrt(sqSum / float64(n))
+}
+
+// giniCoefficient 计算基尼系数(0 完全均衡, 1 极端不均)。
+// 基于升序分布的洛伦兹曲线面积公式：G = (2*Σ i*x_i)/(n*Σx_i) - (n+1)/n。
+func giniCoefficient(values []float64) float64 {
+	n := len(values)
+	if n == 0 {
+		return 0
+	}
+	sorted := append([]float64(nil), values...)
+	sort.Float64s(sorted)
+	total := 0.0
+	for _, v := range sorted {
+		total += v
+	}
+	if total <= 0 {
+		return 0
+	}
+	var weightedSum float64
+	for i, v := range sorted {
+		weightedSum += float64(i+1) * v
+	}
+	return (2*weightedSum)/(float64(n)*total) - float64(n+1)/float64(n)
+}
+
+// calculateMatchResponseStats 计算 T2 匹配响应时间分布。
+// 响应时间 = 运单被分配车辆(OrderTask.CreateTime) - 运单创建时间(Shipment.CreateTime)。
+// 仅统计已进入派单流程(存在 OrderTask)的运单，避免将未处理的休眠运单误计入。
+func (s *Statistics) calculateMatchResponseStats(
+	tasks []*model.OrderTask,
+	shipments []*model.Shipment,
+	now time.Time,
+) {
+	// 同一运单可能被多次分配(历史记录)，取最早分配时刻作为响应时间。
+	taskByShipment := make(map[uint]time.Time, len(tasks))
+	for _, task := range tasks {
+		assignTime := task.CreateTime
+		if task.AssignTime != nil && !task.AssignTime.IsZero() {
+			assignTime = *task.AssignTime
+		}
+		if assignTime.IsZero() {
+			continue
+		}
+		prev, ok := taskByShipment[task.ShipmentId]
+		if !ok || assignTime.Before(prev) {
+			taskByShipment[task.ShipmentId] = assignTime
+		}
+	}
+
+	var responses []float64
+	for _, shipment := range shipments {
+		if shipment == nil {
+			continue
+		}
+		assignTime, ok := taskByShipment[shipment.Id]
+		if !ok || assignTime.IsZero() {
+			continue
+		}
+		responseSeconds := assignTime.Sub(shipment.CreateTime).Seconds()
+		if responseSeconds < 0 {
+			responseSeconds = 0
+		}
+		responses = append(responses, responseSeconds)
+	}
+	s.MatchResponseStats = newTimeMetrics(responses)
+}
+
+// emissionFactorProvider 按车型提供排放因子(kg/km)的回调，用于 G1/G2 真实因子计算。
+// 未注入时使用内置默认估算因子，并标记 CarbonStats.Estimated = true。
+var emissionFactorProvider func(vehicleType int) (factorEmpty float64, factorLoad float64)
+
+// SetEmissionFactorProvider 注入按车型查询排放因子的回调(通常在启动时由配置表加载)。
+func SetEmissionFactorProvider(p func(vehicleType int) (float64, float64)) {
+	emissionFactorProvider = p
+}
+
+// defaultEmissionFactors 缺省排放因子(kg/km)，供未配置 emission_factor 表时估算使用。
+func defaultEmissionFactors(vehicleType int) (float64, float64) {
+	// 按车型给定典型柴油货车空驶/满载单位里程排放的粗略量级。
+	switch vehicleType {
+	case 1: // 厢式/普通货车
+		return 0.6, 1.1
+	case 2: // 重型/厢式货车
+		return 0.8, 1.5
+	default:
+		return 0.7, 1.3
+	}
+}
+
+// calculateCarbonStats 计算 G1 总碳排放与 G2 单位吨公里碳排放。
+// 基于车辆累计里程字段(vehicle.distance 运输里程, vehicle.empty_mileage 空驶里程)乘以对应车型排放因子。
+func (s *Statistics) calculateCarbonStats(vehicles []*model.Vehicle) {
+	var totalCarbon float64
+	for _, v := range vehicles {
+		if v == nil {
+			continue
+		}
+		fEmpty, fLoad := defaultEmissionFactors(v.Tybe)
+		if emissionFactorProvider != nil {
+			if e, l := emissionFactorProvider(v.Tybe); e > 0 || l > 0 {
+				fEmpty, fLoad = e, l
+			}
+		}
+		totalCarbon += v.EmptyMileage*fEmpty + v.Distance*fLoad
+	}
+	s.CarbonStats = CarbonMetrics{
+		TotalCarbon: totalCarbon,
+		Estimated:   emissionFactorProvider == nil,
+	}
+	if s.TransportWorkStats.TotalTonDistance > 0 {
+		s.CarbonStats.CarbonPerTonKm = totalCarbon / s.TransportWorkStats.TotalTonDistance
+	}
+}
+

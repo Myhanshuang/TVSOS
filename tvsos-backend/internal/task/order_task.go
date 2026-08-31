@@ -2,6 +2,7 @@ package task
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -106,6 +107,9 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 
 	bestAssignment := assignBySimulatedAnnealing(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
 
+	// A3 优化质量评估：小规模批次通过精确枚举计算 SA 与全局最优的 gap(黑盒/算法无关)
+	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)
+
 	for _, shipment := range shipments {
 		cargo := getCargoByCache(cargoCache, shipment.CargoId)
 		if cargo == nil {
@@ -146,12 +150,14 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 // 新增 OrderTask，同时增加该车的预占预估载重、并原子更新所属 Shipment 状态(为排队待拉走)。
 func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmentLoad int) bool {
 	// 创建任务
+	now := time.Now()
 	newTask := &model.OrderTask{
 		ShipmentId: shipment.Id,
 		VehicleId:  v.Id,
 		Sequential: constant.OrderTaskSequentialPlanned,
-		CreateTime: time.Now(),
-		UpdateTime: time.Now(),
+		CreateTime: now,
+		UpdateTime: now,
+		AssignTime: &now, // 记录运单被分配车辆时刻(T2 匹配响应时间起点)
 	}
 
 	err := repository.CreateOrderTask(newTask)
@@ -159,6 +165,15 @@ func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmen
 		Logger.Logger.Error("创建任务失败")
 		return false
 	}
+
+	// 落库匹配决策日志(M1-M4 / MRR 评估数据源)，记录本次"货找车"的选中车辆。
+	_ = repository.CreateMatchingLog(&model.MatchingLog{
+		ShipmentId:         shipment.Id,
+		ChosenVehicleId:    v.Id,
+		CandidateRanking:   simpleCandidateRankingJSON(v, shipmentLoad),
+		GroundTruthVehicle: 0, // 离线回放评估时回填最优车辆
+		CreatedAt:          now,
+	})
 
 	// 更新订单状态：待创建 -> 已分配待发车
 	err = repository.UpdateShipmentStatus(int(shipment.Id), constant.ShipmentStatusQueued, shipment.Status)
@@ -498,3 +513,12 @@ func ExtractPoints(resp *RouteResponse) []Point {
 
 	return points
 }
+// simpleCandidateRankingJSON 生成简化候选排名 JSON(目前记录选中车辆及其运量)。
+// 后续 P2 阶段可扩展为完整的候选车辆排名列表，供 MRR/NDCG@k 等匹配精准度指标离线评估。
+func simpleCandidateRankingJSON(chosen *model.Vehicle, shipmentLoad int) string {
+	if chosen == nil {
+		return ""
+	}
+	return fmt.Sprintf("[{\"vehicle_id\":%d,\"load_kg\":%d}]", chosen.Id, shipmentLoad)
+}
+

@@ -8,6 +8,7 @@ import (
 	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/constant"
+	"github.com/kiritosuki/mover/internal/model"
 	"github.com/kiritosuki/mover/internal/realtime"
 	"github.com/kiritosuki/mover/internal/repository"
 	"go.uber.org/zap"
@@ -23,6 +24,9 @@ type NumericStatView struct {
 	Min    float64 `json:"min"`
 	Avg    float64 `json:"avg"`
 	Median float64 `json:"median"`
+	P50    float64 `json:"p50"`
+	P95    float64 `json:"p95"`
+	P99    float64 `json:"p99"`
 }
 
 type RealtimeSummary struct {
@@ -39,6 +43,17 @@ type RealtimeSummary struct {
 	EmptyFullRatio      float64     `json:"empty_full_ratio"`
 	WaitTransportRatio  float64     `json:"wait_transport_ratio"`
 	WorkTime            WorkTime    `json:"work_time"`
+	// ---- 科学指标体系扩展字段 ----
+	UnitCost           float64 `json:"unit_cost"`           // C2 单位成本(成本/吨公里)
+	EmptyRate          float64 `json:"empty_rate"`          // U4 空驶率
+	LoadingRateStdDev  float64 `json:"loading_rate_stddev"` // U2 装载率标准差
+	GiniCoefficient    float64 `json:"gini_coefficient"`    // F1 基尼系数
+	MatchResponseP50   float64 `json:"match_response_p50"`  // T2 匹配响应 P50(秒)
+	MatchResponseP95   float64 `json:"match_response_p95"`  // T2 匹配响应 P95(秒)
+	MatchResponseP99   float64 `json:"match_response_p99"`  // T2 匹配响应 P99(秒)
+	CarbonTotal        float64 `json:"carbon_total"`        // G1 总碳排放(kg)
+	CarbonPerTonKm     float64 `json:"carbon_per_ton_km"`   // G2 单位吨公里碳排放
+	OptimizationGap    float64 `json:"optimization_gap"`    // A3 优化 gap(最近批次，百分比)
 }
 
 type WorkTime struct {
@@ -107,6 +122,16 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			WorkTime: WorkTime{
 				TotalLoadingTime: stats.LoadStats.Total / 60,
 			},
+			UnitCost:          stats.UnitCost,
+			EmptyRate:         stats.EmptyDistStats.EmptyRate,
+			LoadingRateStdDev: stats.UtilizationStats.LoadingRateStd,
+			GiniCoefficient:   stats.UtilizationStats.GiniCoefficient,
+			MatchResponseP50:  stats.MatchResponseStats.P50,
+			MatchResponseP95:  stats.MatchResponseStats.P95,
+			MatchResponseP99:  stats.MatchResponseStats.P99,
+			CarbonTotal:       stats.CarbonStats.TotalCarbon,
+			CarbonPerTonKm:    stats.CarbonStats.CarbonPerTonKm,
+			OptimizationGap:   GetLastOptimizationGap(),
 		},
 		IndividualStats: RealtimeIndividualStats{
 			TruckCapacity: NumericStatView{
@@ -114,12 +139,18 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 				Min:    stats.VehicleStats.CapacityStats.Min,
 				Avg:    stats.VehicleStats.CapacityStats.Avg,
 				Median: stats.VehicleStats.CapacityStats.Median,
+				P50:    stats.VehicleStats.CapacityStats.P50,
+				P95:    stats.VehicleStats.CapacityStats.P95,
+				P99:    stats.VehicleStats.CapacityStats.P99,
 			},
 			LoadingTime: NumericStatView{
 				Max:    stats.LoadStats.Max,
 				Min:    stats.LoadStats.Min,
 				Avg:    stats.LoadStats.Avg,
 				Median: stats.LoadStats.Median,
+				P50:    stats.LoadStats.P50,
+				P95:    stats.LoadStats.P95,
+				P99:    stats.LoadStats.P99,
 			},
 		},
 	}
@@ -257,3 +288,90 @@ func getStatsPushInterval() time.Duration {
 	}
 	return time.Duration(sec) * time.Second
 }
+
+// RecordSystemEvent 记录一条系统运行事件(启动/恢复/故障/修复)，供 R1-R3 可靠性指标计算。
+// 事件落库失败仅记录日志，不影响主流程。
+func RecordSystemEvent(eventType string, level string, message string, detail string) {
+	err := repository.CreateSystemEvent(&model.SystemEvent{
+		EventTime: time.Now(),
+		EventType: eventType,
+		Level:     level,
+		Message:   message,
+		Detail:    detail,
+	})
+	if err != nil {
+		Logger.Logger.Warn("记录系统事件失败", zap.String("eventType", eventType), zap.Error(err))
+	}
+}
+
+// MetricSnapshotLoop 周期采样协程：将全局核心指标落库到 metric_snapshot 表。
+// 支撑历史趋势、成本效益对比(C1)与可用性分析(R3)等时序类指标；同时刷新排放因子缓存。
+func MetricSnapshotLoop() {
+	for {
+		snapshot, err := BuildRealtimeDashboard()
+		if err != nil {
+			Logger.Logger.Warn("指标采样失败", zap.Error(err))
+			time.Sleep(getStatsPushInterval())
+			continue
+		}
+
+		record := &model.MetricSnapshot{
+			SnapshotTime:        time.Now(),
+			CostValue:           snapshot.Summary.CostValue,
+			TotalThroughput:     snapshot.Summary.TotalThroughput,
+			CargoPending:        snapshot.Summary.CargoPending,
+			TransportEfficiency: snapshot.Summary.TransportEfficiency,
+			TotalWaitingTime:    snapshot.Summary.TotalWaitingTime,
+			TotalEmptyMileage:   snapshot.Summary.TotalEmptyMileage,
+			UnitCost:            snapshot.Summary.UnitCost,
+			EmptyRate:           snapshot.Summary.EmptyRate,
+			LoadingRateStdDev:   snapshot.Summary.LoadingRateStdDev,
+			MatchResponseP50:    snapshot.Summary.MatchResponseP50,
+			MatchResponseP95:    snapshot.Summary.MatchResponseP95,
+			MatchResponseP99:    snapshot.Summary.MatchResponseP99,
+			GiniCoefficient:     snapshot.Summary.GiniCoefficient,
+			CarbonTotal:         snapshot.Summary.CarbonTotal,
+			CarbonPerTonKm:      snapshot.Summary.CarbonPerTonKm,
+		}
+		if err := repository.CreateMetricSnapshot(record); err != nil {
+			Logger.Logger.Warn("指标采样落库失败", zap.Error(err))
+		}
+
+		time.Sleep(getStatsPushInterval())
+	}
+}
+
+// LoadEmissionFactors 从 emission_factor 配置表加载排放因子并注入统计模块。
+// 无配置时使用内置默认估算因子。
+func LoadEmissionFactors() {
+	factors, err := repository.ListEmissionFactors()
+	if err != nil || len(factors) == 0 {
+		Logger.Logger.Info("未加载到排放因子配置，使用默认估算因子")
+		return
+	}
+	factorMap := make(map[int]*model.EmissionFactor, len(factors))
+	for _, f := range factors {
+		factorMap[f.VehicleType] = f
+	}
+	SetEmissionFactorProvider(func(vehicleType int) (float64, float64) {
+		if f, ok := factorMap[vehicleType]; ok {
+			return f.FactorEmpty, f.FactorLoad
+		}
+		return 0, 0
+	})
+	Logger.Logger.Info("排放因子配置已加载", zap.Int("count", len(factors)))
+}
+
+// LoadHandlingConfig 从 handling_config 配置表加载调度经验系数并注入统计模块。
+// 目前支持 handling_seconds_per_ton（装卸秒/吨），无配置时保持默认 60 秒/吨。
+func LoadHandlingConfig() {
+	configEntry, err := repository.GetHandlingConfig("handling_seconds_per_ton")
+	if err == nil && configEntry != nil && configEntry.ConfigValue > 0 {
+		estimatedHandlingSecondsPerTon = configEntry.ConfigValue
+		Logger.Logger.Info("装卸时间系数已配置化", zap.Float64("handling_seconds_per_ton", estimatedHandlingSecondsPerTon))
+		return
+	}
+	Logger.Logger.Info("未配置 handling_seconds_per_ton，使用默认装卸系数 60 秒/吨")
+}
+
+

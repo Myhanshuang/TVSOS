@@ -11,7 +11,7 @@ import VehicleList from '@/components/vehicleList.vue'
 import {
     MapLocation, DataAnalysis, List,
     Van, Location, VideoPlay, VideoPause,
-    Box, SwitchButton, Odometer, ArrowDown, Position
+    Box, SwitchButton, Odometer, ArrowDown
 } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -99,18 +99,6 @@ onMounted(() => initSpeed())
                 </el-icon>
                 <span class="nav-text">任务管理</span>
             </div>
-            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isFourthVisible }" @click="() => { router.push('/admin/home'); target.targetChange('fourth') }">
-                <el-icon>
-                    <DataAnalysis />
-                </el-icon>
-                <span class="nav-text">数据对比</span>
-            </div>
-            <!-- <div class="nav-item" :class="{ active: route.path === '/admin/demo' }" @click="() => router.push('/admin/demo')">
-                <el-icon>
-                    <Position />
-                </el-icon>
-                <span class="nav-text">演示对比</span>
-            </div> -->
         </div>
 
         <!-- 3. 数据列表入口 (小按钮组) -->

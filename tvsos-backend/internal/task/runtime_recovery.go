@@ -11,6 +11,8 @@ import (
 // RecoverRuntimeState 在服务启动时恢复运行时路径状态，避免数据库状态与内存路线不一致。
 func RecoverRuntimeState() {
 	resetRuntimeRouteCaches()
+	// 记录运行态恢复事件（R1-R3 可靠性指标数据源）
+	RecordSystemEvent("recovery", "info", "服务启动，恢复运行时任务与车辆状态", "")
 
 	tasks, err := repository.GetRunningTasksOrderedByVehicle()
 	if err != nil {

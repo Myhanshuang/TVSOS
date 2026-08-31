@@ -96,3 +96,12 @@ func GetFirstRunningTaskByVehicle(vehicleID uint) (*model.OrderTask, error) {
 	}
 	return &task, nil
 }
+
+// UpdateTaskPhaseTimes 更新任务阶段时间戳(按字段名与值映射批量更新)。
+// 用于支撑调度时序还原与 T2 匹配响应时间、瓶颈分析的精确计算。
+func UpdateTaskPhaseTimes(id int, fields map[string]interface{}) error {
+	db := database.DB.Model(&model.OrderTask{})
+	db = db.Where("id = ?", id)
+	return db.Updates(fields).Error
+}
+
