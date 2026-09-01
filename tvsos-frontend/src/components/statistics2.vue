@@ -805,7 +805,7 @@ onBeforeUnmount(() => {
     <div v-for="ev in dynamicData.recentEvents" :key="ev.id" class="event-item" :class="ev.event_type">
       <span class="ev-badge" :class="ev.event_type">{{ ev.event_type }}</span>
       <span class="ev-desc">{{ ev.description }}</span>
-      <span class="ev-meta">车辆#{{ ev.vehicle_id }} · {{ ev.event_time }}<i v-if="ev.duration_seconds > 0"> · {{ formatFixed(ev.duration_seconds / 60, 0) }}min</i></span>
+      <span class="ev-meta">{{ ev.license || ('车辆-' + ev.vehicle_id) }} · {{ ev.event_time }}<i v-if="ev.duration_seconds > 0"> · {{ formatFixed(ev.duration_seconds / 60, 0) }}min</i></span>
       <span class="ev-state" :class="ev.status">{{ ev.status }}</span>
     </div>
   </div>

@@ -13,51 +13,90 @@ const firstRef = ref(null)
 const secondRef = ref(null)
 const thirdRef = ref(null)
 
+const sectionIds = ['first', 'second', 'third']
+const sectionRefs = () => [firstRef.value, secondRef.value, thirdRef.value]
+
 let observer
+let onWheel
+let onKeydown
+
+/** 横向滚动到指定页（下标 0/1/2） */
+const scrollToSection = (index) => {
+  const el = scrollContainer.value
+  if (!el) return
+  el.scrollTo({ left: index * window.innerWidth, behavior: 'smooth' })
+}
+
+/** 相对当前页左右切换（dir=±1） */
+const switchByDelta = (dir) => {
+  const el = scrollContainer.value
+  if (!el) return
+  const currentIndex = Math.round(el.scrollLeft / window.innerWidth)
+  const next = currentIndex + dir
+  if (next >= 0 && next < sectionIds.length) scrollToSection(next)
+}
 
 onMounted(() => {
-  // 1. 修改观察逻辑：使用较高的阈值 (0.6)，确保超过一半进入视口才切换
-  // 并增加相互排斥逻辑
+  // 1. 横向可见性观察：超过一半进入视口才激活对应页面
   observer = new IntersectionObserver((entries) => {
-    // 寻找当前交叉比例最大的那个元素
     const visibleEntry = entries.find(entry => entry.isIntersecting && entry.intersectionRatio > 0.5);
-    
     if (visibleEntry) {
       const id = visibleEntry.target.id;
-      // 重置所有状态，仅激活当前这一个
       visible.isFirstVisible = (id === 'first');
       visible.isSecondVisible = (id === 'second');
       visible.isThirdVisible = (id === 'third');
     }
-  }, { 
-    threshold: [0.5, 0.6], // 关键：只有过半时才触发
-    rootMargin: "-64px 0px 0px 0px" // 扣除顶部导航栏高度的影响
-  }); 
+  }, { threshold: [0.5, 0.6] });
 
   [firstRef, secondRef, thirdRef].forEach(refItem => {
     if (refItem.value) observer.observe(refItem.value);
   });
+
+  // 2. 滚轮：页内纵向自由滚动；当前页滚到顶/底部继续滚则左右切页
+  onWheel = (e) => {
+    const el = scrollContainer.value
+    if (!el) return
+    const currentIndex = Math.round(el.scrollLeft / window.innerWidth)
+    const sec = sectionRefs()[currentIndex]
+    if (!sec) return
+    const atTop = sec.scrollTop <= 1
+    const atBottom = sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 1
+    if (e.deltaY > 0 && atBottom) {
+      e.preventDefault()
+      switchByDelta(1)
+    } else if (e.deltaY < 0 && atTop) {
+      e.preventDefault()
+      switchByDelta(-1)
+    }
+  }
+  const containerEl = scrollContainer.value
+  containerEl.addEventListener('wheel', onWheel, { passive: false })
+
+  // 3. 左右方向键切页
+  onKeydown = (e) => {
+    if (e.key === 'ArrowRight') switchByDelta(1)
+    else if (e.key === 'ArrowLeft') switchByDelta(-1)
+  }
+  window.addEventListener('keydown', onKeydown)
 });
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
+  if (scrollContainer.value && onWheel) scrollContainer.value.removeEventListener('wheel', onWheel)
+  if (onKeydown) window.removeEventListener('keydown', onKeydown)
 })
 
-// 2. 优化滚动逻辑：使用原生的 scrollIntoView 配合 snap 效果更好
+// 导航按钮触发：横向平滑对齐目标页
 watch(() => target.watchLissoner, async () => {
   if (target.targetId) {
     await nextTick()
-    const el = document.getElementById(target.targetId)
-    if (el) {
-      // 停止 CSS 磁吸干预，执行平滑滚动
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    const idx = sectionIds.indexOf(target.targetId)
+    if (idx >= 0) scrollToSection(idx)
   }
 })
 </script>
 
 <template>
-  <!-- 整个容器作为滚动根，开启 CSS Snap -->
   <div class="main-snap-container" ref="scrollContainer">
     <div id='first' ref="firstRef" class="section-container">
       <MapContainer/>
@@ -69,13 +108,18 @@ watch(() => target.watchLissoner, async () => {
       <taskManage/>
     </div>
   </div>
+  <!-- 左右翻页箭头 -->
+  <div class="page-arrow arrow-left" @click="switchByDelta(-1)">‹</div>
+  <div class="page-arrow arrow-right" @click="switchByDelta(1)">›</div>
 </template>
 
 <style scoped>
 .main-snap-container {
   height: 100vh;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory; /* 核心：垂直方向强制磁吸 */
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory; /* 横向强制磁吸 */
   scroll-behavior: smooth;
   scrollbar-width: none; /* 隐藏滚动条 (可选) */
 }
@@ -85,12 +129,15 @@ watch(() => target.watchLissoner, async () => {
 }
 
 .section-container {
-  width: 100%;
-  height: 100vh; /* 必须是 100vh 以配套磁吸 */
+  width: 100vw;
+  min-width: 100vw;
+  height: 100vh;
+  flex-shrink: 0;
   scroll-snap-align: start; /* 磁吸对齐位置 */
-  scroll-snap-stop: always; /* 强制用户一次只滚一屏，防止直接滑过中间组件 */
+  scroll-snap-stop: always; /* 强制一次只滚一屏 */
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;  /* 每页纵向自由滚动，不再截断 */
+  overflow-x: hidden;
 }
 
 #first {
@@ -112,8 +159,31 @@ watch(() => target.watchLissoner, async () => {
 #first.section-container :deep(#firBorder),
 #second.section-container :deep(#secBorder),
 #third.section-container :deep(#thiBorder) {
-  /* 这里可以根据具体的子组件 ID 或类名微调 */
   opacity: 1;
   transform: scale(1);
 }
+
+/* 左右翻页箭头 */
+.page-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 28px;
+  line-height: 44px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 999;
+  user-select: none;
+  transition: background 0.3s;
+}
+.page-arrow:hover {
+  background: rgba(24, 144, 255, 0.8);
+}
+.arrow-left { left: 8px; }
+.arrow-right { right: 8px; }
 </style>

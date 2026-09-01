@@ -15,12 +15,39 @@ const poiBox = usePoiBoxStore();
 const { recentPoi } = storeToRefs(poiBox);
 const { currentInfoType, recentVehicle, imformIf } = storeToRefs(imform);
 
+// 车辆是否处于暂停窗口(休息/极端天气/维修等)，用于状态与速度展示
+const isVehiclePausedNow = () => {
+    const v = recentVehicle.value;
+    if (!v || !v.pauseUntil) return false;
+    const t = new Date(v.pauseUntil).getTime();
+    return Number.isFinite(t) && t > Date.now();
+};
+
 const getVehicleStatusText = (status) => {
     const statusMap = {
-        1: '行驶中', 2: '空闲', 3: '待发车',
-        4: '运货行驶', 5: '卸货中', 6: '停留等待', 7: '加油', 8: '维修'
+        1: '行驶中', 2: '空闲', 3: '待发车', 4: '维修中'
     };
+    if (status === 1 && isVehiclePausedNow()) {
+        return '等待中(休息/天气)';
+    }
+    if (status === 4) {
+        return '维修中';
+    }
     return statusMap[status] || '未知状态';
+};
+
+const getDisplaySpeed = () => {
+    if (isVehiclePausedNow()) return '0.00';
+    return Number(recentVehicle.value?.speed || 0).toFixed(2);
+};
+
+const getStatusTagClass = () => {
+    const status = Number(recentVehicle.value?.status || 0);
+    if (status === 4) return 'maintenance';
+    if (status === 1 && isVehiclePausedNow()) return 'paused';
+    if (status === 1) return 'active';
+    if (status === 2 || status === 3) return 'idle';
+    return 'active';
 };
 
 const getVehicleCategoryText = (category) => {
@@ -73,11 +100,11 @@ const getVehicleCategoryText = (category) => {
                         </div>
                         <div class="info-item">
                             <span class="label">行驶速度:</span>
-                            <span class="value">{{ Number(recentVehicle.speed || 0).toFixed(2) }} <small>km/h</small></span>
+                            <span class="value">{{ getDisplaySpeed() }} <small>km/h</small></span>
                         </div>
                         <div class="info-item">
                             <span class="label">当前状态:</span>
-                            <span class="value status-tag active">{{ getVehicleStatusText(recentVehicle.status)
+                            <span class="value status-tag" :class="getStatusTagClass()">{{ getVehicleStatusText(recentVehicle.status)
                                 }}</span>
                         </div>
                         <div class="info-divider"></div>
@@ -238,6 +265,21 @@ const getVehicleCategoryText = (category) => {
 .status-tag.active {
     background: #ecf5ff;
     color: #409eff;
+}
+
+.status-tag.paused {
+    background: #fdf6ec;
+    color: #e6a23c;
+}
+
+.status-tag.maintenance {
+    background: #fef0f0;
+    color: #f56c6c;
+}
+
+.status-tag.idle {
+    background: #e1f3d8;
+    color: #67c23a;
 }
 
 .info-divider {

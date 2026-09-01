@@ -76,6 +76,7 @@ type EventView struct {
 	EventType   string `json:"event_type"`
 	EventTime   string `json:"event_time"`
 	VehicleId   uint   `json:"vehicle_id"`
+	License     string `json:"license"`
 	DriverId    uint   `json:"driver_id"`
 	ShipmentId  uint   `json:"shipment_id"`
 	Severity    int    `json:"severity"`
@@ -124,6 +125,19 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 	}
 	refuseEventCount, _ := repository.CountRandomEventsByType("refuse", "")
 	accidentEventCount, _ := repository.CountRandomEventsByType("accident", "")
+	// 构建 车辆ID -> 车牌号 映射，供随机事件流展示真实车牌
+	vehicleLicenseMap := make(map[uint]string)
+	if allVehicles, err := repository.ListVehicles(0); err == nil {
+		for _, v := range allVehicles {
+			if v != nil {
+				license := v.License
+				if license == "" {
+					license = "车辆-" + uintToStringSafe(v.Id)
+				}
+				vehicleLicenseMap[v.Id] = license
+			}
+		}
+	}
 	var recentEvents []EventView
 	if events, err := repository.ListRandomEvents(10); err == nil {
 		recentEvents = make([]EventView, 0, len(events))
@@ -133,6 +147,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 				EventType:   ev.EventType,
 				EventTime:   ev.EventTime.Format("2006-01-02 15:04:05"),
 				VehicleId:   ev.VehicleId,
+				License:     vehicleLicenseMap[ev.VehicleId],
 				DriverId:    ev.DriverId,
 				ShipmentId:  ev.ShipmentId,
 				Severity:    ev.Severity,
@@ -436,5 +451,19 @@ func LoadHandlingConfig() {
 	}
 	Logger.Logger.Info("未配置 handling_seconds_per_ton，使用默认装卸系数 60 秒/吨")
 }
+
+// uintToStringSafe 将 uint 转为十进制字符串，供车牌兜底等场景使用。
+func uintToStringSafe(v uint) string {
+	if v == 0 {
+		return "0"
+	}
+	b := make([]byte, 0, 12)
+	for v > 0 {
+		b = append([]byte{byte(v%10) + '0'}, b...)
+		v /= 10
+	}
+	return string(b)
+}
+
 
 
