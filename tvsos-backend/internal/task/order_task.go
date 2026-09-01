@@ -287,6 +287,11 @@ func isVehicleFeasible(v *model.Vehicle, shipment *model.Shipment, cargo *model.
 		return false
 	}
 
+	// 维修中的车辆不可参与调度
+	if v.Status == constant.VehicleStatusMaintenance {
+		return false
+	}
+
 	if !isVehicleTypeCompatible(v.Tybe, cargo.Tybe) {
 		return false
 	}
@@ -349,6 +354,11 @@ func startNextPlannedTaskForVehicle(vehicleID uint) bool {
 	shipment, err := repository.GetShipment(int(task.ShipmentId))
 	if err != nil {
 		Logger.Logger.Error("查询订单失败", zap.Uint("shipmentId", task.ShipmentId), zap.Error(err))
+		return false
+	}
+
+	// 随机事件：司机有概率拒绝接单（拒单则删除任务/释放载重/运单回退 Sleeping，返回 false）
+	if maybeRefuseAssignment(task, vehicle, shipment) {
 		return false
 	}
 

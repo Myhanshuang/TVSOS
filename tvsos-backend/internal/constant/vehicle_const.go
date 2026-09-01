@@ -13,7 +13,8 @@ const (
 	VehicleTybeMinivan      = 6 // 微型面包车
 
 	// vehicle 的状态
-	VehicleStatusRunning = 1 // 行驶中
-	VehicleStatusFree    = 2 // 空闲中
-	VehicleStatusReady   = 3 // 已分配待发车
+	VehicleStatusRunning     = 1 // 行驶中
+	VehicleStatusFree        = 2 // 空闲中
+	VehicleStatusReady       = 3 // 已分配待发车
+	VehicleStatusMaintenance = 4 // 维修中(车祸受损/例行检修)
 )

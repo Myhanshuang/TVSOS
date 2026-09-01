@@ -16,8 +16,10 @@ type Vehicle struct {
 	Lat           float64   `json:"lat"`
 	Speed         float64   `json:"speed"`
 	UpdateTime    time.Time `json:"updateTime"`
-	Status        int       `json:"status"`
-	Tybe          int       `json:"tybe"`
+	Status        int        `json:"status"`
+	DriverId      uint       `json:"driverId" gorm:"column:driver_id"`      // 绑定司机
+	PauseUntil    *time.Time `json:"pauseUntil" gorm:"column:pause_until"` // 暂停截止(休息/天气/维修统一暂停)
+	Tybe          int        `json:"tybe"`
 	Size          int       `json:"size"`
 	ReservedSize  int       `json:"reservedSize" gorm:"column:reserved_size"`
 	Capacity      int       `json:"capacity"`

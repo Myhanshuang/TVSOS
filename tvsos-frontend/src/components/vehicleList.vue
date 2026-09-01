@@ -13,6 +13,7 @@
             <el-option label="行驶中" :value="1"></el-option>
             <el-option label="空闲" :value="2"></el-option>
             <el-option label="待发车" :value="3"></el-option>
+            <el-option label="维修中" :value="4"></el-option>
         </el-select>
       </el-form-item>
 
@@ -122,6 +123,7 @@ const statusMap = {
   1: '行驶中',
   2: '空闲',
   3: '待发车',
+  4: '维修中',
 };
 
 /**

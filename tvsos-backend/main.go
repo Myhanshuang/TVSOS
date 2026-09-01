@@ -29,6 +29,14 @@ func main() {
 	task.LoadEmissionFactors()
 	// 加载装卸时间系数配置（handling_config），无配置时保持默认 60 秒/吨
 	task.LoadHandlingConfig()
+	// 加载随机事件配置（司机拒单/疲劳休息/天气/车祸）
+	task.LoadRandomEventConfig()
+	// 兼容迁移：为存量车辆自动生成并绑定司机
+	task.EnsureDriversForVehicles()
+	// 加载随机事件配置（司机拒单/疲劳休息/天气/车祸）
+	task.LoadRandomEventConfig()
+	// 兼容迁移：为存量车辆自动生成并绑定司机
+	task.EnsureDriversForVehicles()
 	// 记录服务启动事件（可靠性指标 R1-R3 数据源）
 	task.RecordSystemEvent("startup", "info", "mover服务启动", "")
 
@@ -55,6 +63,9 @@ func main() {
 	Logger.Logger.Info("启动指标历史采样go程...")
 	go task.MetricSnapshotLoop()
 	Logger.Logger.Info("指标历史采样 done")
+	Logger.Logger.Info("启动随机事件守护go程...")
+	go task.RandomEventLoop()
+	Logger.Logger.Info("随机事件守护 done")
 
 	// 启动 mover 服务
 	port := config.VP.GetString("server.port")

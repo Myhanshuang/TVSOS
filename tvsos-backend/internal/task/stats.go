@@ -71,7 +71,8 @@ type LocationDistributionMetric struct {
 
 // UtilizationMetrics 利用率指标
 type UtilizationMetrics struct {
-	ByVehicleCount   float64 // 按车辆数计算的利用率
+	ByVehicleCount   float64 // 按车辆数计算的利用率(行驶中/总车辆)
+	OnlineRate       float64 // 车辆在线率 U3=(运行+空闲+待发车)/总车辆，维修中车辆不计入
 	ByCapacity       float64 // 按载重/容量计算的利用率
 	TotalCapacity    int     // 总运能
 	UsedCapacity     int     // 实际已使用运能
@@ -290,6 +291,15 @@ func (s *Statistics) calculateUtilization(vehicles []*model.Vehicle) {
 	s.UtilizationStats.TotalCapacity = totalCap
 	s.UtilizationStats.UsedCapacity = usedCap
 	s.UtilizationStats.ByVehicleCount = float64(runningCount) / float64(len(vehicles))
+
+	// U3 在线率：维修中车辆不计入在线
+	onlineCount := 0
+	for _, v := range vehicles {
+		if v.Status != constant.VehicleStatusMaintenance {
+			onlineCount++
+		}
+	}
+	s.UtilizationStats.OnlineRate = float64(onlineCount) / float64(len(vehicles))
 	if totalCap > 0 {
 		s.UtilizationStats.ByCapacity = float64(usedCap) / float64(totalCap)
 	}

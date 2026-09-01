@@ -97,6 +97,12 @@ func GetFirstRunningTaskByVehicle(vehicleID uint) (*model.OrderTask, error) {
 	return &task, nil
 }
 
+// DeleteOrderTask 删除指定任务记录(司机拒单回退时释放 Planned 任务)。
+func DeleteOrderTask(id int) error {
+	db := database.DB.Model(&model.OrderTask{}).Where("id = ?", id)
+	return db.Delete(&model.OrderTask{}).Error
+}
+
 // UpdateTaskPhaseTimes 更新任务阶段时间戳(按字段名与值映射批量更新)。
 // 用于支撑调度时序还原与 T2 匹配响应时间、瓶颈分析的精确计算。
 func UpdateTaskPhaseTimes(id int, fields map[string]interface{}) error {

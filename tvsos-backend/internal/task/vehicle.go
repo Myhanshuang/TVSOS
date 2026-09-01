@@ -51,7 +51,20 @@ func moveVehicle(task *model.OrderTask) {
 	// 发车前的最后防线防脏数据：二次校验车辆状态必须为行驶中
 	latestVehicle, err := repository.GetVehicle(int(vehicleID))
 	if err != nil || latestVehicle.Status != constant.VehicleStatusRunning {
+		// 维修中属于随机事件(车祸)造成的预期暂停，不视为脏数据，静默等待恢复
+		if latestVehicle != nil && latestVehicle.Status == constant.VehicleStatusMaintenance {
+			return
+		}
 		Logger.Logger.Warn("数据不一致：任务在途但车辆不处于行驶状态，阻断模拟，需等待系统修正", zap.Uint("vehicleId", vehicleID))
+		return
+	}
+
+	// 随机事件：暂停窗口(休息/极端天气)内不推进
+	if isVehiclePaused(latestVehicle) {
+		return
+	}
+	// 随机事件：尝试触发极端天气/车祸（触发后本 tick 不推进）
+	if tryTriggerTransportRandomEvents(task, latestVehicle) {
 		return
 	}
 
@@ -102,6 +115,8 @@ func moveVehicle(task *model.OrderTask) {
 		}
 		durationDeltaHour = estimateDurationHours(segmentDistanceKM, 35)
 		_ = repository.AddVehicleTravelMetrics(int(vehicleID), emptyMileageDelta, transportDistanceDelta, durationDeltaHour)
+		// 随机事件：司机疲劳累计（达到阈值触发强制休息）
+		accumulateDriverFatigue(task, latestVehicle, durationDeltaHour)
 	}
 
 	// 更新数据库中的车辆位置

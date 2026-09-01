@@ -43,7 +43,12 @@ const dynamicData = reactive({
   matchResponseP99: 0,    // T2 匹配响应 P99
   carbonTotal: 0,         // G1 总碳排放
   carbonPerTonKm: 0,      // G2 单位吨公里碳排放
-  optimizationGap: 0      // A3 优化 gap
+  optimizationGap: 0,     // A3 优化 gap
+  maintenanceVehicles: 0, // 维修中车辆数
+  restingDrivers: 0,      // 休息中司机数
+  refuseCount: 0,         // 拒单事件计数
+  accidentCount: 0,       // 车祸事件计数
+  recentEvents: []        // 最近随机事件列表
 })
 
 const kpiTrend = reactive({
@@ -177,7 +182,12 @@ const mapSnapshotToDynamicData = (data) => {
     matchResponseP99: Number(summary.match_response_p99 || 0),
     carbonTotal: Number(summary.carbon_total || 0),
     carbonPerTonKm: Number(summary.carbon_per_ton_km || 0),
-    optimizationGap: Number(summary.optimization_gap || 0)
+    optimizationGap: Number(summary.optimization_gap || 0),
+    maintenanceVehicles: Number(summary.maintenance_vehicles || 0),
+    restingDrivers: Number(summary.resting_drivers || 0),
+    refuseCount: Number(summary.refuse_count || 0),
+    accidentCount: Number(summary.accident_count || 0),
+    recentEvents: Array.isArray(summary.recent_events) ? summary.recent_events : []
   }
 }
 
@@ -429,6 +439,11 @@ const applySnapshot = (data) => {
   dynamicData.carbonTotal = mapped.carbonTotal
   dynamicData.carbonPerTonKm = mapped.carbonPerTonKm
   dynamicData.optimizationGap = mapped.optimizationGap
+  dynamicData.maintenanceVehicles = mapped.maintenanceVehicles
+  dynamicData.restingDrivers = mapped.restingDrivers
+  dynamicData.refuseCount = mapped.refuseCount
+  dynamicData.accidentCount = mapped.accidentCount
+  dynamicData.recentEvents = mapped.recentEvents
 
   if (baseline.throughput === 0 && baseline.cost === 0) {
     initDynamicStats(data)
@@ -515,7 +530,10 @@ const CHAPTERS = [
     items: [
       { code: 'R1', label: 'MTBF', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
       { code: 'R2', label: 'MTTR', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
-      { code: 'R3', label: '服务可用性', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' }
+      { code: 'R3', label: '服务可用性', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
+      { code: 'R4', label: '运输事故数(累计)', live: true, get: () => dynamicData.accidentCount, unit: '次', format: (v) => formatNum(v) },
+      { code: 'R5', label: '维修中车辆', live: true, get: () => dynamicData.maintenanceVehicles, unit: '辆', format: (v) => formatNum(v) },
+      { code: 'R6', label: '休息中司机', live: true, get: () => dynamicData.restingDrivers, unit: '人', format: (v) => formatNum(v) }
     ]
   },
   {
@@ -524,7 +542,7 @@ const CHAPTERS = [
     desc: '负载均衡与用户公平（参考文档第八章）',
     items: [
       { code: 'F1', label: '基尼系数', live: true, get: () => dynamicData.giniCoefficient, unit: '', format: (v) => formatFixed(v, 3), note: '0 均衡 ~ 1 不均' },
-      { code: 'F2', label: '订单拒绝率', live: false, note: '需拒绝打点（P2）', get: () => null, unit: '' },
+      { code: 'F2', label: '司机拒单数', live: true, get: () => dynamicData.refuseCount, unit: '次', format: (v) => formatNum(v), note: '拒单事件累计(随机事件)' },
       { code: 'F3', label: '满意度', live: false, note: '需问卷/评分（P2）', get: () => null, unit: '' }
     ]
   },
@@ -777,6 +795,22 @@ onBeforeUnmount(() => {
   </div>
 </div>
 
+<div class="event-panel">
+  <div class="event-head">
+    <span class="event-flag">随机事件流</span>
+    <span class="event-count">事故 {{ formatNum(dynamicData.accidentCount) }} · 拒单 {{ formatNum(dynamicData.refuseCount) }} · 维修 {{ formatNum(dynamicData.maintenanceVehicles) }}辆 · 休息 {{ formatNum(dynamicData.restingDrivers) }}人</span>
+  </div>
+  <div class="event-list">
+    <div v-if="!dynamicData.recentEvents || dynamicData.recentEvents.length === 0" class="event-empty">暂无随机事件记录</div>
+    <div v-for="ev in dynamicData.recentEvents" :key="ev.id" class="event-item" :class="ev.event_type">
+      <span class="ev-badge" :class="ev.event_type">{{ ev.event_type }}</span>
+      <span class="ev-desc">{{ ev.description }}</span>
+      <span class="ev-meta">车辆#{{ ev.vehicle_id }} · {{ ev.event_time }}<i v-if="ev.duration_seconds > 0"> · {{ formatFixed(ev.duration_seconds / 60, 0) }}min</i></span>
+      <span class="ev-state" :class="ev.status">{{ ev.status }}</span>
+    </div>
+  </div>
+</div>
+
     <Transition name="fade">
       <div v-if="detailVisible" class="detail-overlay" @click.self="closeDetail">
         <div class="detail-content">
@@ -999,6 +1033,66 @@ onBeforeUnmount(() => {
 .cc-value { font-size: 15px; font-weight: bold; color: #fff; }
 .cc-unit { font-size: 11px; color: #8fa3b8; font-style: normal; margin-left: 4px; }
 .cc-note { font-size: 11px; color: #8fa3b8; }
+
+.event-panel {
+  background: #2c3e50;
+  border-radius: 8px;
+  padding: 12px 15px;
+  color: white;
+}
+.event-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.event-flag {
+  font-size: 13px;
+  font-weight: bold;
+}
+.event-count {
+  font-size: 12px;
+  color: #8fa3b8;
+}
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.event-empty {
+  font-size: 12px;
+  color: #8fa3b8;
+  padding: 8px 0;
+}
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.ev-badge {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: #8c8c8c;
+  color: #fff;
+  text-transform: uppercase;
+}
+.ev-badge.refuse { background: #faad14; }
+.ev-badge.rest { background: #13c2c2; }
+.ev-badge.weather { background: #2f54eb; }
+.ev-badge.accident { background: #f5222d; }
+.ev-desc { flex: 1; color: #d9e2ec; }
+.ev-meta { color: #8fa3b8; font-size: 11px; }
+.ev-state { font-size: 10px; padding: 0 6px; border-radius: 8px; background: #1890ff; color: #fff; }
+.ev-state.resolved { background: #52c41a; }
+.ev-state.pending { background: #8c8c8c; }
 
 .detail-overlay {
   position: fixed;

@@ -57,6 +57,8 @@ func InitDB() {
 		{Name: "distance", DDL: "ALTER TABLE vehicle ADD COLUMN distance double NOT NULL DEFAULT 0 COMMENT '运输里程(千米)'"},
 		{Name: "duration", DDL: "ALTER TABLE vehicle ADD COLUMN duration double NOT NULL DEFAULT 0 COMMENT '运输时长(小时)'"},
 		{Name: "angle", DDL: "ALTER TABLE vehicle ADD COLUMN angle double NOT NULL DEFAULT 90 COMMENT '车辆角度(度)'"},
+		{Name: "driver_id", DDL: "ALTER TABLE vehicle ADD COLUMN driver_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '绑定司机id'"},
+		{Name: "pause_until", DDL: "ALTER TABLE vehicle ADD COLUMN pause_until datetime DEFAULT NULL COMMENT '暂停截止时刻(休息/天气/维修统一暂停)'"},
 	}
 
 	for _, migration := range migrations {
@@ -157,6 +159,45 @@ func InitDB() {
 				created_at datetime NOT NULL,
 				PRIMARY KEY (id),
 				KEY idx_shipment (shipment_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "driver",
+			DDL: `CREATE TABLE IF NOT EXISTS driver (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(64) NOT NULL DEFAULT '' COMMENT '姓名',
+				phone varchar(32) NOT NULL DEFAULT '' COMMENT '电话',
+				license_no varchar(64) NOT NULL DEFAULT '' COMMENT '驾驶证号',
+				level int NOT NULL DEFAULT 3 COMMENT '驾驶等级 1-5',
+				fatigue double NOT NULL DEFAULT 0 COMMENT '疲劳度 0~1',
+				continuous_hours double NOT NULL DEFAULT 0 COMMENT '连续驾驶小时数',
+				rest_until datetime DEFAULT NULL COMMENT '休息截止时刻',
+				status int NOT NULL DEFAULT 1 COMMENT '1可用/2休息中',
+				refuse_count int NOT NULL DEFAULT 0 COMMENT '累计拒单次数',
+				vehicle_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '绑定车辆id',
+				update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (id),
+				KEY idx_vehicle (vehicle_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "random_event",
+			DDL: `CREATE TABLE IF NOT EXISTS random_event (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				event_time datetime NOT NULL,
+				event_type varchar(32) NOT NULL DEFAULT '' COMMENT 'refuse/rest/weather/accident',
+				vehicle_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '车辆id',
+				driver_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '司机id',
+				shipment_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '运单id',
+				task_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '任务id',
+				severity int NOT NULL DEFAULT 1 COMMENT '严重程度 1-5',
+				duration_seconds int NOT NULL DEFAULT 0 COMMENT '影响时长(秒)',
+				description varchar(512) NOT NULL DEFAULT '' COMMENT '描述',
+				detail text COMMENT '详情(JSON)',
+				status varchar(16) NOT NULL DEFAULT 'active' COMMENT 'active/pending/resolved',
+				PRIMARY KEY (id),
+				KEY idx_event_time (event_time),
+				KEY idx_vehicle (vehicle_id)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 		},
 		{

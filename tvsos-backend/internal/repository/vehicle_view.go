@@ -11,9 +11,11 @@ import (
 const defaultVehicleAngle = 90.0
 
 type VehicleView struct {
-	Id            uint      `json:"id"`
-	License       string    `json:"license"`
-	Status        int       `json:"status"`
+	Id            uint       `json:"id"`
+	License       string     `json:"license"`
+	Status        int        `json:"status"`
+	DriverId      uint       `json:"driverId"`
+	PauseUntil    *time.Time `json:"pauseUntil"`
 	Lon           float64   `json:"lon"`
 	Lat           float64   `json:"lat"`
 	Speed         float64   `json:"speed"`
@@ -66,6 +68,8 @@ func BuildVehicleView(v *model.Vehicle) *VehicleView {
 		Id:            v.Id,
 		License:       license,
 		Status:        v.Status,
+		DriverId:      v.DriverId,
+		PauseUntil:    v.PauseUntil,
 		Lon:           v.Lon,
 		Lat:           v.Lat,
 		Speed:         v.Speed,

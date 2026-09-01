@@ -100,3 +100,43 @@ ALTER TABLE `order_task` ADD COLUMN IF NOT EXISTS `signoff_time` datetime DEFAUL
 -- INSERT INTO `emission_factor` (`vehicle_type`, `factor_empty`, `factor_load`, `remark`) VALUES
 --   (1, 0.60, 1.10, '普通厢式货车'),
 --   (2, 0.80, 1.50, '冷藏/重型货车');
+-- 8) 随机事件相关：driver 司机表（司机拒单/疲劳休息/车祸概率建模）
+CREATE TABLE IF NOT EXISTS `driver` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL DEFAULT '' COMMENT '姓名',
+  `phone` varchar(32) NOT NULL DEFAULT '' COMMENT '电话',
+  `license_no` varchar(64) NOT NULL DEFAULT '' COMMENT '驾驶证号',
+  `level` int NOT NULL DEFAULT 3 COMMENT '驾驶等级 1-5',
+  `fatigue` double NOT NULL DEFAULT 0 COMMENT '疲劳度 0~1',
+  `continuous_hours` double NOT NULL DEFAULT 0 COMMENT '连续驾驶小时数',
+  `rest_until` datetime DEFAULT NULL COMMENT '休息截止时刻',
+  `status` int NOT NULL DEFAULT 1 COMMENT '1可用/2休息中',
+  `refuse_count` int NOT NULL DEFAULT 0 COMMENT '累计拒单次数',
+  `vehicle_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '绑定车辆id',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_vehicle` (`vehicle_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 9) random_event 随机事件日志表：拒单/休息/天气/车祸，前端事件流 + R 系可靠性指标数据源
+CREATE TABLE IF NOT EXISTS `random_event` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `event_time` datetime NOT NULL,
+  `event_type` varchar(32) NOT NULL DEFAULT '' COMMENT 'refuse/rest/weather/accident',
+  `vehicle_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '车辆id',
+  `driver_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '司机id',
+  `shipment_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '运单id',
+  `task_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '任务id',
+  `severity` int NOT NULL DEFAULT 1 COMMENT '严重程度 1-5',
+  `duration_seconds` int NOT NULL DEFAULT 0 COMMENT '影响时长(秒)',
+  `description` varchar(512) NOT NULL DEFAULT '' COMMENT '描述',
+  `detail` text COMMENT '详情(JSON)',
+  `status` varchar(16) NOT NULL DEFAULT 'active' COMMENT 'active/pending/resolved',
+  PRIMARY KEY (`id`),
+  KEY `idx_event_time` (`event_time`),
+  KEY `idx_vehicle` (`vehicle_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 10) vehicle 车辆新增列：绑定司机 + 统一暂停截止（休息/天气/维修）
+ALTER TABLE `vehicle` ADD COLUMN IF NOT EXISTS `driver_id` bigint unsigned NOT NULL DEFAULT 0 COMMENT '绑定司机id';
+ALTER TABLE `vehicle` ADD COLUMN IF NOT EXISTS `pause_until` datetime DEFAULT NULL COMMENT '暂停截止时刻(休息/天气/维修统一暂停)';

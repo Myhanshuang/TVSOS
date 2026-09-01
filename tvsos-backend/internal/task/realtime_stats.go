@@ -56,10 +56,32 @@ type RealtimeSummary struct {
 	CarbonTotal        float64 `json:"carbon_total"`        // G1 总碳排放(kg)
 	CarbonPerTonKm     float64 `json:"carbon_per_ton_km"`   // G2 单位吨公里碳排放
 	OptimizationGap    float64 `json:"optimization_gap"`    // A3 优化 gap(最近批次，百分比)
+
+	// ---- 随机事件/司机扩展字段 ----
+	MaintenanceVehicles int         `json:"maintenance_vehicles"` // 维修中车辆数
+	RestingDrivers      int         `json:"resting_drivers"`      // 休息中司机数
+	RefuseCount         int64       `json:"refuse_count"`         // 拒单事件计数
+	AccidentCount       int64       `json:"accident_count"`       // 车祸事件计数
+	RecentEvents        []EventView `json:"recent_events"`        // 最近随机事件列表
 }
 
 type WorkTime struct {
 	TotalLoadingTime float64 `json:"total_loading_time"`
+}
+
+// EventView 随机事件的前端展示视图
+// 类型徽标与描述供前端事件流面板直接渲染。
+type EventView struct {
+	Id          uint   `json:"id"`
+	EventType   string `json:"event_type"`
+	EventTime   string `json:"event_time"`
+	VehicleId   uint   `json:"vehicle_id"`
+	DriverId    uint   `json:"driver_id"`
+	ShipmentId  uint   `json:"shipment_id"`
+	Severity    int    `json:"severity"`
+	DurationSec int    `json:"duration_seconds"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
 }
 
 type RealtimeIndividualStats struct {
@@ -87,6 +109,38 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 	stats, err := CalculateGlobalStats()
 	if err != nil {
 		return nil, err
+	}
+
+	maintenanceVehicleCount, restingDriverCount := 0, 0
+	if vehicles, err := repository.ListVehicles(0); err == nil {
+		for _, v := range vehicles {
+			if v.Status == constant.VehicleStatusMaintenance {
+				maintenanceVehicleCount++
+			}
+		}
+	}
+	if drivers, err := repository.ListDrivers(2); err == nil {
+		restingDriverCount = len(drivers)
+	}
+	refuseEventCount, _ := repository.CountRandomEventsByType("refuse", "")
+	accidentEventCount, _ := repository.CountRandomEventsByType("accident", "")
+	var recentEvents []EventView
+	if events, err := repository.ListRandomEvents(10); err == nil {
+		recentEvents = make([]EventView, 0, len(events))
+		for _, ev := range events {
+			recentEvents = append(recentEvents, EventView{
+				Id:          ev.Id,
+				EventType:   ev.EventType,
+				EventTime:   ev.EventTime.Format("2006-01-02 15:04:05"),
+				VehicleId:   ev.VehicleId,
+				DriverId:    ev.DriverId,
+				ShipmentId:  ev.ShipmentId,
+				Severity:    ev.Severity,
+				DurationSec: ev.DurationSeconds,
+				Description: ev.Description,
+				Status:      ev.Status,
+			})
+		}
 	}
 
 	cargoDemand, err := buildCargoDemandByType()
@@ -128,7 +182,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			EmptyRate:         stats.EmptyDistStats.EmptyRate,
 			LoadingRateAvg:    stats.UtilizationStats.LoadingRateAvg,
 			LoadingRateStdDev: stats.UtilizationStats.LoadingRateStd,
-			OnlineRate:        stats.UtilizationStats.ByVehicleCount,
+			OnlineRate:        stats.UtilizationStats.OnlineRate,
 			GiniCoefficient:   stats.UtilizationStats.GiniCoefficient,
 			MatchResponseP50:  stats.MatchResponseStats.P50,
 			MatchResponseP95:  stats.MatchResponseStats.P95,
@@ -136,6 +190,11 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			CarbonTotal:       stats.CarbonStats.TotalCarbon,
 			CarbonPerTonKm:    stats.CarbonStats.CarbonPerTonKm,
 			OptimizationGap:   GetLastOptimizationGap(),
+			MaintenanceVehicles: maintenanceVehicleCount,
+			RestingDrivers:      restingDriverCount,
+			RefuseCount:         refuseEventCount,
+			AccidentCount:       accidentEventCount,
+			RecentEvents:        recentEvents,
 		},
 		IndividualStats: RealtimeIndividualStats{
 			TruckCapacity: NumericStatView{

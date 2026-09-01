@@ -88,6 +88,12 @@ func UpdateVehicleReservedSize(id int, reservedSize int) error {
 	return err
 }
 
+// UpdateVehicleFields 按字段名与值映射批量更新车辆记录(非 CAS，用于 pause_until 等宽泛字段)。
+func UpdateVehicleFields(id int, fields map[string]interface{}) error {
+	db := database.DB.Model(&model.Vehicle{}).Where("id = ?", id)
+	return db.Updates(fields).Error
+}
+
 // GetVehicle 根据 id 查询车辆
 func GetVehicle(id int) (*model.Vehicle, error) {
 	vehicle := model.Vehicle{}
