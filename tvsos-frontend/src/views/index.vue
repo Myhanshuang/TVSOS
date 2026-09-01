@@ -14,10 +14,8 @@ const secondRef = ref(null)
 const thirdRef = ref(null)
 
 const sectionIds = ['first', 'second', 'third']
-const sectionRefs = () => [firstRef.value, secondRef.value, thirdRef.value]
 
 let observer
-let onWheel
 let onKeydown
 
 /** 横向滚动到指定页（下标 0/1/2） */
@@ -52,27 +50,7 @@ onMounted(() => {
     if (refItem.value) observer.observe(refItem.value);
   });
 
-  // 2. 滚轮：页内纵向自由滚动；当前页滚到顶/底部继续滚则左右切页
-  onWheel = (e) => {
-    const el = scrollContainer.value
-    if (!el) return
-    const currentIndex = Math.round(el.scrollLeft / window.innerWidth)
-    const sec = sectionRefs()[currentIndex]
-    if (!sec) return
-    const atTop = sec.scrollTop <= 1
-    const atBottom = sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 1
-    if (e.deltaY > 0 && atBottom) {
-      e.preventDefault()
-      switchByDelta(1)
-    } else if (e.deltaY < 0 && atTop) {
-      e.preventDefault()
-      switchByDelta(-1)
-    }
-  }
-  const containerEl = scrollContainer.value
-  containerEl.addEventListener('wheel', onWheel, { passive: false })
-
-  // 3. 左右方向键切页
+  // 2. 左右方向键切页
   onKeydown = (e) => {
     if (e.key === 'ArrowRight') switchByDelta(1)
     else if (e.key === 'ArrowLeft') switchByDelta(-1)
@@ -82,7 +60,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (observer) observer.disconnect()
-  if (scrollContainer.value && onWheel) scrollContainer.value.removeEventListener('wheel', onWheel)
   if (onKeydown) window.removeEventListener('keydown', onKeydown)
 })
 
