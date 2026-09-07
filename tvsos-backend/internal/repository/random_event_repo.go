@@ -33,6 +33,21 @@ func ResolveRandomEvent(id uint) error {
 	return database.DB.Model(&model.RandomEvent{}).Where("id = ?", id).Update("status", "resolved").Error
 }
 
+// ListRandomEventsByType 按类型拉取随机事件（时间倒序，limit<=0 视为 1000），
+// 供可靠性指标 R1-R3 计算（accident 事件的 EventTime + DurationSeconds）。
+func ListRandomEventsByType(eventType string, limit int) ([]*model.RandomEvent, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	var events []*model.RandomEvent
+	db := database.DB.Model(&model.RandomEvent{})
+	if eventType != "" {
+		db = db.Where("event_type = ?", eventType)
+	}
+	err := db.Order("event_time DESC").Limit(limit).Find(&events).Error
+	return events, err
+}
+
 // CountRefuseByShipment 统计某运单被拒单的次数（防死循环上限判定）
 func CountRefuseByShipment(shipmentID uint) (int64, error) {
 	var count int64

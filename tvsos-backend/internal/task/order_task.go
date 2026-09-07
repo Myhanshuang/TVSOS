@@ -105,7 +105,10 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 		poiMap[p.Id] = p
 	}
 
+	// A2 单批求解耗时打点：记录 SA 求解器本批耗时(毫秒)，供实时看板展示均值/峰值
+	solveStart := time.Now()
 	bestAssignment := assignBySimulatedAnnealing(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
+	RecordSolverTiming(float64(time.Since(solveStart).Microseconds()) / 1000.0)
 
 	// A3 优化质量评估：小规模批次通过精确枚举计算 SA 与全局最优的 gap(黑盒/算法无关)
 	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)

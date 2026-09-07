@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/kiritosuki/mover/internal/database"
 	"github.com/kiritosuki/mover/internal/model"
 )
@@ -47,6 +49,14 @@ func GetHandlingConfig(configKey string) (*model.HandlingConfig, error) {
 func CreateMatchingLog(log *model.MatchingLog) error {
 	db := database.DB.Model(&model.MatchingLog{})
 	return db.Create(log).Error
+}
+
+// CountMatchingLogsSince 统计某时刻之后的匹配决策日志数，供匹配吞吐量(T1)实时计算。
+func CountMatchingLogsSince(since time.Time) (int64, error) {
+	var count int64
+	db := database.DB.Model(&model.MatchingLog{})
+	err := db.Where("created_at >= ?", since).Count(&count).Error
+	return count, err
 }
 
 // ListMatchingLogs 分页拉取匹配决策日志，用于匹配精准度(M1-M4)评估。

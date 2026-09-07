@@ -44,6 +44,15 @@ const dynamicData = reactive({
   carbonTotal: 0,         // G1 总碳排放
   carbonPerTonKm: 0,      // G2 单位吨公里碳排放
   optimizationGap: 0,     // A3 优化 gap
+  mtbfHours: 0,           // R1 MTBF 平均无故障时间(小时)
+  mttrHours: 0,           // R2 MTTR 平均修复时长(小时)
+  serviceAvailability: 0, // R3 服务可用性(%)
+  faultCount: 0,          // 观测窗口内车祸故障次数
+  matchThroughput: 0,     // T1 匹配吞吐量(单/小时)
+  matchTotalCount: 0,     // 观测窗口内匹配决策数
+  solveBatches: 0,        // A2 已计时求解批次数
+  solveTimeAvgMs: 0,      // A2 单批求解平均耗时(ms)
+  solveTimeMaxMs: 0,      // A2 单批求解峰值耗时(ms)
   maintenanceVehicles: 0, // 维修中车辆数
   restingDrivers: 0,      // 休息中司机数
   refuseCount: 0,         // 拒单事件计数
@@ -147,6 +156,15 @@ const initDynamicStats = (data) => {
   dynamicData.carbonTotal = Number(summary.carbon_total || 0)
   dynamicData.carbonPerTonKm = Number(summary.carbon_per_ton_km || 0)
   dynamicData.optimizationGap = Number(summary.optimization_gap || 0)
+  dynamicData.mtbfHours = Number(summary.mtbf_hours || 0)
+  dynamicData.mttrHours = Number(summary.mttr_hours || 0)
+  dynamicData.serviceAvailability = Number(summary.service_availability || 0)
+  dynamicData.faultCount = Number(summary.fault_count || 0)
+  dynamicData.matchThroughput = Number(summary.match_throughput || 0)
+  dynamicData.matchTotalCount = Number(summary.match_total_count || 0)
+  dynamicData.solveBatches = Number(summary.solve_batches || 0)
+  dynamicData.solveTimeAvgMs = Number(summary.solve_time_avg_ms || 0)
+  dynamicData.solveTimeMaxMs = Number(summary.solve_time_max_ms || 0)
 
   baseline.throughput = dynamicData.throughput
   baseline.cost = dynamicData.cost
@@ -183,6 +201,15 @@ const mapSnapshotToDynamicData = (data) => {
     carbonTotal: Number(summary.carbon_total || 0),
     carbonPerTonKm: Number(summary.carbon_per_ton_km || 0),
     optimizationGap: Number(summary.optimization_gap || 0),
+    mtbfHours: Number(summary.mtbf_hours || 0),
+    mttrHours: Number(summary.mttr_hours || 0),
+    serviceAvailability: Number(summary.service_availability || 0),
+    faultCount: Number(summary.fault_count || 0),
+    matchThroughput: Number(summary.match_throughput || 0),
+    matchTotalCount: Number(summary.match_total_count || 0),
+    solveBatches: Number(summary.solve_batches || 0),
+    solveTimeAvgMs: Number(summary.solve_time_avg_ms || 0),
+    solveTimeMaxMs: Number(summary.solve_time_max_ms || 0),
     maintenanceVehicles: Number(summary.maintenance_vehicles || 0),
     restingDrivers: Number(summary.resting_drivers || 0),
     refuseCount: Number(summary.refuse_count || 0),
@@ -439,6 +466,15 @@ const applySnapshot = (data) => {
   dynamicData.carbonTotal = mapped.carbonTotal
   dynamicData.carbonPerTonKm = mapped.carbonPerTonKm
   dynamicData.optimizationGap = mapped.optimizationGap
+  dynamicData.mtbfHours = mapped.mtbfHours
+  dynamicData.mttrHours = mapped.mttrHours
+  dynamicData.serviceAvailability = mapped.serviceAvailability
+  dynamicData.faultCount = mapped.faultCount
+  dynamicData.matchThroughput = mapped.matchThroughput
+  dynamicData.matchTotalCount = mapped.matchTotalCount
+  dynamicData.solveBatches = mapped.solveBatches
+  dynamicData.solveTimeAvgMs = mapped.solveTimeAvgMs
+  dynamicData.solveTimeMaxMs = mapped.solveTimeMaxMs
   dynamicData.maintenanceVehicles = mapped.maintenanceVehicles
   dynamicData.restingDrivers = mapped.restingDrivers
   dynamicData.refuseCount = mapped.refuseCount
@@ -457,8 +493,9 @@ const applySnapshot = (data) => {
   buildChapterItems(activeChapter.value)
 }
 
-// ---- 分视角章节面板：按参考文档《科学指标体系设计》9 个维度章节组织 ----
-// 每章对应参考文档的一章标题；章节内为实时可得指标（live）与待接入指标（pending）。
+// ---- 分视角章节面板：按参考文档《科学指标体系设计》8 个维度章节组织 ----
+// 每章对应参考文档的一章标题；仅 M1-M4/C1 依赖离线回放评估(P2)仍为待接入，
+// 其余指标均已实时计算落地（S 周期生成类/F3 问卷类/C3 ROI/A1 基准类在模拟环境下无数据来源，已移除）。
 const CHAPTERS = [
   {
     id: 'M',
@@ -487,10 +524,10 @@ const CHAPTERS = [
     title: '3. 系统吞吐量与响应时间',
     desc: '吞吐、匹配响应分位（参考文档第三章）',
     items: [
-      { code: 'T1', label: '总吞吐量', live: true, get: () => dynamicData.throughput, unit: '吨', format: (v) => formatNum(v) },
+      { code: 'T0', label: '总吞吐量', live: true, get: () => dynamicData.throughput, unit: '吨', format: (v) => formatNum(v) },
+      { code: 'T1', label: '匹配吞吐量', live: true, get: () => dynamicData.matchThroughput, unit: '单/小时', format: (v) => formatFixed(v, 1), note: 'matching_log 计数 / 自启动观测时长' },
       { code: 'T2', label: '匹配响应 P50/P95/P99', live: true, get: () => dynamicData.matchResponseP50, unit: '秒', format: (v) => formatFixed(dynamicData.matchResponseP50, 1) + ' / ' + formatFixed(dynamicData.matchResponseP95, 1) + ' / ' + formatFixed(dynamicData.matchResponseP99, 1) },
-      { code: 'T3', label: '吞吐-响应曲线', live: true, get: () => dynamicData.throughput, unit: '', format: (v) => '见趋势图' },
-      { code: 'T*', label: '匹配吞吐量(单/秒)', live: false, note: '需匹配事件打点（P1）', get: () => null, unit: '' }
+      { code: 'T3', label: '吞吐-响应曲线', live: true, get: () => dynamicData.throughput, unit: '', format: (v) => '见趋势图' }
     ]
   },
   {
@@ -498,39 +535,27 @@ const CHAPTERS = [
     title: '4. 算法与调度效率',
     desc: '算法解质量与运行基准（参考文档第四章）',
     items: [
-      { code: 'A1', label: '复杂度基准', live: false, note: '需基准数据集（P2）', get: () => null, unit: '' },
-      { code: 'A2', label: '单批求解耗时', live: false, note: '需算法打点（P1）', get: () => null, unit: '' },
-      { code: 'A3', label: '优化 gap (SA vs 最优)', live: true, get: () => dynamicData.optimizationGap, unit: '%', format: (v) => formatFixed(v, 2), note: '小规模批次精确枚举' }
-    ]
-  },
-  {
-    id: 'S',
-    title: '5. 周期生成稳定性',
-    desc: '订单生成器的稳定性（参考文档第五章）',
-    items: [
-      { code: 'S1', label: '生成间隔 Jitter', live: false, note: '需生成器打点（P1）', get: () => null, unit: '' },
-      { code: 'S2', label: '生成合规率', live: false, note: '需生成器校验（P1）', get: () => null, unit: '' },
-      { code: 'S3', label: '场景多样性', live: false, note: '需场景版本管理（P2）', get: () => null, unit: '' }
+      { code: 'A2', label: '单批求解耗时', live: true, get: () => dynamicData.solveTimeAvgMs, unit: 'ms', format: (v) => formatFixed(v, 1) + ' / 峰值 ' + formatFixed(dynamicData.solveTimeMaxMs, 1), note: 'SA 求解器每批耗时(均值/峰值, 内存累计)' },
+      { code: 'A3', label: '优化 gap (SA vs 最优)', live: true, get: () => dynamicData.optimizationGap, unit: '%', format: (v) => formatFixed(v, 2), note: '小规模批次精确枚举(车队>6辆时跳过)' }
     ]
   },
   {
     id: 'C',
-    title: '6. 成本效益指标',
+    title: '5. 成本效益指标',
     desc: '成本、单位成本与效益（参考文档第六章）',
     items: [
       { code: 'C1', label: '基线对比', live: false, note: '需离线回放基线（P1）', get: () => null, unit: '' },
-      { code: 'C2', label: '单位成本', live: true, get: () => dynamicData.unitCost, unit: '成本/吨公里', format: (v) => formatFixed(v, 4) },
-      { code: 'C3', label: 'ROI', live: false, note: '需收益口径（P2）', get: () => null, unit: '' }
+      { code: 'C2', label: '单位成本', live: true, get: () => dynamicData.unitCost, unit: '成本/吨公里', format: (v) => formatFixed(v, 4) }
     ]
   },
   {
     id: 'R',
-    title: '7. 可靠性与可用性',
+    title: '6. 可靠性与可用性',
     desc: 'MTBF/MTTR/可用性（参考文档第七章）',
     items: [
-      { code: 'R1', label: 'MTBF', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
-      { code: 'R2', label: 'MTTR', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
-      { code: 'R3', label: '服务可用性', live: false, note: '基于 system_event 累积（P1）', get: () => null, unit: '' },
+      { code: 'R1', label: 'MTBF 平均无故障', live: true, get: () => dynamicData.mtbfHours, unit: '小时', format: (v) => (v > 0 ? formatFixed(v, 1) : '无故障'), note: '自启动观测时长 / 车祸故障次数' },
+      { code: 'R2', label: 'MTTR 平均修复时长', live: true, get: () => dynamicData.mttrHours, unit: '小时', format: (v) => (v > 0 ? formatFixed(v, 2) : '—'), note: '车祸维修时长(duration)均值' },
+      { code: 'R3', label: '服务可用性', live: true, get: () => dynamicData.serviceAvailability, unit: '%', format: (v) => formatFixed(v, 2), note: '1 − 维修停机 / (车队×观测时长)' },
       { code: 'R4', label: '运输事故数(累计)', live: true, get: () => dynamicData.accidentCount, unit: '次', format: (v) => formatNum(v) },
       { code: 'R5', label: '维修中车辆', live: true, get: () => dynamicData.maintenanceVehicles, unit: '辆', format: (v) => formatNum(v) },
       { code: 'R6', label: '休息中司机', live: true, get: () => dynamicData.restingDrivers, unit: '人', format: (v) => formatNum(v) }
@@ -538,17 +563,16 @@ const CHAPTERS = [
   },
   {
     id: 'F',
-    title: '8. 公平性与满意度',
-    desc: '负载均衡与用户公平（参考文档第八章）',
+    title: '7. 公平性',
+    desc: '负载均衡与司机行为公平（参考文档第八章）',
     items: [
       { code: 'F1', label: '基尼系数', live: true, get: () => dynamicData.giniCoefficient, unit: '', format: (v) => formatFixed(v, 3), note: '0 均衡 ~ 1 不均' },
-      { code: 'F2', label: '司机拒单数', live: true, get: () => dynamicData.refuseCount, unit: '次', format: (v) => formatNum(v), note: '拒单事件累计(随机事件)' },
-      { code: 'F3', label: '满意度', live: false, note: '需问卷/评分（P2）', get: () => null, unit: '' }
+      { code: 'F2', label: '司机拒单数', live: true, get: () => dynamicData.refuseCount, unit: '次', format: (v) => formatNum(v), note: '拒单事件累计(随机事件)' }
     ]
   },
   {
     id: 'G',
-    title: '9. 绿色指标（低碳）',
+    title: '8. 绿色指标（低碳）',
     desc: '碳排放（参考文档第九章）',
     items: [
       { code: 'G1', label: '总碳排放', live: true, get: () => dynamicData.carbonTotal, unit: 'kg', format: (v) => formatNum(v) },

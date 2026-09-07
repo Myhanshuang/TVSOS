@@ -57,6 +57,17 @@ type RealtimeSummary struct {
 	CarbonPerTonKm     float64 `json:"carbon_per_ton_km"`   // G2 单位吨公里碳排放
 	OptimizationGap    float64 `json:"optimization_gap"`    // A3 优化 gap(最近批次，百分比)
 
+	// ---- 可靠性/匹配吞吐/算法耗时扩展字段 ----
+	MtbfHours           float64 `json:"mtbf_hours"`           // R1 平均无故障时间(小时, 自最近启动)
+	MttrHours           float64 `json:"mttr_hours"`           // R2 平均修复时长(小时)
+	ServiceAvailability float64 `json:"service_availability"` // R3 服务可用性(百分比)
+	FaultCount          int64   `json:"fault_count"`          // 观测窗口内车祸故障次数
+	MatchThroughput     float64 `json:"match_throughput"`     // T1 匹配吞吐量(单/小时, 自最近启动)
+	MatchTotalCount     int64   `json:"match_total_count"`     // T1 观测窗口内匹配决策数
+	SolveBatches        int     `json:"solve_batches"`        // A2 已计时的求解批次数
+	SolveTimeAvgMs      float64 `json:"solve_time_avg_ms"`    // A2 单批求解平均耗时(毫秒)
+	SolveTimeMaxMs      float64 `json:"solve_time_max_ms"`    // A2 单批求解峰值耗时(毫秒)
+
 	// ---- 随机事件/司机扩展字段 ----
 	MaintenanceVehicles int         `json:"maintenance_vehicles"` // 维修中车辆数
 	RestingDrivers      int         `json:"resting_drivers"`      // 休息中司机数
@@ -138,6 +149,17 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			}
 		}
 	}
+	// R1-R3 可靠性 / T1 匹配吞吐量：统一以最近一次 startup 事件为观测窗口
+	now := time.Now()
+	windowStart := observationWindowStart(now)
+	reliability := calculateReliabilityMetrics(len(vehicleLicenseMap), windowStart, now)
+	matchTotalCount, _ := repository.CountMatchingLogsSince(windowStart)
+	matchThroughput := 0.0
+	if windowHours := now.Sub(windowStart).Hours(); windowHours > 0 && matchTotalCount > 0 {
+		matchThroughput = float64(matchTotalCount) / windowHours
+	}
+	solveBatches, solveAvgMs, solveMaxMs := GetSolverTimingStats()
+
 	var recentEvents []EventView
 	if events, err := repository.ListRandomEvents(10); err == nil {
 		recentEvents = make([]EventView, 0, len(events))
@@ -205,6 +227,15 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			CarbonTotal:       stats.CarbonStats.TotalCarbon,
 			CarbonPerTonKm:    stats.CarbonStats.CarbonPerTonKm,
 			OptimizationGap:   GetLastOptimizationGap(),
+			MtbfHours:           reliability.MtbfHours,
+			MttrHours:           reliability.MttrHours,
+			ServiceAvailability: reliability.Availability,
+			FaultCount:          reliability.FaultCount,
+			MatchThroughput:     matchThroughput,
+			MatchTotalCount:     matchTotalCount,
+			SolveBatches:        solveBatches,
+			SolveTimeAvgMs:      solveAvgMs,
+			SolveTimeMaxMs:      solveMaxMs,
 			MaintenanceVehicles: maintenanceVehicleCount,
 			RestingDrivers:      restingDriverCount,
 			RefuseCount:         refuseEventCount,
