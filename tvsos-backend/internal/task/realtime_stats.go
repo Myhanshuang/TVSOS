@@ -68,6 +68,14 @@ type RealtimeSummary struct {
 	SolveTimeAvgMs      float64 `json:"solve_time_avg_ms"`    // A2 单批求解平均耗时(毫秒)
 	SolveTimeMaxMs      float64 `json:"solve_time_max_ms"`    // A2 单批求解峰值耗时(毫秒)
 
+	// ---- 匹配精准度/基线对比(M1-M4/C1) ----
+	MatchPrecision      float64 `json:"match_precision"`      // M1 精确率(%): 选中车=条件最优
+	MatchRecall         float64 `json:"match_recall"`         // M2 召回率(%): 未派单计未命中
+	MatchF1             float64 `json:"match_f1"`             // M3 匹配 F1
+	MatchMrr            float64 `json:"match_mrr"`            // M4 平均倒数排名
+	MatchEvaluated      int64   `json:"match_evaluated"`      // 已评估运单数
+	BaselineImprovement float64 `json:"baseline_improvement"` // C1 SA相对贪心基线成本改善(%)
+
 	// ---- 随机事件/司机扩展字段 ----
 	MaintenanceVehicles int         `json:"maintenance_vehicles"` // 维修中车辆数
 	RestingDrivers      int         `json:"resting_drivers"`      // 休息中司机数
@@ -159,6 +167,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 		matchThroughput = float64(matchTotalCount) / windowHours
 	}
 	solveBatches, solveAvgMs, solveMaxMs := GetSolverTimingStats()
+	matchP, matchR, matchF1, matchMrr, matchEval := GetMatchingQualityStats()
 
 	var recentEvents []EventView
 	if events, err := repository.ListRandomEvents(10); err == nil {
@@ -236,6 +245,12 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			SolveBatches:        solveBatches,
 			SolveTimeAvgMs:      solveAvgMs,
 			SolveTimeMaxMs:      solveMaxMs,
+			MatchPrecision:      matchP,
+			MatchRecall:         matchR,
+			MatchF1:             matchF1,
+			MatchMrr:            matchMrr,
+			MatchEvaluated:      matchEval,
+			BaselineImprovement: GetLastBaselineImprovement(),
 			MaintenanceVehicles: maintenanceVehicleCount,
 			RestingDrivers:      restingDriverCount,
 			RefuseCount:         refuseEventCount,

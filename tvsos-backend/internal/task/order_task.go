@@ -113,6 +113,9 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 	// A3 优化质量评估：小规模批次通过精确枚举计算 SA 与全局最优的 gap(黑盒/算法无关)
 	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)
 
+	// M1-M4/C1 匹配质量后验评估：逐单条件成本排名 + 贪心基线对比，结果回填 matching_log
+	quality := evaluateMatchingQuality(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)
+
 	for _, shipment := range shipments {
 		cargo := getCargoByCache(cargoCache, shipment.CargoId)
 		if cargo == nil {
@@ -129,7 +132,7 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 		}
 
 		shipmentLoad := cargo.Weight * shipment.Count
-		if !assignShipmentToVehicle(shipment, v, shipmentLoad) {
+		if !assignShipmentToVehicle(shipment, v, shipmentLoad, quality) {
 			Logger.Logger.Warn("订单分配失败", zap.Uint("shipmentId", shipment.Id), zap.Uint("vehicleId", v.Id))
 			unassigned = append(unassigned, shipment)
 			continue
@@ -151,7 +154,7 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 
 // assignShipmentToVehicle 原子核心落地操作：当订单分配在算法层面敲定车牌后执行的事务处理。
 // 新增 OrderTask，同时增加该车的预占预估载重、并原子更新所属 Shipment 状态(为排队待拉走)。
-func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmentLoad int) bool {
+func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmentLoad int, quality *matchingQualityResult) bool {
 	// 创建任务
 	now := time.Now()
 	newTask := &model.OrderTask{
@@ -169,12 +172,22 @@ func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmen
 		return false
 	}
 
-	// 落库匹配决策日志(M1-M4 / MRR 评估数据源)，记录本次"货找车"的选中车辆。
+	// 落库匹配决策日志(M1-M4 / MRR 评估数据源)：
+	// 匹配质量评估可用时回填完整候选排名与条件最优参考答案(ground truth)，
+	// 否则退化为简化排名(超规模批次，评估被跳过)。
+	rankingJSON := simpleCandidateRankingJSON(v, shipmentLoad)
+	var groundTruth uint
+	if quality != nil {
+		if q := quality.ByShipment[shipment.Id]; q != nil {
+			rankingJSON = q.RankingJSON
+			groundTruth = q.GroundTruthID
+		}
+	}
 	_ = repository.CreateMatchingLog(&model.MatchingLog{
 		ShipmentId:         shipment.Id,
 		ChosenVehicleId:    v.Id,
-		CandidateRanking:   simpleCandidateRankingJSON(v, shipmentLoad),
-		GroundTruthVehicle: 0, // 离线回放评估时回填最优车辆
+		CandidateRanking:   rankingJSON,
+		GroundTruthVehicle: groundTruth,
 		CreatedAt:          now,
 	})
 

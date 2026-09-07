@@ -53,6 +53,12 @@ const dynamicData = reactive({
   solveBatches: 0,        // A2 已计时求解批次数
   solveTimeAvgMs: 0,      // A2 单批求解平均耗时(ms)
   solveTimeMaxMs: 0,      // A2 单批求解峰值耗时(ms)
+  matchPrecision: 0,      // M1 匹配精确率(%)
+  matchRecall: 0,         // M2 匹配召回率(%)
+  matchF1: 0,             // M3 匹配 F1
+  matchMrr: 0,            // M4 平均倒数排名
+  matchEvaluated: 0,      // 已评估运单数
+  baselineImprovement: 0, // C1 SA相对贪心基线改善(%)
   maintenanceVehicles: 0, // 维修中车辆数
   restingDrivers: 0,      // 休息中司机数
   refuseCount: 0,         // 拒单事件计数
@@ -165,6 +171,12 @@ const initDynamicStats = (data) => {
   dynamicData.solveBatches = Number(summary.solve_batches || 0)
   dynamicData.solveTimeAvgMs = Number(summary.solve_time_avg_ms || 0)
   dynamicData.solveTimeMaxMs = Number(summary.solve_time_max_ms || 0)
+  dynamicData.matchPrecision = Number(summary.match_precision || 0)
+  dynamicData.matchRecall = Number(summary.match_recall || 0)
+  dynamicData.matchF1 = Number(summary.match_f1 || 0)
+  dynamicData.matchMrr = Number(summary.match_mrr || 0)
+  dynamicData.matchEvaluated = Number(summary.match_evaluated || 0)
+  dynamicData.baselineImprovement = Number(summary.baseline_improvement || 0)
 
   baseline.throughput = dynamicData.throughput
   baseline.cost = dynamicData.cost
@@ -210,6 +222,12 @@ const mapSnapshotToDynamicData = (data) => {
     solveBatches: Number(summary.solve_batches || 0),
     solveTimeAvgMs: Number(summary.solve_time_avg_ms || 0),
     solveTimeMaxMs: Number(summary.solve_time_max_ms || 0),
+    matchPrecision: Number(summary.match_precision || 0),
+    matchRecall: Number(summary.match_recall || 0),
+    matchF1: Number(summary.match_f1 || 0),
+    matchMrr: Number(summary.match_mrr || 0),
+    matchEvaluated: Number(summary.match_evaluated || 0),
+    baselineImprovement: Number(summary.baseline_improvement || 0),
     maintenanceVehicles: Number(summary.maintenance_vehicles || 0),
     restingDrivers: Number(summary.resting_drivers || 0),
     refuseCount: Number(summary.refuse_count || 0),
@@ -475,6 +493,12 @@ const applySnapshot = (data) => {
   dynamicData.solveBatches = mapped.solveBatches
   dynamicData.solveTimeAvgMs = mapped.solveTimeAvgMs
   dynamicData.solveTimeMaxMs = mapped.solveTimeMaxMs
+  dynamicData.matchPrecision = mapped.matchPrecision
+  dynamicData.matchRecall = mapped.matchRecall
+  dynamicData.matchF1 = mapped.matchF1
+  dynamicData.matchMrr = mapped.matchMrr
+  dynamicData.matchEvaluated = mapped.matchEvaluated
+  dynamicData.baselineImprovement = mapped.baselineImprovement
   dynamicData.maintenanceVehicles = mapped.maintenanceVehicles
   dynamicData.restingDrivers = mapped.restingDrivers
   dynamicData.refuseCount = mapped.refuseCount
@@ -494,18 +518,18 @@ const applySnapshot = (data) => {
 }
 
 // ---- 分视角章节面板：按参考文档《科学指标体系设计》8 个维度章节组织 ----
-// 每章对应参考文档的一章标题；仅 M1-M4/C1 依赖离线回放评估(P2)仍为待接入，
-// 其余指标均已实时计算落地（S 周期生成类/F3 问卷类/C3 ROI/A1 基准类在模拟环境下无数据来源，已移除）。
+// 每章对应参考文档的一章标题；全部指标均已实时计算落地
+// （S 周期生成类/F3 问卷类/C3 ROI/A1 基准类在模拟环境下无数据来源，已移除）。
 const CHAPTERS = [
   {
     id: 'M',
     title: '1. 匹配算法精准度',
     desc: '货找车/车找货的对偶匹配质量（参考文档第一章）',
     items: [
-      { code: 'M1', label: '匹配精确率 P', live: false, note: '需 matching_log 离线回放评估（P2）', get: () => null, unit: '' },
-      { code: 'M2', label: '匹配召回率 R', live: false, note: '需 matching_log 离线回放评估（P2）', get: () => null, unit: '' },
-      { code: 'M3', label: '匹配 F1', live: false, note: '由 P/R 计算（P2）', get: () => null, unit: '' },
-      { code: 'M4', label: 'MRR 候选排名', live: false, note: '基于候选排名队列计算（P2）', get: () => null, unit: '' }
+      { code: 'M1', label: '匹配精确率 P', live: true, get: () => dynamicData.matchPrecision, unit: '%', format: (v) => (dynamicData.matchEvaluated > 0 ? formatFixed(v, 1) : '—'), note: '选中车=条件成本最优车 占比' },
+      { code: 'M2', label: '匹配召回率 R', live: true, get: () => dynamicData.matchRecall, unit: '%', format: (v) => (dynamicData.matchEvaluated > 0 ? formatFixed(v, 1) : '—'), note: '分母含未派单运单(计为未命中)' },
+      { code: 'M3', label: '匹配 F1', live: true, get: () => dynamicData.matchF1, unit: '', format: (v) => (dynamicData.matchEvaluated > 0 ? formatFixed(v, 1) : '—'), note: 'P/R 调和平均' },
+      { code: 'M4', label: 'MRR 候选排名', live: true, get: () => dynamicData.matchMrr, unit: '', format: (v) => (dynamicData.matchEvaluated > 0 ? formatFixed(v, 3) : '—'), note: '所选车在条件成本排序中的平均倒数排名' }
     ]
   },
   {
@@ -544,7 +568,7 @@ const CHAPTERS = [
     title: '5. 成本效益指标',
     desc: '成本、单位成本与效益（参考文档第六章）',
     items: [
-      { code: 'C1', label: '基线对比', live: false, note: '需离线回放基线（P1）', get: () => null, unit: '' },
+      { code: 'C1', label: '基线对比', live: true, get: () => dynamicData.baselineImprovement, unit: '%', format: (v) => (v > 0 ? '+' + formatFixed(v, 1) : formatFixed(v, 1)), note: 'SA 相对贪心首可行基线的成本改善(最近完整批次)' },
       { code: 'C2', label: '单位成本', live: true, get: () => dynamicData.unitCost, unit: '成本/吨公里', format: (v) => formatFixed(v, 4) }
     ]
   },
