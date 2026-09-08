@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kiritosuki/mover/internal/Logger"
-	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/constant"
 	"github.com/kiritosuki/mover/internal/database"
 	"github.com/kiritosuki/mover/internal/model"
@@ -70,9 +68,7 @@ func TestIsVehiclePaused(t *testing.T) {
 // 1) 创建车辆+司机+运单+Planned 任务；
 // 2) 强制拒单概率=1，验证任务删除、运单回退 Sleeping、预占载重释放、车辆 Free。
 func TestRefuseAssignmentFlow(t *testing.T) {
-	Logger.InitLogger()
-	config.InitViper()
-	database.InitDB()
+	setupTestDB(t)
 	db := database.DB
 
 	db.Exec("DELETE FROM random_event")
@@ -153,9 +149,7 @@ func TestRefuseAssignmentFlow(t *testing.T) {
 // 2) 强制车祸概率=1 触发 → 车辆转维修中 + pause_until 设置；
 // 3) 维修到期后 recoverMaintenanceVehicles → 恢复 Running 续跑在途任务。
 func TestAccidentAndRecoveryFlow(t *testing.T) {
-	Logger.InitLogger()
-	config.InitViper()
-	database.InitDB()
+	setupTestDB(t)
 	db := database.DB
 
 	db.Exec("DELETE FROM random_event")
@@ -230,9 +224,7 @@ func TestAccidentAndRecoveryFlow(t *testing.T) {
 
 // TestRestTrigger 真实跑库集成测试：疲劳累计达到阈值触发强制休息。
 func TestRestTrigger(t *testing.T) {
-	Logger.InitLogger()
-	config.InitViper()
-	database.InitDB()
+	setupTestDB(t)
 	db := database.DB
 
 	db.Exec("DELETE FROM random_event")

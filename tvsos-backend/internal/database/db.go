@@ -238,6 +238,139 @@ func InitDB() {
 		Logger.Logger.Info("数据库迁移：已创建表", zap.String("table", tm.Name))
 	}
 
+	// 沙箱系统元数据表：用户(研究人员) / 沙箱 / 实验方案 / 实验(批次) / 实验终态结果
+	sandboxTableMigrations := []tableMigration{
+		{
+			Name: "user",
+			DDL: `CREATE TABLE IF NOT EXISTS user (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				username varchar(64) NOT NULL COMMENT '登录名',
+				password_hash varchar(128) NOT NULL DEFAULT '' COMMENT 'bcrypt密码哈希',
+				display_name varchar(64) NOT NULL DEFAULT '' COMMENT '显示名(研究人员姓名)',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (id),
+				UNIQUE KEY uk_username (username)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "sandbox",
+			DDL: `CREATE TABLE IF NOT EXISTS sandbox (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(128) NOT NULL DEFAULT '' COMMENT '沙箱名',
+				description varchar(1024) NOT NULL DEFAULT '' COMMENT '描述',
+				world_rules_toml mediumtext COMMENT '世界规则TOML全文(geography/traffic/time/economy/world.*)',
+				fleet_template mediumtext COMMENT '车队模板JSON(车辆类型库/车队定义)',
+				poi_whitelist text COMMENT 'POI白名单JSON(空=全部)',
+				algo_version varchar(64) NOT NULL DEFAULT '' COMMENT '绑定调度算法版本',
+				created_by bigint unsigned NOT NULL DEFAULT 0 COMMENT '创建研究者user.id',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				archived tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否归档',
+				PRIMARY KEY (id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "experiment_scheme",
+			DDL: `CREATE TABLE IF NOT EXISTS experiment_scheme (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				sandbox_id bigint unsigned NOT NULL COMMENT '所属沙箱',
+				name varchar(128) NOT NULL DEFAULT '' COMMENT '方案名',
+				description varchar(1024) NOT NULL DEFAULT '' COMMENT '描述',
+				params_toml mediumtext COMMENT '实验级参数TOML模板',
+				created_by bigint unsigned NOT NULL DEFAULT 0 COMMENT '创建研究者user.id',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+				PRIMARY KEY (id),
+				KEY idx_sandbox (sandbox_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "experiment",
+			DDL: `CREATE TABLE IF NOT EXISTS experiment (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				sandbox_id bigint unsigned NOT NULL COMMENT '所属沙箱',
+				scheme_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '来源方案(0=临时实验)',
+				name varchar(128) NOT NULL DEFAULT '' COMMENT '实验名',
+				params_toml mediumtext COMMENT '参数快照TOML',
+				seed bigint NOT NULL DEFAULT 0 COMMENT '随机种子',
+				status varchar(16) NOT NULL DEFAULT 'configured' COMMENT 'configured/generating/ready/running/finished/failed/aborted',
+				data_version int NOT NULL DEFAULT 0 COMMENT '数据生成器版本(种子导入校验)',
+				progress double NOT NULL DEFAULT 0 COMMENT '虚拟时钟进度0~1',
+				created_by bigint unsigned NOT NULL DEFAULT 0 COMMENT '实验者user.id',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				started_at datetime DEFAULT NULL,
+				finished_at datetime DEFAULT NULL,
+				PRIMARY KEY (id),
+				KEY idx_sandbox (sandbox_id),
+				KEY idx_status (status)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "experiment_result",
+			DDL: `CREATE TABLE IF NOT EXISTS experiment_result (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				experiment_id bigint unsigned NOT NULL COMMENT '所属实验',
+				summary_json mediumtext COMMENT '终态指标全量快照(JSON)',
+				primary_metrics text COMMENT '主目标C2/U2/U4/T2/F1/G2等(JSON)',
+				convergence mediumtext COMMENT 'SA收敛曲线/算法性能(JSON)',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (id),
+				UNIQUE KEY uk_experiment (experiment_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+	}
+
+	for _, tm := range sandboxTableMigrations {
+		var tableCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*)
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE()
+			  AND TABLE_NAME = ?
+		`, tm.Name).Scan(&tableCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查沙箱表", zap.String("table", tm.Name), zap.Error(err))
+			panic(err)
+		}
+		if tableCount > 0 {
+			continue
+		}
+		err = DB.Exec(tm.DDL).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：创建沙箱表", zap.String("table", tm.Name), zap.Error(err))
+			panic(err)
+		}
+		Logger.Logger.Info("数据库迁移：已创建沙箱表", zap.String("table", tm.Name))
+	}
+
+	// 运行数据表实验维度列迁移：experiment_id=0 表示沙箱模板/全局数据，>0 表示某次实验的实例数据。
+	experimentScopedTables := []string{
+		"vehicle", "driver", "shipment", "order_task",
+		"random_event", "matching_log", "metric_snapshot", "track_log", "system_event",
+	}
+	for _, table := range experimentScopedTables {
+		var columnCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*)
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			  AND TABLE_NAME = ?
+			  AND COLUMN_NAME = 'experiment_id'
+		`, table).Scan(&columnCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查实验维度列", zap.String("table", table), zap.Error(err))
+			panic(err)
+		}
+		if columnCount > 0 {
+			continue
+		}
+		err = DB.Exec("ALTER TABLE " + table + " ADD COLUMN experiment_id bigint unsigned NOT NULL DEFAULT 0 COMMENT '所属实验id(0=沙箱模板/全局)', ADD INDEX idx_experiment (experiment_id)").Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：新增实验维度列", zap.String("table", table), zap.Error(err))
+			panic(err)
+		}
+		Logger.Logger.Info("数据库迁移：已新增实验维度列", zap.String("table", table))
+	}
+
 	// order_task 任务阶段时间戳列迁移（支撑调度时序还原与响应时间分位统计）
 	orderTaskColumnMigrations := []vehicleColumnMigration{
 		{Name: "assign_time", DDL: "ALTER TABLE order_task ADD COLUMN assign_time datetime DEFAULT NULL COMMENT '订单被分配车辆时间'"},

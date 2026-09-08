@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="section">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 2 · 全局优化对象选型</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">07 / 10</text>
+  <!-- 大标题（结论先行） -->
+  <text id="page-title" x="640" y="180" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46" text-anchor="middle">全局优化的本质：多目标权衡</text>
+  <!-- 核心观点 hero -->
+  <rect id="hero-bg" x="240" y="230" width="800" height="110" rx="12" fill="#0F2B46"/>
+  <text id="hero-text" x="640" y="280" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#FFFFFF" text-anchor="middle">优化任一指标时，其他指标可能不是最优</text>
+  <text id="hero-sub" x="640" y="320" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" text-anchor="middle">Cost F 加权标量化 → 权重固定即隐性牺牲某些维度</text>
+  <!-- 权衡关系示意（中心辐射式 5 组） -->
+  <g id="tradeoffs">
+    <text id="center" x="640" y="520" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="32" font-weight="bold" fill="#0F2B46" text-anchor="middle">帕累托视角</text>
+    <circle id="center-ring" cx="640" cy="500" r="70" fill="none" stroke="#00B0F0" stroke-width="3" stroke-dasharray="6 6"/>
+    <!-- 顶部：U2 装载率 -->
+    <rect id="t1" x="540" y="360" width="200" height="56" rx="10" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="t1-t" x="640" y="395" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433" text-anchor="middle">U2 装载率 ↑</text>
+    <path id="line-t1" d="M 640 416 L 640 430" stroke="#E5533C" stroke-width="2"/>
+    <!-- 右下：T2 响应 -->
+    <rect id="t2" x="760" y="560" width="200" height="56" rx="10" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="t2-t" x="860" y="595" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433" text-anchor="middle">T2 响应 ↓</text>
+    <path id="line-t2" d="M 700 505 C 760 530, 800 540, 840 558" stroke="#E5533C" stroke-width="2" fill="none"/>
+    <!-- 左下：U4 空驶率 -->
+    <rect id="t3" x="320" y="560" width="200" height="56" rx="10" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="t3-t" x="420" y="595" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433" text-anchor="middle">U4 空驶率 ↓</text>
+    <path id="line-t3" d="M 580 505 C 520 530, 480 540, 440 558" stroke="#E5533C" stroke-width="2" fill="none"/>
+    <!-- 右侧：G2 碳排 -->
+    <rect id="t4" x="900" y="360" width="200" height="56" rx="10" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="t4-t" x="1000" y="395" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433" text-anchor="middle">G2 单位碳排 ↓</text>
+    <path id="line-t4" d="M 730 480 C 800 460, 860 440, 920 420" stroke="#E5533C" stroke-width="2" fill="none"/>
+    <!-- 左侧：F1 基尼 -->
+    <rect id="t5" x="180" y="360" width="200" height="56" rx="10" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="t5-t" x="280" y="395" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433" text-anchor="middle">F1 基尼系数 → 0</text>
+    <path id="line-t5" d="M 550 480 C 480 460, 420 440, 360 420" stroke="#E5533C" stroke-width="2" fill="none"/>
+  </g>
+  <!-- 底部权衡列表 -->
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-note" x="64" y="694" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">例如：提高装载率 U2 → 拼车等待变久 → T2 变差；压低空驶 U4 → 原地等单 → 响应变慢</text>
+</svg>

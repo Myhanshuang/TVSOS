@@ -32,4 +32,5 @@ type Vehicle struct {
 	Distance      float64   `json:"distance"`
 	Duration      float64   `json:"duration"`
 	Angle         float64   `json:"angle"`
+	ExperimentId uint      `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

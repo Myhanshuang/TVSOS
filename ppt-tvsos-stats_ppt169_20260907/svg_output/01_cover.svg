@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="cover">
+  <!-- 背景 -->
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <!-- 右侧装饰：浅色圆形 + 青色弧线 -->
+  <circle id="deco-circle" cx="1120" cy="150" r="220" fill="#F4F7FA"/>
+  <circle id="deco-ring" cx="1120" cy="150" r="150" fill="none" stroke="#00B0F0" stroke-width="3" stroke-opacity="0.35"/>
+  <path id="deco-arc" d="M 1080 330 A 220 220 0 0 1 900 150" fill="none" stroke="#0F2B46" stroke-width="6" stroke-linecap="round" stroke-opacity="0.18"/>
+  <!-- 左侧竖向青色 accent 条 -->
+  <rect id="accent-bar" x="64" y="160" width="10" height="150" fill="#00B0F0" rx="5"/>
+  <!-- 顶部小标签 -->
+  <text id="kicker" x="100" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#5A6B7B" letter-spacing="4">TVSOS · 运输车辆仿真调度系统</text>
+  <!-- 大标题（两行） -->
+  <text id="title-line1" x="100" y="250" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="96" font-weight="bold" fill="#0F2B46">统计指标体系</text>
+  <text id="title-line2" x="100" y="360" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="96" font-weight="bold" fill="#0F2B46">与全局优化对象选型</text>
+  <!-- 副标题 -->
+  <text id="subtitle" x="100" y="440" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="32" fill="#1A2433">指标设计科学性 · 多目标权衡 · 帕累托优化方向</text>
+  <!-- hero 数字三连 -->
+  <g id="hero-stats">
+    <rect id="stat1-bg" x="100" y="500" width="230" height="96" rx="12" fill="#F4F7FA"/>
+    <text id="stat1-num" x="128" y="545" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">8 维</text>
+    <text id="stat1-label" x="128" y="580" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#5A6B7B">统计指标维度</text>
+    <rect id="stat2-bg" x="350" y="500" width="230" height="96" rx="12" fill="#F4F7FA"/>
+    <text id="stat2-num" x="378" y="545" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">4 主目标</text>
+    <text id="stat2-label" x="378" y="580" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#5A6B7B">全局优化对象</text>
+    <rect id="stat3-bg" x="600" y="500" width="230" height="96" rx="12" fill="#F4F7FA"/>
+    <text id="stat3-num" x="628" y="545" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">2 软约束</text>
+    <text id="stat3-label" x="628" y="580" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#5A6B7B">公平 · 绿色</text>
+  </g>
+  <!-- 底部信息行 -->
+  <line id="footer-line" x1="100" y1="648" x2="1180" y2="648" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-info" x="100" y="684" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B">技术汇报 · 2026-09-07</text>
+</svg>

@@ -16,4 +16,5 @@ type TrackLog struct {
 	Lat        float64   `json:"lat" gorm:"column:lat"`
 	IsEmpty    bool      `json:"isEmpty" gorm:"column:is_empty"`
 	RecordTime time.Time `json:"recordTime" gorm:"column:record_time;index:idx_vehicle_time"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

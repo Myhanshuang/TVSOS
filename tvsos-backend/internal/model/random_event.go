@@ -22,4 +22,5 @@ type RandomEvent struct {
 	Description     string    `json:"description" gorm:"column:description"`       // 描述
 	Detail          string    `json:"detail" gorm:"column:detail;type:text"`       // 详情(JSON)
 	Status          string    `json:"status" gorm:"column:status"`                 // active/pending/resolved
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

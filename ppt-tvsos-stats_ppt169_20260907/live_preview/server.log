@@ -1,0 +1,36 @@
+[19:13:55] [INFO] svg_editor: running at http://127.0.0.1:5050 (live preview (auto-startup))
+[19:13:55] [INFO] svg_editor: project: D:\base\TVSOS\ppt-tvsos-stats_ppt169_20260907
+[19:13:55] [INFO] svg_editor: svg_output: D:\base\TVSOS\ppt-tvsos-stats_ppt169_20260907\svg_output (0 slides)
+[19:13:55] [INFO] svg_editor: idle timeout: 7200s (0 = disabled)
+ * Serving Flask app 'server'
+ * Debug mode: off
+[19:13:55] [INFO] svg_editor: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5050
+[19:13:55] [INFO] svg_editor: [33mPress CTRL+C to quit[0m
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET /api/health HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET / HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET /static/style.css HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET /static/app.js HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET /api/config HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "GET /api/slides HTTP/1.1" 200 -
+[19:13:56] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:56] "[33mGET /hybridaction/zybTrackerStatisticsAction?data={}&__callback__=__cb__zybTrackerStatisticsAction__d82ce7a2_5981_4f5b_9f27_5113a04b5df0__0 HTTP/1.1[0m" 404 -
+[19:13:57] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:57] "[33mGET /hybridaction/zybTrackerStatisticsAction?data={}&__callback__=__cb__zybTrackerStatisticsAction__2a8e60f8_c0b4_4b8a_96e9_153c319511b8__1 HTTP/1.1[0m" 404 -
+[19:13:57] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+[19:13:58] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:13:58] "GET /api/slides HTTP/1.1" 200 -
+[19:14:00] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:00] "GET /api/slides HTTP/1.1" 200 -
+[19:14:02] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:02] "GET /api/slides HTTP/1.1" 200 -
+[19:14:04] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:04] "GET /api/slides HTTP/1.1" 200 -
+[19:14:06] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:06] "GET /api/slides HTTP/1.1" 200 -
+[19:14:08] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:08] "GET /api/slides HTTP/1.1" 200 -
+[19:14:10] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:10] "GET /api/slides HTTP/1.1" 200 -
+[19:14:12] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:12] "GET /api/slides HTTP/1.1" 200 -
+[19:14:14] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:14] "GET /api/slides HTTP/1.1" 200 -
+[19:14:16] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:16] "GET /api/slides HTTP/1.1" 200 -
+[19:14:18] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:18] "GET /api/slides HTTP/1.1" 200 -
+[19:14:20] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:20] "GET /api/slides HTTP/1.1" 200 -
+[19:14:22] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:22] "GET /api/slides HTTP/1.1" 200 -
+[19:14:25] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:25] "GET /api/slides HTTP/1.1" 200 -
+[19:14:26] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:26] "GET /api/slides HTTP/1.1" 200 -
+[19:14:28] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:28] "GET /api/slides HTTP/1.1" 200 -
+[19:14:30] [INFO] svg_editor: 127.0.0.1 - - [07/Sep/2026 19:14:30] "GET /api/slides HTTP/1.1" 200 -
+[21:14:31] [INFO] svg_editor: idle for 7200s, shutting down

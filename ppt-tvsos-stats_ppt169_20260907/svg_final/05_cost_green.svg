@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 1 · 指标体系</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">05 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">单位成本与单位碳排归一化，跨场景可比</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">Cost A–F 闭环驱动调度；C2 / G2 以吨公里归一，是经营与绿色核心</text>
+  <!-- 左：成本 C -->
+  <g id="cost-panel">
+    <rect id="cost-bg" x="64" y="210" width="560" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/coins -->
+  <g transform="translate(96, 240) scale(1.66667)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M9 14c0 1.657 2.686 3 6 3s6 -1.343 6 -3s-2.686 -3 -6 -3s-6 1.343 -6 3" />
+    <path d="M9 14v4c0 1.656 2.686 3 6 3s6 -1.344 6 -3v-4" />
+    <path d="M3 6c0 1.072 1.144 2.062 3 2.598s4.144 .536 6 0c1.856 -.536 3 -1.526 3 -2.598c0 -1.072 -1.144 -2.062 -3 -2.598s-4.144 -.536 -6 0c-1.856 .536 -3 1.526 -3 2.598" />
+    <path d="M3 6v10c0 .888 .772 1.45 2 2" />
+    <path d="M3 11c0 .888 .772 1.45 2 2" />
+  </g>
+    <text id="cost-t" x="96" y="312" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">成本模型 Cost A–F</text>
+    <text id="cost-c2" x="96" y="368" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">C2 = F / 总吨公里</text>
+    <text id="cost-c2d" x="96" y="400" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">单位成本 · 归一化经营指标 · 跨场景可比</text>
+    <line id="cost-line" x1="96" y1="428" x2="592" y2="428" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="cost-a" x="96" y="462" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">A 直接成本：车辆等待总量 + 空驶里程</text>
+    <text id="cost-b" x="96" y="494" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">B 快运成本：加权货物等待 + 最慢等待</text>
+    <text id="cost-c" x="96" y="526" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">C 效率+公平：空驶占比 + 等运占比 + 最长等待</text>
+    <text id="cost-d" x="96" y="558" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">D 平台成本：剩余运能 + 最小剩余 gap</text>
+    <text id="cost-e" x="96" y="590" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">E 风险成本：均值 + 三类时间标准差加权</text>
+    <text id="cost-note" x="96" y="614" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">F 综合成本 = A–E 加权 + 方向角惩罚 → SA/NF 打分目标</text>
+  </g>
+  <!-- 右：绿色 G -->
+  <g id="green-panel">
+    <rect id="green-bg" x="656" y="210" width="560" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/leaf -->
+  <g transform="translate(688, 240) scale(1.66667)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M5 21c.5 -4.5 2.5 -8 7 -10" />
+    <path d="M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0" />
+  </g>
+    <text id="green-t" x="688" y="312" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">绿色低碳 G</text>
+    <text id="green-g1" x="688" y="368" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">G1 = Σ(里程 × 车型排放因子)</text>
+    <text id="green-g1d" x="688" y="400" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">总碳排放 · 空驶/满载分别计因子</text>
+    <line id="green-line" x1="688" y1="428" x2="1184" y2="428" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="green-g2" x="688" y="462" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#0F2B46">G2 = G1 / 总吨公里</text>
+    <text id="green-g2d" x="688" y="494" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">单位吨公里碳排放 · 可对标行业基准</text>
+    <text id="green-src" x="688" y="540" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">因子来源：emission_factor 配置表</text>
+    <text id="green-est" x="688" y="572" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">未配置时默认估算并标记 Estimated</text>
+    <text id="green-note" x="688" y="614" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">与 U4 空驶率强正相关 · 优化空驶自动改善碳排</text>
+  </g>
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="692" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: stats.go calculateSnapshotCost · calculateCarbonStats</text>
+</svg>

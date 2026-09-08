@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 2 · 全局优化对象选型</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">09 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">两组核心矛盾决定帕累托前沿</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">U2↔T2 与 U4↔T2 构成帕累托端点，C2 是合成裁决目标</text>
+  <!-- 左：U2 ↔ T2 -->
+  <g id="pair1">
+    <rect id="pair1-bg" x="64" y="210" width="560" height="400" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="pair1-t" x="344" y="260" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="32" font-weight="bold" fill="#0F2B46" text-anchor="middle">矛盾一：装载率 ↔ 响应时间</text>
+    <rect id="p1-a" x="120" y="300" width="180" height="72" rx="10" fill="#FFFFFF" stroke="#00B0F0" stroke-width="2"/>
+    <text id="p1-at" x="210" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#0F2B46" text-anchor="middle">U2 装载率 ↑</text>
+    <text id="p1-ad" x="210" y="360" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B" text-anchor="middle">拼车凑满载</text>
+    <path id="p1-arrow" d="M 320 336 L 400 336" stroke="#E5533C" stroke-width="3"/>
+    <text id="p1-worse" x="444" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#E5533C">变差</text>
+    <rect id="p1-b" x="360" y="300" width="180" height="72" rx="10" fill="#FFFFFF" stroke="#E5533C" stroke-width="2"/>
+    <text id="p1-bt" x="450" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#E5533C" text-anchor="middle">T2 响应 ↑</text>
+    <text id="p1-bd" x="450" y="360" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B" text-anchor="middle">订单滞留更久</text>
+    <line id="p1-line" x1="120" y1="404" x2="568" y2="404" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="p1-note1" x="120" y="436" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">装载率越高 → 订单积压拼车越久</text>
+    <text id="p1-note2" x="120" y="466" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">→ 响应 P95 越差</text>
+    <text id="p1-note3" x="120" y="520" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">二者构成帕累托前沿的两个端点</text>
+    <text id="p1-note4" x="120" y="556" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B">权衡点：在“满装载”与“快响应”间选经营倾向</text>
+  </g>
+  <!-- 右：U4 ↔ T2 + C2 裁决 -->
+  <g id="pair2">
+    <rect id="pair2-bg" x="656" y="210" width="560" height="400" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="pair2-t" x="936" y="260" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="32" font-weight="bold" fill="#0F2B46" text-anchor="middle">矛盾二：空驶率 ↔ 响应时间</text>
+    <rect id="p2-a" x="712" y="300" width="180" height="72" rx="10" fill="#FFFFFF" stroke="#00B0F0" stroke-width="2"/>
+    <text id="p2-at" x="802" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#0F2B46" text-anchor="middle">U4 空驶率 ↓</text>
+    <text id="p2-ad" x="802" y="360" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B" text-anchor="middle">原地等单</text>
+    <path id="p2-arrow" d="M 912 336 L 992 336" stroke="#E5533C" stroke-width="3"/>
+    <text id="p2-worse" x="1036" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#E5533C">变差</text>
+    <rect id="p2-b" x="952" y="300" width="180" height="72" rx="10" fill="#FFFFFF" stroke="#E5533C" stroke-width="2"/>
+    <text id="p2-bt" x="1042" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#E5533C" text-anchor="middle">T2 响应 ↑</text>
+    <text id="p2-bd" x="1042" y="360" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B" text-anchor="middle">响应变慢</text>
+    <line id="p2-line" x1="712" y1="404" x2="1160" y2="404" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="p2-note1" x="712" y="436" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">空驶率越低 → 车辆倾向原地等单</text>
+    <text id="p2-note2" x="712" y="466" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">→ 响应变慢；见单即派则拉高空驶</text>
+    <text id="p2-note3" x="712" y="520" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">C2 是 U2/U4 的合成裁决目标</text>
+    <text id="p2-note4" x="712" y="556" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B">只压空驶不考虑等待 → C2 不一定下降</text>
+  </g>
+  <!-- 底部落地条 -->
+  <rect id="landing-bg" x="64" y="632" width="1152" height="52" rx="10" fill="#0F2B46"/>
+  <text id="landing-t" x="96" y="664" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF">落地：TotalObjective = w1·C2 + w2·(−U2) + w3·U4 + w4·P95(T2)，权重扫描输出帕累托前沿</text>
+  <line id="footer-line" x1="64" y1="712" x2="1216" y2="712" stroke="#D7E0E8" stroke-width="1"/>
+</svg>

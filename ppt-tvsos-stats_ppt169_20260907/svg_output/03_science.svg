@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 1 · 指标体系</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">03 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">指标体系设计的 6 条科学性原则</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">从模块化到算法解耦——统计不是摆设，而是调度决策的量化地基</text>
+  <!-- 左侧 6 条原则（2 列 x 3 行 列表） -->
+  <g id="principles">
+    <rect id="p1" x="64" y="210" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p1-n" cx="98" cy="252" r="18" fill="#0F2B46"/>
+    <text id="p1-num" x="98" y="259" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">1</text>
+    <text id="p1-t" x="132" y="248" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">模块化分层</text>
+    <text id="p1-d" x="132" y="282" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">10 个子模块互不干扰，前端按 M/U/T/A/S/C/R/F/G 九章对应展示</text>
+    <text id="p1-x" x="132" y="314" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">易扩展 · 可评审</text>
+    <rect id="p2" x="628" y="210" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p2-n" cx="662" cy="252" r="18" fill="#0F2B46"/>
+    <text id="p2-num" x="662" y="259" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">2</text>
+    <text id="p2-t" x="696" y="248" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">口径统一</text>
+    <text id="p2-d" x="696" y="282" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">成本用吨·公里归一，等待用秒，效率用百分比，跨指标可比</text>
+    <text id="p2-x" x="696" y="314" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">同一物理量被一致引用</text>
+    <rect id="p3" x="64" y="356" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p3-n" cx="98" cy="398" r="18" fill="#0F2B46"/>
+    <text id="p3-num" x="98" y="405" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">3</text>
+    <text id="p3-t" x="132" y="394" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">分布优于均值</text>
+    <text id="p3-d" x="132" y="428" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">时间/数值统计内置 P50/P95/P99 分位，暴露尾部风险而非只看均值</text>
+    <text id="p3-x" x="132" y="460" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">单票滞留 / 单台空驶无处藏身</text>
+    <rect id="p4" x="628" y="356" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p4-n" cx="662" cy="398" r="18" fill="#0F2B46"/>
+    <text id="p4-num" x="662" y="405" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">4</text>
+    <text id="p4-t" x="696" y="394" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">估算透明</text>
+    <text id="p4-d" x="696" y="428" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">装卸/里程估算显式标记，排放因子与装卸系数配置化可替换</text>
+    <text id="p4-x" x="696" y="460" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">估算与精确口径可平滑迁移</text>
+    <rect id="p5" x="64" y="502" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p5-n" cx="98" cy="544" r="18" fill="#0F2B46"/>
+    <text id="p5-num" x="98" y="551" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">5</text>
+    <text id="p5-t" x="132" y="540" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">指标驱动决策闭环</text>
+    <text id="p5-d" x="132" y="574" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">Cost F 直接作为 SA/NF 分配打分目标，A3 Gap 量化与最优解距离</text>
+    <text id="p5-x" x="132" y="606" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">统计即调度器的评分器</text>
+    <rect id="p6" x="628" y="502" width="540" height="130" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <circle id="p6-n" cx="662" cy="544" r="18" fill="#0F2B46"/>
+    <text id="p6-num" x="662" y="551" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">6</text>
+    <text id="p6-t" x="696" y="540" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">与算法实现解耦</text>
+    <text id="p6-d" x="696" y="574" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">指标度量调度结果在车队上的痕迹，与 SA 或精确求解器无关</text>
+    <text id="p6-x" x="696" y="606" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#00B0F0">算法演进时指标体系整体平移</text>
+  </g>
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="692" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: 统计指标总结与全局优化对象.md · §3</text>
+</svg>

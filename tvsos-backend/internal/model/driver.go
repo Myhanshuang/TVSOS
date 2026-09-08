@@ -24,4 +24,5 @@ type Driver struct {
 	RefuseCount      int        `json:"refuseCount" gorm:"column:refuse_count"`   // 累计拒单次数
 	VehicleId        uint       `json:"vehicleId" gorm:"column:vehicle_id"` // 绑定车辆 id
 	UpdateTime       time.Time  `json:"updateTime" gorm:"column:update_time"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

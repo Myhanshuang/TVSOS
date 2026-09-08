@@ -16,4 +16,5 @@ type Shipment struct {
 	Status     int       `json:"status"`
 	CargoId    uint      `json:"cargoId"`
 	Count      int       `json:"count"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

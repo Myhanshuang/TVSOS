@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 1 · 指标体系</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">06 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">基尼系数、拒单与事件指标补齐公平与可靠视角</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">F1 衡量负载均衡，R4–R6 量化事故/维修/休息对运力的扰动</text>
+  <!-- 左：公平 F -->
+  <g id="fair-panel">
+    <rect id="fair-bg" x="64" y="210" width="560" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <use data-icon="tabler-outline/scale" x="96" y="240" width="40" height="40" fill="none" stroke="#0F2B46" stroke-width="2"/>
+    <text id="fair-t" x="96" y="312" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">公平与满意度 F</text>
+    <text id="fair-f1" x="96" y="368" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">F1 基尼系数（0 均衡 ~ 1 不均）</text>
+    <text id="fair-f1d" x="96" y="400" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">按单车装载率排序的洛伦兹曲线面积</text>
+    <line id="fair-line" x1="96" y1="428" x2="592" y2="428" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="fair-f2" x="96" y="466" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#0F2B46">F2 司机拒单数</text>
+    <text id="fair-f2d" x="96" y="498" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">拒单随机事件累计</text>
+    <text id="fair-f2d2" x="96" y="528" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">度量司机意愿与派单质量交互</text>
+    <text id="fair-note" x="96" y="590" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">优化时作软约束：Gini ≤ 0.4，防止运单集中给少数车</text>
+  </g>
+  <!-- 右：可靠 R -->
+  <g id="rel-panel">
+    <rect id="rel-bg" x="656" y="210" width="560" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <use data-icon="tabler-outline/shield-check" x="688" y="240" width="40" height="40" fill="none" stroke="#0F2B46" stroke-width="2"/>
+    <text id="rel-t" x="688" y="312" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">可靠性与随机事件 R</text>
+    <text id="rel-r4" x="688" y="368" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">R4 运输事故数 · R5 维修中车辆</text>
+    <text id="rel-r4d" x="688" y="400" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">accident 事件累计 · 实时扫描 Maintenance 状态</text>
+    <line id="rel-line" x1="688" y1="428" x2="1184" y2="428" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="rel-r6" x="688" y="466" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#0F2B46">R6 休息中司机数</text>
+    <text id="rel-r6d" x="688" y="498" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">实时扫描 driver 休息状态</text>
+    <text id="rel-r6d2" x="688" y="528" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">度量人力约束对运力影响</text>
+    <text id="rel-ev" x="688" y="570" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">事件流：最近 10 条随机事件</text>
+    <text id="rel-ev2" x="688" y="598" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">refuse / rest / weather / accident</text>
+    <text id="rel-note" x="688" y="620" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">随机性不可控 → 作风险监控，不直接优化</text>
+  </g>
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="692" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: random_event.go · realtime_stats.go</text>
+</svg>

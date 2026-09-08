@@ -26,4 +26,5 @@ type OrderTask struct {
 	UnloadStartTime    *time.Time `json:"unloadStartTime" gorm:"column:unload_start_time"`    // 开始卸货时间
 	UnloadEndTime      *time.Time `json:"unloadEndTime" gorm:"column:unload_end_time"`      // 完成卸货时间
 	SignoffTime        *time.Time `json:"signoffTime" gorm:"column:signoff_time"`        // 签收完成时间
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

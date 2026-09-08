@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 2 · 全局优化对象选型</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">10 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">结论：四目标 + 双约束，显式管理指标权衡</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">用权重标量化 + 帕累托前沿报告，取代单一 Cost F 的隐性取舍</text>
+  <!-- 指标总表 -->
+  <g id="table">
+    <!-- 表头 -->
+    <rect id="th-dim" x="64" y="196" width="200" height="44" fill="#0F2B46"/>
+    <rect id="th-id" x="264" y="196" width="140" height="44" fill="#0F2B46"/>
+    <rect id="th-name" x="404" y="196" width="520" height="44" fill="#0F2B46"/>
+    <rect id="th-role" x="924" y="196" width="292" height="44" fill="#0F2B46"/>
+    <text id="th1" x="164" y="224" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF" text-anchor="middle">维度</text>
+    <text id="th2" x="334" y="224" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF" text-anchor="middle">ID</text>
+    <text id="th3" x="664" y="224" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF" text-anchor="middle">指标</text>
+    <text id="th4" x="1070" y="224" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF" text-anchor="middle">是否优化对象</text>
+    <!-- 行1 -->
+    <rect id="r1" x="64" y="240" width="200" height="36" fill="#F4F7FA"/>
+    <rect id="r1b" x="264" y="240" width="140" height="36" fill="#F4F7FA"/>
+    <rect id="r1c" x="404" y="240" width="520" height="36" fill="#F4F7FA"/>
+    <rect id="r1d" x="924" y="240" width="292" height="36" fill="#F4F7FA"/>
+    <text id="r1a" x="164" y="263" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">利用</text>
+    <text id="r1b2" x="334" y="263" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">U2</text>
+    <text id="r1c2" x="420" y="263" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">装载率均值±标准差</text>
+    <text id="r1d2" x="1070" y="263" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1F9D55" text-anchor="middle">主目标</text>
+    <!-- 行2 -->
+    <rect id="r2" x="64" y="276" width="200" height="36" fill="#FFFFFF"/>
+    <rect id="r2b" x="264" y="276" width="140" height="36" fill="#FFFFFF"/>
+    <rect id="r2c" x="404" y="276" width="520" height="36" fill="#FFFFFF"/>
+    <rect id="r2d" x="924" y="276" width="292" height="36" fill="#FFFFFF"/>
+    <text id="r2a" x="164" y="299" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">利用</text>
+    <text id="r2b2" x="334" y="299" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">U4</text>
+    <text id="r2c2" x="420" y="299" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">空驶率</text>
+    <text id="r2d2" x="1070" y="299" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1F9D55" text-anchor="middle">主目标</text>
+    <!-- 行3 -->
+    <rect id="r3" x="64" y="312" width="200" height="36" fill="#F4F7FA"/>
+    <rect id="r3b" x="264" y="312" width="140" height="36" fill="#F4F7FA"/>
+    <rect id="r3c" x="404" y="312" width="520" height="36" fill="#F4F7FA"/>
+    <rect id="r3d" x="924" y="312" width="292" height="36" fill="#F4F7FA"/>
+    <text id="r3a" x="164" y="335" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">响应</text>
+    <text id="r3b2" x="334" y="335" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">T2</text>
+    <text id="r3c2" x="420" y="335" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">匹配响应 P50/P95/P99</text>
+    <text id="r3d2" x="1070" y="335" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1F9D55" text-anchor="middle">主目标 (P95)</text>
+    <!-- 行4 -->
+    <rect id="r4" x="64" y="348" width="200" height="36" fill="#FFFFFF"/>
+    <rect id="r4b" x="264" y="348" width="140" height="36" fill="#FFFFFF"/>
+    <rect id="r4c" x="404" y="348" width="520" height="36" fill="#FFFFFF"/>
+    <rect id="r4d" x="924" y="348" width="292" height="36" fill="#FFFFFF"/>
+    <text id="r4a" x="164" y="371" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">成本</text>
+    <text id="r4b2" x="334" y="371" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">C2</text>
+    <text id="r4c2" x="420" y="371" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">单位成本（裁决目标）</text>
+    <text id="r4d2" x="1070" y="371" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1F9D55" text-anchor="middle">主目标 (裁决)</text>
+    <!-- 行5 -->
+    <rect id="r5" x="64" y="384" width="200" height="36" fill="#F4F7FA"/>
+    <rect id="r5b" x="264" y="384" width="140" height="36" fill="#F4F7FA"/>
+    <rect id="r5c" x="404" y="384" width="520" height="36" fill="#F4F7FA"/>
+    <rect id="r5d" x="924" y="384" width="292" height="36" fill="#F4F7FA"/>
+    <text id="r5a" x="164" y="407" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">公平</text>
+    <text id="r5b2" x="334" y="407" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">F1</text>
+    <text id="r5c2" x="420" y="407" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">基尼系数</text>
+    <text id="r5d2" x="1070" y="407" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#2E7CF6" text-anchor="middle">软约束</text>
+    <!-- 行6 -->
+    <rect id="r6" x="64" y="420" width="200" height="36" fill="#FFFFFF"/>
+    <rect id="r6b" x="264" y="420" width="140" height="36" fill="#FFFFFF"/>
+    <rect id="r6c" x="404" y="420" width="520" height="36" fill="#FFFFFF"/>
+    <rect id="r6d" x="924" y="420" width="292" height="36" fill="#FFFFFF"/>
+    <text id="r6a" x="164" y="443" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">绿色</text>
+    <text id="r6b2" x="334" y="443" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">G2</text>
+    <text id="r6c2" x="420" y="443" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">单位吨公里碳排放</text>
+    <text id="r6d2" x="1070" y="443" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#2E7CF6" text-anchor="middle">软约束</text>
+    <!-- 行7 -->
+    <rect id="r7" x="64" y="456" width="200" height="36" fill="#F4F7FA"/>
+    <rect id="r7b" x="264" y="456" width="140" height="36" fill="#F4F7FA"/>
+    <rect id="r7c" x="404" y="456" width="520" height="36" fill="#F4F7FA"/>
+    <rect id="r7d" x="924" y="456" width="292" height="36" fill="#F4F7FA"/>
+    <text id="r7a" x="164" y="479" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">利用 / 可靠</text>
+    <text id="r7b2" x="334" y="479" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">U3 · R4–R6</text>
+    <text id="r7c2" x="420" y="479" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">在线率 · 事故数 · 维修车 · 休息司机</text>
+    <text id="r7d2" x="1070" y="479" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B" text-anchor="middle">风险监控</text>
+    <!-- 行8 -->
+    <rect id="r8" x="64" y="492" width="200" height="36" fill="#FFFFFF"/>
+    <rect id="r8b" x="264" y="492" width="140" height="36" fill="#FFFFFF"/>
+    <rect id="r8c" x="404" y="492" width="520" height="36" fill="#FFFFFF"/>
+    <rect id="r8d" x="924" y="492" width="292" height="36" fill="#FFFFFF"/>
+    <text id="r8a" x="164" y="515" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">公平 / 算法</text>
+    <text id="r8b2" x="334" y="515" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">F2 · A3</text>
+    <text id="r8c2" x="420" y="515" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">拒单数 · 优化 Gap</text>
+    <text id="r8d2" x="1070" y="515" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B" text-anchor="middle">监控 / 算法层</text>
+    <!-- 行9 -->
+    <rect id="r9" x="64" y="528" width="200" height="36" fill="#F4F7FA"/>
+    <rect id="r9b" x="264" y="528" width="140" height="36" fill="#F4F7FA"/>
+    <rect id="r9c" x="404" y="528" width="520" height="36" fill="#F4F7FA"/>
+    <rect id="r9d" x="924" y="528" width="292" height="36" fill="#F4F7FA"/>
+    <text id="r9a" x="164" y="551" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433" text-anchor="middle">其余</text>
+    <text id="r9b2" x="334" y="551" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="18" fill="#0F2B46" text-anchor="middle">M1–M4 · C1 · C3 · S · R1–R3 · F3</text>
+    <text id="r9c2" x="420" y="551" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#1A2433">精准度 / 基线 / ROI / 周期 / MTBF 等（待落地）</text>
+    <text id="r9d2" x="1070" y="551" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B" text-anchor="middle">待落地</text>
+  </g>
+  <!-- 结论条 -->
+  <rect id="concl-bg" x="64" y="596" width="1152" height="64" rx="12" fill="#0F2B46"/>
+  <!-- icon: tabler-outline/circle-check -->
+  <g transform="translate(96, 616) scale(1.16667)" fill="none" stroke="#00B0F0" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M9 12l2 2l4 -4" />
+  </g>
+  <text id="concl-t" x="140" y="636" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#FFFFFF">不存在全指标最优单解</text>
+  <text id="concl-d" x="140" y="656" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">C2 裁决 + U2/U4/T2 主目标 + F1/G2 软约束——帕累托前沿显式呈现经营取舍</text>
+  <line id="footer-line" x1="64" y1="690" x2="1216" y2="690" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="712" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: 统计指标总结与全局优化对象.md · 附录指标总表</text>
+</svg>

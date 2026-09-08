@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 1 · 指标体系</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">04 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">效率维度：装载率、空驶率与响应时间是核心</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">U2 / U4 / T2 构成效率三支柱，时间与距离明细指标为支撑</text>
+  <!-- 三列 hero 卡 -->
+  <g id="col1">
+    <rect id="col1-bg" x="64" y="210" width="360" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/gauge -->
+  <g transform="translate(96, 240) scale(1.66667)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M13.41 10.59l2.59 -2.59" />
+    <path d="M7 12a5 5 0 0 1 5 -5" />
+  </g>
+    <text id="col1-id" x="96" y="318" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">U2</text>
+    <text id="col1-t" x="96" y="360" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">装载率均值±标准差</text>
+    <line id="col1-line" x1="96" y1="384" x2="392" y2="384" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="col1-c" x="96" y="420" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">口径：size / capacity</text>
+    <text id="col1-d" x="96" y="456" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">均值看装载深度</text>
+    <text id="col1-d2" x="96" y="488" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">标准差看负载均衡度</text>
+    <text id="col1-n" x="96" y="560" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">避免少数车满载、多数车空跑</text>
+    <text id="col1-opt" x="96" y="596" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#1F9D55">→ 全局优化主目标 ↑</text>
+  </g>
+  <g id="col2">
+    <rect id="col2-bg" x="460" y="210" width="360" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/route -->
+  <g transform="translate(492, 240) scale(1.66667)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+    <text id="col2-id" x="492" y="318" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">U4</text>
+    <text id="col2-t" x="492" y="360" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">空驶率</text>
+    <line id="col2-line" x1="492" y1="384" x2="788" y2="384" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="col2-c" x="492" y="420" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">口径：空驶里程 / 总里程</text>
+    <text id="col2-d" x="492" y="456" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">直接度量运力浪费</text>
+    <text id="col2-d2" x="492" y="488" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">空满比 EmptyFullRatio 互补</text>
+    <text id="col2-n" x="492" y="560" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">成本与碳排放的共同驱动因子</text>
+    <text id="col2-opt" x="492" y="596" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#1F9D55">→ 全局优化主目标 ↓</text>
+  </g>
+  <g id="col3">
+    <rect id="col3-bg" x="856" y="210" width="360" height="420" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/clock -->
+  <g transform="translate(888, 240) scale(1.66667)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+    <path d="M12 7v5l3 3" />
+  </g>
+    <text id="col3-id" x="888" y="318" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="24" fill="#00B0F0">T2</text>
+    <text id="col3-t" x="888" y="360" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="36" font-weight="bold" fill="#0F2B46">匹配响应 P50/P95/P99</text>
+    <line id="col3-line" x1="888" y1="384" x2="1184" y2="384" stroke="#D7E0E8" stroke-width="1"/>
+    <text id="col3-c" x="888" y="420" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">口径：分配时刻 − 创建时刻</text>
+    <text id="col3-d" x="888" y="456" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">仅统计已进入派单流程运单</text>
+    <text id="col3-d2" x="888" y="488" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">P95 暴露尾部劣化</text>
+    <text id="col3-n" x="888" y="560" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0">时效是与效率兼得最难的目标</text>
+    <text id="col3-opt" x="888" y="596" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#1F9D55">→ 全局优化主目标 ↓</text>
+  </g>
+  <!-- 底部支撑指标条 -->
+  <rect id="support-bg" x="64" y="650" width="1152" height="52" rx="10" fill="#0F2B46"/>
+  <text id="support-t" x="96" y="682" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#FFFFFF">支撑指标：车辆等待 · 货物等待（吨×秒加权）· 运输时间 · 空驶分布 · 等运占比</text>
+  <line id="footer-line" x1="64" y1="716" x2="1216" y2="716" stroke="#D7E0E8" stroke-width="1"/>
+</svg>

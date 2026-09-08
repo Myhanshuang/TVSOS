@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kiritosuki/mover/internal/Logger"
-	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/constant"
 	"github.com/kiritosuki/mover/internal/database"
 	"github.com/kiritosuki/mover/internal/model"
@@ -20,9 +19,7 @@ import (
 // 3. 运行 SimulateMoving 推进
 func TestFullScheduleSimulation(t *testing.T) {
 	// 初始化
-	Logger.InitLogger()
-	config.InitViper()
-	database.InitDB()
+	setupTestDB(t)
 	db := database.DB
 
 	// 清理并准备数据

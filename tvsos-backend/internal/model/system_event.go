@@ -16,4 +16,5 @@ type SystemEvent struct {
 	Level     string    `json:"level" gorm:"column:level"`
 	Message   string    `json:"message" gorm:"column:message"`
 	Detail    string    `json:"detail" gorm:"column:detail;type:text"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

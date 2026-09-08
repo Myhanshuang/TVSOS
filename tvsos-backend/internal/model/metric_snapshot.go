@@ -27,4 +27,5 @@ type MetricSnapshot struct {
 	GiniCoefficient     float64   `json:"giniCoefficient" gorm:"column:gini_coefficient"`
 	CarbonTotal         float64   `json:"carbonTotal" gorm:"column:carbon_total"`
 	CarbonPerTonKm      float64   `json:"carbonPerTonKm" gorm:"column:carbon_per_ton_km"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

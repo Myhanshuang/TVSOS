@@ -16,4 +16,5 @@ type MatchingLog struct {
 	CandidateRanking   string    `json:"candidateRanking" gorm:"column:candidate_ranking;type:text"`
 	GroundTruthVehicle uint      `json:"groundTruthVehicle" gorm:"column:ground_truth_vehicle"`
 	CreatedAt          time.Time `json:"createdAt" gorm:"column:created_at"`
+	ExperimentId uint       `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

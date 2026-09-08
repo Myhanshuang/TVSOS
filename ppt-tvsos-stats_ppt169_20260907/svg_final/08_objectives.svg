@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 2 · 全局优化对象选型</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">08 / 10</text>
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">4 主目标 + 2 软约束的全局优化框架</text>
+  <text id="lead-line" x="64" y="172" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">C2 裁决，U2 / U4 / T2 过程主目标；F1 / G2 软约束；其余指标监控不优化</text>
+  <!-- 主目标：一行4卡 -->
+  <g id="objectives">
+    <rect id="o1" x="64" y="210" width="264" height="280" rx="12" fill="#0F2B46"/>
+    <!-- icon: tabler-outline/target -->
+  <g transform="translate(96, 236) scale(1.5)" fill="none" stroke="#00B0F0" stroke-width="2">
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" />
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+  </g>
+    <text id="o1-rank" x="96" y="300" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="20" fill="#00B0F0">#1 裁决目标</text>
+    <text id="o1-id" x="96" y="340" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="40" font-weight="bold" fill="#FFFFFF">C2 ↓</text>
+    <text id="o1-t" x="96" y="376" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#F4F7FA">单位成本最小化</text>
+    <line id="o1-line" x1="96" y1="398" x2="296" y2="398" stroke="#2E7CF6" stroke-width="1"/>
+    <text id="o1-d" x="96" y="430" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">归一化经营指标，跨场景可比</text>
+    <text id="o1-d2" x="96" y="458" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">与 Cost A–F 同源，决策单一叙事</text>
+    <rect id="o2" x="352" y="210" width="264" height="280" rx="12" fill="#0F2B46"/>
+    <!-- icon: tabler-outline/gauge -->
+  <g transform="translate(384, 236) scale(1.5)" fill="none" stroke="#00B0F0" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M13.41 10.59l2.59 -2.59" />
+    <path d="M7 12a5 5 0 0 1 5 -5" />
+  </g>
+    <text id="o2-rank" x="384" y="300" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="20" fill="#00B0F0">#2 过程目标</text>
+    <text id="o2-id" x="384" y="340" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="40" font-weight="bold" fill="#FFFFFF">U2 ↑</text>
+    <text id="o2-t" x="384" y="376" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#F4F7FA">装载率均值最大化</text>
+    <line id="o2-line" x1="384" y1="398" x2="584" y2="398" stroke="#2E7CF6" stroke-width="1"/>
+    <text id="o2-d" x="384" y="430" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">同时压标准差，看负载均衡</text>
+    <text id="o2-d2" x="384" y="458" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">与 ByCapacity 同源，链路成熟</text>
+    <rect id="o3" x="640" y="210" width="264" height="280" rx="12" fill="#0F2B46"/>
+    <!-- icon: tabler-outline/route -->
+  <g transform="translate(672, 236) scale(1.5)" fill="none" stroke="#00B0F0" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+    <text id="o3-rank" x="672" y="300" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="20" fill="#00B0F0">#3 过程目标</text>
+    <text id="o3-id" x="672" y="340" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="40" font-weight="bold" fill="#FFFFFF">U4 ↓</text>
+    <text id="o3-t" x="672" y="376" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#F4F7FA">空驶率最小化</text>
+    <line id="o3-line" x1="672" y1="398" x2="872" y2="398" stroke="#2E7CF6" stroke-width="1"/>
+    <text id="o3-d" x="672" y="430" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">燃油/成本/碳排共同驱动因子</text>
+    <text id="o3-d2" x="672" y="458" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">优化它一举三得</text>
+    <rect id="o4" x="928" y="210" width="264" height="280" rx="12" fill="#0F2B46"/>
+    <!-- icon: tabler-outline/clock -->
+  <g transform="translate(960, 236) scale(1.5)" fill="none" stroke="#00B0F0" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+    <path d="M12 7v5l3 3" />
+  </g>
+    <text id="o4-rank" x="960" y="300" font-family="Consolas, &quot;Courier New&quot;, monospace" font-size="20" fill="#00B0F0">#4 过程目标</text>
+    <text id="o4-id" x="960" y="340" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="40" font-weight="bold" fill="#FFFFFF">T2 ↓</text>
+    <text id="o4-t" x="960" y="376" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#F4F7FA">匹配响应 P95 最小化</text>
+    <line id="o4-line" x1="960" y1="398" x2="1160" y2="398" stroke="#2E7CF6" stroke-width="1"/>
+    <text id="o4-d" x="960" y="430" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">尾部指标，时效对冲项</text>
+    <text id="o4-d2" x="960" y="458" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#F4F7FA">防止拼车优化导致订单滞留</text>
+  </g>
+  <!-- 软约束条 -->
+  <g id="constraints">
+    <rect id="k1" x="64" y="516" width="560" height="64" rx="10" fill="#F4F7FA" stroke="#1F9D55" stroke-width="2"/>
+    <!-- icon: tabler-outline/scale -->
+  <g transform="translate(92, 534) scale(1.16667)" fill="none" stroke="#1F9D55" stroke-width="2">
+    <path d="M7 20l10 0" />
+    <path d="M6 6l6 -1l6 1" />
+    <path d="M12 3l0 17" />
+    <path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0" />
+    <path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0" />
+  </g>
+    <text id="k1-t" x="132" y="556" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">软约束：F1 基尼系数 ≤ 0.4</text>
+    <text id="k1-d" x="132" y="578" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">防止为拼效率把运单集中给少数车辆</text>
+    <rect id="k2" x="656" y="516" width="560" height="64" rx="10" fill="#F4F7FA" stroke="#1F9D55" stroke-width="2"/>
+    <!-- icon: tabler-outline/leaf -->
+  <g transform="translate(684, 534) scale(1.16667)" fill="none" stroke="#1F9D55" stroke-width="2">
+    <path d="M5 21c.5 -4.5 2.5 -8 7 -10" />
+    <path d="M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0" />
+  </g>
+    <text id="k2-t" x="724" y="556" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#1A2433">软约束：G2 单位碳排</text>
+    <text id="k2-d" x="724" y="578" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">与 U4 强正相关，优化空驶自动改善，报告即可</text>
+  </g>
+  <!-- 底部监控说明 -->
+  <text id="monitor-note" x="64" y="624" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="18" fill="#5A6B7B">风险监控（不优化）：U3 在线率 · R4 事故数 · R5 维修车 · R6 休息司机 · F2 拒单数 · M 系精准度（P2 待落地）</text>
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="692" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: 统计指标总结与全局优化对象.md · §2.2/§2.3</text>
+</svg>

@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" data-pptx-page-role="content">
+  <rect id="bg" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <!-- 页眉 -->
+  <text id="header-tag" x="64" y="48" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#00B0F0" letter-spacing="3">PART 1 · 指标体系</text>
+  <text id="header-page" x="1216" y="48" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="20" fill="#5A6B7B" text-anchor="end">02 / 10</text>
+  <!-- 页面标题（结论先行） -->
+  <text id="page-title" x="64" y="120" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="56" font-weight="bold" fill="#0F2B46">八维指标覆盖调度全链路，估算透明、口径统一</text>
+  <!-- 核心信息行 -->
+  <text id="lead-line" x="64" y="170" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" fill="#1A2433">后端统计覆盖 10 个子模块，映射为 8 类业务维度——每项均有明确口径、数据来源与前端实时展示</text>
+  <!-- 8 张维度卡 4x2 -->
+  <g id="card-row1">
+    <rect id="c1" x="64" y="210" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/truck -->
+  <g transform="translate(88, 234) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M5 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M15 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    <path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5" />
+  </g>
+    <text id="c1-t" x="88" y="300" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">车辆概况</text>
+    <text id="c1-d" x="88" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">车型分布 · 运能分布 · 货舱载货 · 位置聚散</text>
+    <text id="c1-n" x="88" y="366" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">运力池画像，指标分母基础</text>
+    <rect id="c2" x="360" y="210" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/gauge -->
+  <g transform="translate(384, 234) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M13.41 10.59l2.59 -2.59" />
+    <path d="M7 12a5 5 0 0 1 5 -5" />
+  </g>
+    <text id="c2-t" x="384" y="300" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">利用率 U</text>
+    <text id="c2-d" x="384" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">U2 装载率 · U3 在线率 · U4 空驶率</text>
+    <text id="c2-n" x="384" y="366" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">维修中车辆剔除，口径不失真</text>
+    <rect id="c3" x="656" y="210" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/clock -->
+  <g transform="translate(680, 234) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+    <path d="M12 7v5l3 3" />
+  </g>
+    <text id="c3-t" x="680" y="300" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">时间与响应 T</text>
+    <text id="c3-d" x="680" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">车辆/货物等待 · T2 响应 P50/P95/P99</text>
+    <text id="c3-n" x="680" y="366" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">分位数暴露尾部劣化</text>
+    <rect id="c4" x="952" y="210" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/route -->
+  <g transform="translate(976, 234) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+    <path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4" />
+    <path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5" />
+  </g>
+    <text id="c4-t" x="976" y="300" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">距离里程 D</text>
+    <text id="c4-d" x="976" y="330" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">空驶/载重/总里程 · 空满比 · 空驶分布</text>
+    <text id="c4-n" x="976" y="366" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">阶段切分口径，估算透明</text>
+  </g>
+  <g id="card-row2">
+    <rect id="c5" x="64" y="420" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/package -->
+  <g transform="translate(88, 444) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
+    <path d="M12 12l8 -4.5" />
+    <path d="M12 12l0 9" />
+    <path d="M12 12l-8 -4.5" />
+    <path d="M16 5.25l-8 4.5" />
+  </g>
+    <text id="c5-t" x="88" y="510" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">货物与吞吐</text>
+    <text id="c5-d" x="88" y="540" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">总/在途/完成吨 · 吨公里 · 待处理损耗</text>
+    <text id="c5-n" x="88" y="576" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">吨公里为核心归一化基准</text>
+    <rect id="c6" x="360" y="420" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/coins -->
+  <g transform="translate(384, 444) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M9 14c0 1.657 2.686 3 6 3s6 -1.343 6 -3s-2.686 -3 -6 -3s-6 1.343 -6 3" />
+    <path d="M9 14v4c0 1.656 2.686 3 6 3s6 -1.344 6 -3v-4" />
+    <path d="M3 6c0 1.072 1.144 2.062 3 2.598s4.144 .536 6 0c1.856 -.536 3 -1.526 3 -2.598c0 -1.072 -1.144 -2.062 -3 -2.598s-4.144 -.536 -6 0c-1.856 .536 -3 1.526 -3 2.598" />
+    <path d="M3 6v10c0 .888 .772 1.45 2 2" />
+    <path d="M3 11c0 .888 .772 1.45 2 2" />
+  </g>
+    <text id="c6-t" x="384" y="510" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">成本 C</text>
+    <text id="c6-d" x="384" y="540" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Cost A–F 闭环 · C2 单位成本</text>
+    <text id="c6-n" x="384" y="576" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">F 直接驱动 SA/NF 调度打分</text>
+    <rect id="c7" x="656" y="420" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/leaf -->
+  <g transform="translate(680, 444) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M5 21c.5 -4.5 2.5 -8 7 -10" />
+    <path d="M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0" />
+  </g>
+    <text id="c7-t" x="680" y="510" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">绿色 G</text>
+    <text id="c7-d" x="680" y="540" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">G1 总碳排放 · G2 单位吨公里碳排</text>
+    <text id="c7-n" x="680" y="576" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">排放因子配置化，可替换估算</text>
+    <rect id="c8" x="952" y="420" width="272" height="190" rx="12" fill="#F4F7FA" stroke="#D7E0E8" stroke-width="1"/>
+    <!-- icon: tabler-outline/scale -->
+  <g transform="translate(976, 444) scale(1.5)" fill="none" stroke="#0F2B46" stroke-width="2">
+    <path d="M7 20l10 0" />
+    <path d="M6 6l6 -1l6 1" />
+    <path d="M12 3l0 17" />
+    <path d="M9 12l-3 -6l-3 6a3 3 0 0 0 6 0" />
+    <path d="M21 12l-3 -6l-3 6a3 3 0 0 0 6 0" />
+  </g>
+    <text id="c8-t" x="976" y="510" font-family="SimHei, &quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="24" font-weight="bold" fill="#0F2B46">公平 F · 可靠 R</text>
+    <text id="c8-d" x="976" y="540" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">F1 基尼 · F2 拒单 · R4 事故 · R5/R6 维修休息</text>
+    <text id="c8-n" x="976" y="576" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#00B0F0">随机事件引擎纳入统计</text>
+  </g>
+  <!-- 页脚 -->
+  <line id="footer-line" x1="64" y1="668" x2="1216" y2="668" stroke="#D7E0E8" stroke-width="1"/>
+  <text id="footer-src" x="64" y="692" font-family="&quot;Microsoft YaHei&quot;, Arial, sans-serif" font-size="16" fill="#5A6B7B">Source: internal/task/stats.go · realtime_stats.go · random_event.go</text>
+</svg>
