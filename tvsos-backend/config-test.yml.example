@@ -1,0 +1,36 @@
+# 测试专用配置（复制为 config-test.yml 后使用；指向独立测试库，严禁填生产库）
+# task 包测试强制读取本文件，且 database.dbname 必须包含 "test" 字样，否则测试自动 Skip。
+server:
+  port: 8089
+database:
+  dbname: mover_test        # 必须含 test
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: your_password
+
+amap:
+  key: your_amap_key
+
+scheduler:
+  mode: hybrid
+  candidate_k: 5
+  cost_fallback: nf_first
+
+realtime:
+  stats_push_interval_sec: 3
+
+random_events:
+  enabled: true
+  driver_refuse_prob: 0.06
+  refuse_max_per_shipment: 2
+  rest_after_hours: 4
+  rest_minutes: 20
+  weather_prob_per_tick: 0.0005
+  weather_delay_seconds: [1800, 7200]
+  accident_prob_per_tick: 0.0002
+  maintenance_seconds: [3600, 21600]
+  level_factor: [1.4, 1.2, 1.0, 0.85, 0.7]
+
+redis:
+  enabled: false

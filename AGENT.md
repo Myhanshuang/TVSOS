@@ -34,7 +34,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 
 ## 红线（先读这里）
 
-1. **绝不在真实数据库上运行 `go test ./internal/task/`** —— 测试连真实 MySQL 且会清空导入的车辆数据（历史上清掉过 20 辆车）。要测试请先备份或隔离库。
+1. ~~绝不在真实数据库上运行 go test~~ **已解除**（2026-09-08）：task 包测试强制读 config-test.yml（独立测试库，库名须含 test），缺失即 Skip，见 test_helper_test.go。
 2. `go build ./...` 必失败：scripts/ 下的导入脚本有独立 main（双 main 属预期）。主程序用上面的单包构建命令。
 3. `config-dev.yml` 被 gitignore（含数据库口令与随机事件参数），**新环境需手动提供**；`*.exe`、`dist/` 同样不入库。
 4. 后端改动需 `go build -o mover-v.exe .` 重新构建并重启进程才生效。
@@ -86,11 +86,45 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - 中文提交信息，conventional 前缀：`feat:` / `fix:` / `docs:`
 - 只 commit 不 push；近期提交：af9a22f（指标落地清理）、58bc9c5（P2 匹配质量）
 
+
+
+---
+
+## 沙箱系统（2026-09-08 落地，当前主流程）
+
+概念：`User(研究者) → Sandbox(世界设定) → ExperimentScheme(参数模板) → Experiment(批次:参数快照+种子+结果)`。
+默认主页是沙箱管理页（/admin/sandboxes），登录（admin/admin123）→ 沙箱 → 新建实验（参数面板/TOML/种子导入）→ 生成数据 → 开始实验 → 地图三屏 → 到达固定虚拟时长自动完成 → 结果页；对比页 /admin/sandbox/:id/compare。
+
+### 后端要点
+- **单实验串行**：`internal/task/experiment_runtime.go` ExperimentRuntime，同一时刻仅一个活跃实验；POST /experiments/:id/start|stop 控制生命周期；服务重启=当前实验 abort（AbortStaleExperiments）。
+- **虚拟时钟（严格复现）**：`virtual_clock.go`，虚拟时间=起点+tick×步长；pause_until/阶段时间戳/事件时刻/快照时刻全是虚拟时间；倍速只改真实 tick 频率。
+- **单线程 tick**：masterLoop 每 tick 顺序执行 释放订单→SA派单→消费事件→恢复→移动→快照，RNG 消费序确定 ⇒ 同种子逐 tick 一致（已验证：总成本 35025.80213604554 两次一致）。
+- **种子 RNG**：rt.rng=rand.New(rand.NewSource(seed))；SA/司机等级/拒单全走它；天气/车祸由**预生成脚本**（experiment_event 表）到点消费。
+- **数据生成器** `internal/sandbox/gen`：Generate 纯函数（订单流泊松/均匀 + 天气/车祸逐 tick 摇号），同种子逐字节一致（generator_test.go 4 项单测）；`internal/sandbox/params.go` 是世界规则/实验参数 TOML 模式与默认值，DataGeneratorVersion 供种子导入校验。
+- **数据隔离**：9 张运行表带 experiment_id（0=沙箱模板/全局，>0=实验实例）；实验启动时从 sandbox.fleet_template 实例化本实验专属 vehicle/driver 行；scoped_repo.go 全是按实验过滤的查询变体。
+- **结果层**：experiment_result（summary_json 全量 + primary_metrics 主目标 C2/U2/U4/T2/F1/G2 + convergence SA 收敛曲线）；订单/事件脚本在 experiment_order/experiment_event。
+- **登录**：简单演示级——user 表+bcrypt+内存 token（24h，重启失效），/auth/login|register|profile|logout；middleware.AuthRequired 挂全部业务路由（WS 走 ?token=）；除 /auth/login|register 与 /swagger 外全保护。
+- **经济/交通环境**：cost.go SetEconomyRules（实验启动注入，A 项追加货币化里程成本=油价+过路费+人力）；rt.SpeedKmhAt 分时段速度系数（rush_hours × rush_speed_factor，同时决定每 tick 推进点数与时长/疲劳累计）。
+- R1-R3 可靠性/T1 吞吐观测窗口改为**实验生命周期**（虚拟时钟起点至今），不再用最近一次 startup 事件。
+- 指标快照改由运行时每 6 虚拟 tick 写入（原 MetricSnapshotLoop 已删；BroadcastStatsLoop 改为运行时的 3s 真实秒展示推送，不影响仿真状态）。
+- MockShipments 接口与前端 mock 按钮已删除（由数据生成器取代）。
+
+### 前端要点
+- 新页面：views/sandboxList.vue、sandboxDetail.vue（方案+实验记录+种子导入导出）、experimentResult.vue、experimentCompare.vue、components/experimentConfig.vue（表单↔TOML 双向）。
+- index.vue 三屏现在是实验视图 /admin/experiment/:id；header.vue 按场景切换导航（实验侧有三屏导航/倍速/虚拟时钟进度条/结束实验；沙箱侧只有沙箱管理入口），退出登录真实化。
+- WS 连接统一经 withToken() 附加 ?token=（statistics2.vue / vehiclePolling.js）。
+- request.js 无条件携带 Authorization: Bearer，401 自动清 token 回登录页。
+
+### 测试红线更新
+- task 包测试现在强制走 **config-test.yml**（库名必须含 test 字样，否则 Skip/拒绝），解除"跑 go test 清生产库"红线。纯内存桩运行时 newStubRuntime() 供纯函数单测。
+- 生成器单测 `go test ./internal/sandbox/...` 与 task 包纯单测可安全跑。
+
 ## PPT 产物（可选参考）
 
 - `ppt-tvsos-stats_ppt169_20260907/exports/*.pptx`：10 页指标汇报（基于指标文档生成）
 - 该目录不 git 跟踪；指标文档更新后 PPT 内容可能滞后，需重新生成时走 ppt-master 流程
 
 ## 服务状态（默认停止）
+注意：沙箱化后**仿真不再随进程常驻**，服务启动后须在沙箱页创建实验并"生成数据→开始实验"，地图才有数据。
 
 服务当前未运行。启动：先起后端 `mover-v.exe`（等 DB/司机绑定日志就绪），再起前端 `npm run dev`，访问 http://localhost:5173。注意：重启后端会重置 M 系/A2/R1-R3 的进程内窗口累计（DB 表数据保留）。
