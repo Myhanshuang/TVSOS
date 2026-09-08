@@ -1,17 +1,18 @@
 <script setup>
-import request from '@/utils/request.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useMapAnimationStore, useVisibleStore, useTargetStore } from '@/stores'
-import { ref, onMounted, computed } from 'vue'
+import { useMapAnimationStore, useVisibleStore, useTargetStore, useUserStore } from '@/stores'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation'
+import { getExperimentStatus, stopExperiment } from '@/api/sandbox'
+import { userLogout } from '@/api/user'
 import PoiList from '@/components/poiList.vue'
 import VehicleList from '@/components/vehicleList.vue'
 // 导入图标
 import {
     MapLocation, DataAnalysis, List,
     Van, Location, VideoPlay, VideoPause,
-    Box, SwitchButton, Odometer, ArrowDown
+    SwitchButton, Odometer, ArrowDown, Collection, Clock, CloseBold
 } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -19,6 +20,7 @@ const router = useRouter()
 const route = useRoute()
 const target = useTargetStore()
 const visible = useVisibleStore()
+const userStore = useUserStore()
 const drawerVisible = ref(false)
 const vehicleDrawerVisible = ref(false)
 
@@ -27,23 +29,69 @@ const openVehicleDrawer = () => vehicleDrawerVisible.value = true
 
 const mapAnimationStore = useMapAnimationStore()
 const { isPollingActive } = storeToRefs(mapAnimationStore)
-const mockCount = ref(5)
 
-// ... (逻辑部分保持不变，仅优化 HTML/CSS) ...
+// 当前是否处于实验视图（三屏页）
+const experimentId = computed(() => {
+    const m = route.path.match(/^\/admin\/experiment\/(\d+)$/)
+    return m ? Number(m[1]) : 0
+})
+const inExperiment = computed(() => experimentId.value > 0)
 
-const handleMockShipments = async () => {
-    if (mockCount.value <= 0 || !Number.isInteger(mockCount.value)) {
-        ElMessage.warning('请输入一个有效的正整数')
-        return
-    }
+// ---- 实验状态条：虚拟时钟/进度（每5s轮询实验状态） ----
+const expStatus = ref({ virtualTime: '', progress: 0, status: '' })
+let statusTimer = null
+const pollExperimentStatus = async () => {
+    if (!experimentId.value) return
     try {
-        await ElMessageBox.confirm(`确定要生成 ${mockCount.value} 条模拟订单数据吗？`, '确认操作', {
-            confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
-        })
-        const res = await request.post(`/shipments/mock/${mockCount.value}`)
-        if (res.data.code === 1) ElMessage.success(`成功生成数据`)
-    } catch (err) { /* handle error */ }
+        const res = await getExperimentStatus(experimentId.value)
+        if (res.data.code === 1) expStatus.value = res.data.data
+        // 实验已结束（自然完成/中止）→ 提示并跳结果页或返回沙箱
+        if (['finished', 'aborted', 'failed'].includes(res.data.data.status)) {
+            stopStatusTimer()
+            if (res.data.data.status === 'finished') {
+                ElMessage.success('模拟周期已完成，正在跳转结果页')
+                router.push(`/admin/experiment/${experimentId.value}/result`)
+            } else {
+                ElMessage.warning('实验已结束（中止/失败）')
+                router.back()
+            }
+        }
+    } catch (e) { /* 忽略瞬时错误 */ }
 }
+const stopStatusTimer = () => { if (statusTimer) { clearInterval(statusTimer); statusTimer = null } }
+watch(experimentId, (id) => {
+    stopStatusTimer()
+    if (id > 0) {
+        pollExperimentStatus()
+        statusTimer = setInterval(pollExperimentStatus, 5000)
+    }
+}, { immediate: true })
+onUnmounted(stopStatusTimer)
+
+// 结束并退出实验（人工中止 → 回沙箱详情页）
+const handleExitExperiment = async () => {
+    try {
+        await ElMessageBox.confirm('确定要中止当前实验并退出吗？（数据将标记为中止，不生成终态结果）', '结束实验', {
+            confirmButtonText: '中止并退出', cancelButtonText: '继续模拟', type: 'warning',
+        })
+    } catch { return }
+    try {
+        await stopExperiment(experimentId.value)
+        ElMessage.info('实验已中止')
+    } catch (e) { /* 可能已自然完成 */ }
+    router.push(`/admin/sandbox/${routeSandboxId.value}`)
+}
+// 从实验详情里拿不到 sandboxId 时回沙箱首页兜底
+const routeSandboxId = ref('')
+import { getExperiment } from '@/api/sandbox'
+watch(experimentId, async (id) => {
+    if (id > 0) {
+        try {
+            const res = await getExperiment(id)
+            if (res.data.code === 1) routeSandboxId.value = res.data.data.experiment.sandboxId
+        } catch (e) { }
+    }
+}, { immediate: true })
 
 const currentSpeed = ref(1.0)
 const speedOptions = [1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
@@ -66,6 +114,14 @@ const initSpeed = async () => {
 }
 
 onMounted(() => initSpeed())
+
+// 真实退出登录：调后端注销 + 清本地 token + 回登录页
+const handleLogout = async () => {
+    try { await userLogout() } catch (e) { }
+    userStore.removeToken()
+    userStore.clearUserInfo()
+    router.push('/login')
+}
 </script>
 
 <template>
@@ -79,30 +135,44 @@ onMounted(() => initSpeed())
             <span class="logo-text">TVSOS</span>
         </div>
 
-        <!-- 2. 主导航区域 -->
-        <div class="nav-main">
-            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isFirstVisible }" @click="() => { router.push('/admin/home'); target.targetChange('first') }">
+        <!-- 2. 主导航区域（按场景切换：沙箱管理侧 / 实验运行侧） -->
+        <div class="nav-main" v-if="!inExperiment">
+            <div class="nav-item" :class="{ active: route.path.startsWith('/admin/sandbox') }" @click="router.push('/admin/sandboxes')">
+                <el-icon>
+                    <Collection />
+                </el-icon>
+                <span class="nav-text">沙箱管理</span>
+            </div>
+        </div>
+        <div class="nav-main" v-else>
+            <div class="nav-item" :class="{ active: visible.isFirstVisible }" @click="target.targetChange('first')">
                 <el-icon>
                     <MapLocation />
                 </el-icon>
                 <span class="nav-text">地图视图</span>
             </div>
-            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isSecondVisible }" @click="() => { router.push('/admin/home'); target.targetChange('second') }">
+            <div class="nav-item" :class="{ active: visible.isSecondVisible }" @click="target.targetChange('second')">
                 <el-icon>
                     <DataAnalysis />
                 </el-icon>
                 <span class="nav-text">统计分析</span>
             </div>
-            <div class="nav-item" :class="{ active: route.path === '/admin/home' && visible.isThirdVisible }" @click="() => { router.push('/admin/home'); target.targetChange('third') }">
+            <div class="nav-item" :class="{ active: visible.isThirdVisible }" @click="target.targetChange('third')">
                 <el-icon>
                     <List />
                 </el-icon>
                 <span class="nav-text">任务管理</span>
             </div>
+            <!-- 实验状态条：虚拟时钟 + 进度 -->
+            <div class="exp-status" v-if="expStatus.virtualTime">
+                <el-icon><Clock /></el-icon>
+                <span class="exp-vt">{{ expStatus.virtualTime }}</span>
+                <el-progress :percentage="Math.round((expStatus.progress || 0) * 100)" :stroke-width="8" style="width: 120px" />
+            </div>
         </div>
 
-        <!-- 3. 数据列表入口 (小按钮组) -->
-        <div class="data-group">
+        <!-- 3. 数据列表入口 (小按钮组；仅实验运行视图显示) -->
+        <div class="data-group" v-if="inExperiment">
             <el-button-group>
                 <el-button @click="openVehicleDrawer" :icon="Van">
                     <span class="btn-text">车辆</span>
@@ -113,8 +183,8 @@ onMounted(() => initSpeed())
             </el-button-group>
         </div>
 
-        <!-- 4. 仿真控制区 (带背景的集成区域) -->
-        <div class="simulation-panel">
+        <!-- 4. 仿真控制区 (带背景的集成区域；仅实验运行视图显示) -->
+        <div class="simulation-panel" v-if="inExperiment">
             <div class="speed-control">
                 <el-icon>
                     <Odometer />
@@ -146,23 +216,23 @@ onMounted(() => initSpeed())
                     @click="mapAnimationStore.pausePolling" :disabled="!isPollingActive" />
             </div>
 
-            <div class="mock-group">
-                <el-input-number v-model="mockCount" :min="1" size="small" controls-position="right"
-                    class="mock-input" />
-                <el-button type="primary" plain size="small" :icon="Box" @click="handleMockShipments">
-                    <span class="btn-text">Mock</span>
+            <!-- 实验视图：结束并退出 -->
+            <div class="exit-exp" v-if="inExperiment">
+                <el-button type="danger" plain size="small" :icon="CloseBold" @click="handleExitExperiment">
+                    <span class="btn-text">结束实验</span>
                 </el-button>
             </div>
         </div>
 
-        <!-- 5. 用户退出 -->
+        <!-- 5. 用户退出（真实登录：显示当前用户，点击注销） -->
         <div class="user-section">
-            <router-link to="/login" class="exit-btn">
+            <span class="user-name">{{ userStore.displayName || userStore.username }}</span>
+            <a class="exit-btn" @click="handleLogout">
                 <el-icon>
                     <SwitchButton />
                 </el-icon>
                 <span>退出登录</span>
-            </router-link>
+            </a>
         </div>
     </header>
 
@@ -432,4 +502,31 @@ onMounted(() => initSpeed())
         padding: 0;
     }
 }
+
+.exp-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 24px;
+    color: #606266;
+    font-size: 13px;
+}
+.exp-vt { font-family: monospace; }
+.exit-exp { margin-left: 16px; }
+.user-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+.user-name { color: #303133; font-size: 14px; font-weight: 500; }
+.exit-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #606266;
+    cursor: pointer;
+    text-decoration: none;
+}
+.exit-btn:hover { color: #f56c6c; }
 </style>

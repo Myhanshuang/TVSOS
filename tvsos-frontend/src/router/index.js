@@ -4,6 +4,10 @@ import header from '@/views/header.vue'
 import index from '@/views/index.vue'
 import ForgotPassword from '@/views/ForgotPassword.vue'
 import landing from '@/views/landing.vue'
+import sandboxList from '@/views/sandboxList.vue'
+import sandboxDetail from '@/views/sandboxDetail.vue'
+import experimentResult from '@/views/experimentResult.vue'
+import experimentCompare from '@/views/experimentCompare.vue'
 import { useUserStore } from '@/stores'
 
 const router = createRouter({
@@ -20,10 +24,21 @@ const router = createRouter({
     }, {
       path: '/admin',
       component: header,
-      redirect: '/admin/home',
+      redirect: '/admin/sandboxes',
       meta: { requiresAuth: true },
       children: [
-        { path: '/admin/home', component: index, },
+        // 沙箱管理首页（默认主页，替代原地图主页）
+        { path: '/admin/sandboxes', component: sandboxList, },
+        // 沙箱详情：方案列表 + 实验记录 + 新建实验 + 种子导入导出
+        { path: '/admin/sandbox/:id', component: sandboxDetail, },
+        // 实验对比视图（同沙箱/跨沙箱）
+        { path: '/admin/sandbox/:id/compare', component: experimentCompare, },
+        // 实验视图：原三屏（地图/统计/任务），仅实验运行期进入
+        { path: '/admin/experiment/:id', component: index, },
+        // 实验终态结果集查看
+        { path: '/admin/experiment/:id/result', component: experimentResult, },
+        // 旧路径兼容
+        { path: '/admin/home', redirect: '/admin/sandboxes' },
       ],
     },
   ],

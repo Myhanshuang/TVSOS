@@ -2,6 +2,9 @@
 import { onMounted, onBeforeUnmount, ref, reactive, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { getRealtimeDashboard } from '@/api/report'
+import { useUserStore } from '@/stores'
+
+const userStore = useUserStore()
 
 const API_CONFIG = {
   refreshRate: 15000,
@@ -639,12 +642,18 @@ const getWsBase = () => {
   return `${protocol}//${window.location.host}/ws`
 }
 
+// WS 握手无法自定义头，token 经 query 传递（后端 AuthRequired 兼容 ?token=）
+const withToken = (url) => {
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}token=${userStore.token}`
+}
+
 const connectStatsSocket = () => {
   if (statsSocket) {
     statsSocket.close()
     statsSocket = null
   }
-  statsSocket = new WebSocket(`${getWsBase()}/stats`)
+  statsSocket = new WebSocket(withToken(`${getWsBase()}/stats`))
 
   statsSocket.onopen = () => {
     wsConnected.value = true

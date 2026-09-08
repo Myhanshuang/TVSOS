@@ -1,5 +1,11 @@
 import { getVehiclesData } from '@/api/vehicle';
-import { useVehicleStore } from '@/stores';
+import { useVehicleStore, useUserStore } from '@/stores';
+
+// WS 握手无法自定义头，token 经 query 传递（后端 AuthRequired 兼容 ?token=）
+const withToken = (url) => {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${useUserStore().token}`;
+};
 
 let vehiclesSocket = null;
 const pathSockets = new Map();
@@ -296,7 +302,7 @@ const mergeVehicleData = (prevData, incomingData) => {
 const ensurePathSocket = (vehicleId, options) => {
   if (pathSockets.has(vehicleId)) return;
 
-  const ws = new WebSocket(`${getWsBase()}/paths/${vehicleId}`);
+  const ws = new WebSocket(withToken(`${getWsBase()}/paths/${vehicleId}`));
   pathSockets.set(vehicleId, ws);
 
   ws.onmessage = (evt) => {
@@ -629,7 +635,7 @@ const connectVehiclesSocket = async (options) => {
   const snapshot = await fetchVehicleSnapshot();
   applyVehicleSnapshot(snapshot, options);
 
-  vehiclesSocket = new WebSocket(`${getWsBase()}/vehicles`);
+  vehiclesSocket = new WebSocket(withToken(`${getWsBase()}/vehicles`));
 
   vehiclesSocket.onmessage = (evt) => {
     let msg;
