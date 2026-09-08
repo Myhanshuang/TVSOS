@@ -68,6 +68,7 @@ type Experiment struct {
 	Status      string     `json:"status" gorm:"column:status"`
 	DataVersion int        `json:"dataVersion" gorm:"column:data_version"`
 	Progress    float64    `json:"progress" gorm:"column:progress"`
+	DriverLevels string     `json:"driverLevels" gorm:"column:driver_levels;type:text"` // 司机等级表JSON(车牌→等级,数据生成期种子摇号)
 	CreatedBy   uint       `json:"createdBy" gorm:"column:created_by"`
 	CreatedAt   time.Time  `json:"createdAt" gorm:"column:created_at"`
 	StartedAt   *time.Time `json:"startedAt" gorm:"column:started_at"`

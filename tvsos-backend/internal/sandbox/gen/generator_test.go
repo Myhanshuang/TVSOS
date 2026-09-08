@@ -77,6 +77,25 @@ func TestGenerateProducesEvents(t *testing.T) {
 	}
 }
 
+// TestGenerateDriverLevels 司机等级表：覆盖全部车辆、取值 2~5、同种子一致。
+func TestGenerateDriverLevels(t *testing.T) {
+	out := Generate(testInput(777))
+	if len(out.DriverLevels) != 3 {
+		t.Fatalf("expected 3 driver levels, got %d", len(out.DriverLevels))
+	}
+	for license, level := range out.DriverLevels {
+		if level < 2 || level > 5 {
+			t.Fatalf("level out of range for %s: %d", license, level)
+		}
+	}
+	again := Generate(testInput(777))
+	for license, level := range out.DriverLevels {
+		if again.DriverLevels[license] != level {
+			t.Fatalf("level diverged for %s with same seed", license)
+		}
+	}
+}
+
 // TestGenerateEmptyWithoutPois POI 不足时安全返回空订单流。
 func TestGenerateEmptyWithoutPois(t *testing.T) {
 	in := testInput(1)

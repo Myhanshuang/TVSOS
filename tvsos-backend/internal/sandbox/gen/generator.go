@@ -32,6 +32,9 @@ type Input struct {
 type Output struct {
 	Orders []*model.ExperimentOrder
 	Events []*model.ExperimentEvent
+	// DriverLevels 司机等级表（车牌→等级2-5）：数据生成期种子摇号产生，
+	// 实例化建司机与车祸脚本概率修正共用同一份，保证全链路确定性一致。
+	DriverLevels map[string]int
 }
 
 // Generate 确定性生成实验输入数据集。
@@ -44,9 +47,20 @@ func Generate(in Input) Output {
 	if in.DurationHours <= 0 {
 		in.DurationHours = 24
 	}
+	// 摇号顺序固定（复现关键）：先司机等级，再订单流，再事件脚本
+	out.DriverLevels = generateDriverLevels(rng, in.VehicleLicenses)
 	out.Orders = generateOrders(rng, in)
-	out.Events = generateEvents(rng, in)
+	out.Events = generateEvents(rng, in, out.DriverLevels)
 	return out
+}
+
+// generateDriverLevels 为车队逐车摇号司机等级（2~5），车牌顺序即 RNG 消费顺序。
+func generateDriverLevels(rng *rand.Rand, licenses []string) map[string]int {
+	levels := make(map[string]int, len(licenses))
+	for _, license := range licenses {
+		levels[license] = 2 + rng.Intn(4)
+	}
+	return levels
 }
 
 // generateOrders 生成订单流：泊松(指数间隔)或均匀分布到达，起终点/货类/件数随机。
@@ -100,8 +114,9 @@ func generateOrders(rng *rand.Rand, in Input) []*model.ExperimentOrder {
 }
 
 // generateEvents 生成天气/车祸事件脚本：逐 tick 按概率摇号（预生成，运行期不再随机）。
-// 注：脚本事件使用基准概率（不含司机等级修正），等级修正仅作用于运行期拒单判定。
-func generateEvents(rng *rand.Rand, in Input) []*model.ExperimentEvent {
+// 车祸概率带司机等级修正（与运行期拒单判定同一套 level_factor 口径）；
+// 天气为环境因素，不做等级修正。
+func generateEvents(rng *rand.Rand, in Input, levels map[string]int) []*model.ExperimentEvent {
 	if len(in.VehicleLicenses) == 0 {
 		return nil
 	}
@@ -122,7 +137,12 @@ func generateEvents(rng *rand.Rand, in Input) []*model.ExperimentEvent {
 					Detail:          "{}",
 				})
 			}
-			if in.Events.AccidentProbPerTick > 0 && rng.Float64() < in.Events.AccidentProbPerTick {
+			// 车祸：司机等级修正（等级越高越稳，系数越小），与 random_event 的 levelFactor 口径一致
+			lf := 1.0
+			if level, ok := levels[license]; ok && level >= 1 && level <= 5 {
+				lf = in.Events.LevelFactor[level-1]
+			}
+			if in.Events.AccidentProbPerTick > 0 && rng.Float64() < in.Events.AccidentProbPerTick*lf {
 				duration := rangeSeconds(rng, in.Events.MaintenanceSeconds)
 				events = append(events, &model.ExperimentEvent{
 					ExperimentId:    in.ExperimentID,

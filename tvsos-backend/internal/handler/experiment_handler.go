@@ -258,6 +258,9 @@ func generateExperimentData(exp *model.Experiment) (int, int, error) {
 	if err := repository.CreateExperimentEvents(out.Events); err != nil {
 		return 0, 0, err
 	}
+	// 司机等级表落实验记录（运行时实例化与脚本事件同源）
+	levelsJSON, _ := json.Marshal(out.DriverLevels)
+	_ = repository.UpdateExperimentFields(exp.Id, map[string]interface{}{"driver_levels": string(levelsJSON)})
 	return len(out.Orders), len(out.Events), nil
 }
 

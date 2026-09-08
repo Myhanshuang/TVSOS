@@ -9,7 +9,7 @@ import (
 
 // DataGeneratorVersion 数据生成器版本号：生成逻辑发生不兼容变化时 +1。
 // 种子导入时校验该版本，不同版本生成的数据不保证可复现。
-const DataGeneratorVersion = 1
+const DataGeneratorVersion = 2
 
 // ---------------- 沙箱级：世界规则（World Rules） ----------------
 

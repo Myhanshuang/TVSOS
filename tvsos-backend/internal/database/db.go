@@ -342,6 +342,26 @@ func InitDB() {
 		Logger.Logger.Info("数据库迁移：已创建沙箱表", zap.String("table", tm.Name))
 	}
 
+	// experiment 司机等级表列迁移（数据生成期种子摇号，实例化与脚本事件共用）
+	{
+		var columnCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'experiment' AND COLUMN_NAME = 'driver_levels'
+		`).Scan(&columnCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查 experiment.driver_levels", zap.Error(err))
+			panic(err)
+		}
+		if columnCount == 0 {
+			if err = DB.Exec("ALTER TABLE experiment ADD COLUMN driver_levels text COMMENT '司机等级表JSON(车牌→等级)'").Error; err != nil {
+				Logger.Logger.Error("数据库迁移失败：新增 experiment.driver_levels", zap.Error(err))
+				panic(err)
+			}
+			Logger.Logger.Info("数据库迁移：已新增 experiment.driver_levels")
+		}
+	}
+
 	// 运行数据表实验维度列迁移：experiment_id=0 表示沙箱模板/全局数据，>0 表示某次实验的实例数据。
 	experimentScopedTables := []string{
 		"vehicle", "driver", "shipment", "order_task",

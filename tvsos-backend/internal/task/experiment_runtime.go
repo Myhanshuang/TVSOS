@@ -264,6 +264,8 @@ func AbortStaleExperiments() {
 }
 
 // instantiateFleet 按沙箱车队模板实例化本实验专属 vehicle/driver 行（experiment_id=expID）。
+// 司机等级优先取数据生成期预摇的等级表（experiment.driver_levels，与车祸脚本修正同源）；
+// 缺失时回落运行时种子 RNG（兼容旧版生成的实验）。
 func (rt *ExperimentRuntime) instantiateFleet() error {
 	var template []fleetTemplateVehicle
 	if err := json.Unmarshal([]byte(rt.Sb.FleetTemplate), &template); err != nil {
@@ -278,6 +280,10 @@ func (rt *ExperimentRuntime) instantiateFleet() error {
 	}
 	template = template[:count]
 
+	presetLevels := make(map[string]int)
+	if rt.Exp.DriverLevels != "" {
+		_ = json.Unmarshal([]byte(rt.Exp.DriverLevels), &presetLevels)
+	}
 	virtualNow := rt.Clock.Now()
 	for _, tv := range template {
 		v := &model.Vehicle{
@@ -300,11 +306,15 @@ func (rt *ExperimentRuntime) instantiateFleet() error {
 		if err := repository.CreateVehicle(v); err != nil {
 			return err
 		}
+		level, ok := presetLevels[tv.License]
+		if !ok || level < 1 || level > 5 {
+			level = 2 + rt.DrawIntn(4) // 回落：运行时种子 RNG
+		}
 		driver := &model.Driver{
 			Name:         "司机" + tv.License,
 			Phone:        "13800000000",
 			LicenseNo:    "D" + tv.License,
-			Level:        2 + rt.DrawIntn(4), // 种子 RNG：同种子同等级序列
+			Level:        level,
 			Status:       1,
 			VehicleId:    v.Id,
 			UpdateTime:   virtualNow,
