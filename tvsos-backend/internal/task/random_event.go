@@ -106,7 +106,11 @@ func LoadRandomEventConfig() {
 
 // levelFactor 根据司机等级返回概率修正系数(等级越高考评越稳，修正系数越小)
 func levelFactor(level int) float64 {
-	cfg := randomEventCfg
+	return levelFactorOf(randomEventCfg, level)
+}
+
+// levelFactorOf 按指定配置取司机等级修正系数（实验运行时使用 rt.eventCfg）
+func levelFactorOf(cfg RandomEventConfig, level int) float64 {
 	if level < 1 {
 		level = 1
 	}
@@ -116,17 +120,18 @@ func levelFactor(level int) float64 {
 	return cfg.LevelFactor[level-1]
 }
 
-func randomRangeSeconds(rng [2]float64) int {
+// randomRangeSeconds 区间内取整秒。draw ∈ [0,1)，由调用方提供（实验种子 RNG 或测试随机源）。
+func randomRangeSeconds(rng [2]float64, draw float64) int {
 	if rng[1] <= rng[0] {
 		return int(rng[0])
 	}
-	return int(rng[0] + rand.Float64()*(rng[1]-rng[0]))
+	return int(rng[0] + draw*(rng[1]-rng[0]))
 }
 
-// recordRandomEvent 落库一条随机事件记录，失败仅告警不影响主流程。
-func recordRandomEvent(eventType string, vehicleID uint, driverID uint, shipmentID uint, taskID uint, severity int, durationSeconds int, description string, detail string) {
+// recordRandomEvent 落库一条随机事件记录（虚拟时刻 + 实验维度），失败仅告警不影响主流程。
+func (rt *ExperimentRuntime) recordRandomEvent(eventType string, vehicleID uint, driverID uint, shipmentID uint, taskID uint, severity int, durationSeconds int, description string, detail string, now time.Time) {
 	err := repository.CreateRandomEvent(&model.RandomEvent{
-		EventTime:       time.Now(),
+		EventTime:       now,
 		EventType:       eventType,
 		VehicleId:       vehicleID,
 		DriverId:        driverID,
@@ -137,24 +142,25 @@ func recordRandomEvent(eventType string, vehicleID uint, driverID uint, shipment
 		Description:     description,
 		Detail:          detail,
 		Status:          "active",
+		ExperimentId:    rt.Exp.Id,
 	})
 	if err != nil {
 		Logger.Logger.Warn("记录随机事件失败", zap.String("eventType", eventType), zap.Error(err))
 	}
 }
 
-// isVehiclePaused 判断车辆当前是否处于暂停窗口内(休息/极端天气等)，暂停期间不推进。
-func isVehiclePaused(v *model.Vehicle) bool {
+// isVehiclePaused 判断车辆在指定（虚拟）时刻是否处于暂停窗口内(休息/极端天气等)，暂停期间不推进。
+func isVehiclePaused(v *model.Vehicle, now time.Time) bool {
 	if v == nil || v.PauseUntil == nil {
 		return false
 	}
-	return time.Now().Before(*v.PauseUntil)
+	return now.Before(*v.PauseUntil)
 }
 
-// EnsureDriversForVehicles 兼容迁移：为尚未绑定司机的车辆自动生成一名默认司机。
-// 解决存量数据(如 20 辆演示车)在新增司机对象后没有绑定的问题。
+// EnsureDriversForVehicles 兼容迁移：为尚未绑定司机的模板车辆(experiment_id=0)自动生成一名默认司机。
+// 实验实例车辆(experiment_id>0)的司机由运行时实例化创建，不在此处理。
 func EnsureDriversForVehicles() {
-	vehicles, err := repository.ListVehicles(0)
+	vehicles, err := repository.ListVehiclesByExp(0, 0)
 	if err != nil {
 		Logger.Logger.Error("兼容迁移：查询车辆列表失败", zap.Error(err))
 		return
@@ -205,131 +211,10 @@ func intToStrUint(v uint) string {
 	return string(b)
 }
 
-// RandomEventLoop 随机事件后台守护循环：
-// 1) 维修中的车辆到期后恢复可用状态(车祸事件恢复)；
-// 2) 休息中的司机到期后复位为可用(兜底，避免车辆空闲时司机状态残留)。
-func RandomEventLoop() {
-	for {
-		if randomEventCfg.Enabled {
-			recoverMaintenanceVehicles()
-			recoverRestingDrivers()
-		}
-		interval := time.Duration(constant.VehicleSimulateMovingGap) * time.Second
-		if speed := GetSimulationSpeed(); speed > 0 {
-			interval = time.Duration(float64(interval) / speed)
-		}
-		if interval < 100*time.Millisecond {
-			interval = 100 * time.Millisecond
-		}
-		time.Sleep(interval)
-	}
-}
-
-// recoverMaintenanceVehicles 扫描维修中的车辆，到期后恢复为可用状态。
-func recoverMaintenanceVehicles() {
-	vehicles, err := repository.ListVehicles(constant.VehicleStatusMaintenance)
-	if err != nil {
-		return
-	}
-	now := time.Now()
-	for _, v := range vehicles {
-		if v == nil || v.PauseUntil == nil || now.Before(*v.PauseUntil) {
-			continue
-		}
-
-		// 维修到期恢复状态机：
-		// 1) 若还有在途任务(Accepting/Transporting)，恢复 Running 续跑运输(车祸时任务挂起)；
-		// 2) 否则若有已分配待发车任务则转为 Ready 交由发车逻辑续跑；
-		// 3) 否则释放为空闲。
-		newStatus := constant.VehicleStatusFree
-		if runningTask, err := repository.GetFirstRunningTaskByVehicle(v.Id); err == nil && runningTask != nil {
-			newStatus = constant.VehicleStatusRunning
-		} else if planned, err := repository.GetFirstTaskByVehicleAndSequential(v.Id, constant.OrderTaskSequentialPlanned); err == nil && planned != nil {
-			newStatus = constant.VehicleStatusReady
-		}
-		if err := repository.UpdateVehicleStatus(int(v.Id), newStatus, constant.VehicleStatusMaintenance); err != nil {
-			Logger.Logger.Warn("维修车辆恢复状态失败", zap.Uint("vehicleId", v.Id), zap.Error(err))
-			continue
-		}
-		_ = repository.UpdateVehicleFields(int(v.Id), map[string]interface{}{"pause_until": nil})
-
-		// 司机同步复位为可用
-		if driver, err := repository.GetDriverByVehicle(v.Id); err == nil && driver != nil {
-			_ = repository.UpdateDriverFields(driver.Id, map[string]interface{}{"status": 1, "rest_until": nil})
-		}
-
-		Logger.Logger.Info("车辆维修完成，恢复可用", zap.Uint("vehicleId", v.Id), zap.Int("newStatus", newStatus))
-		RecordSystemEvent("recover", "info", "车辆维修完成，恢复可用", "vehicle_id=" + intToStrUint(v.Id))
-	}
-}
-
-// recoverRestingDrivers 扫描休息中的司机，到期后复位为可用。
-// 注：在途车辆的暂停/恢复由 moveVehicle 的 pause_until 检查处理，此函数作为兜底。
-func recoverRestingDrivers() {
-	drivers, err := repository.ListDrivers(2)
-	if err != nil {
-		return
-	}
-	now := time.Now()
-	for _, d := range drivers {
-		if d == nil || d.RestUntil == nil || now.Before(*d.RestUntil) {
-			continue
-		}
-		_ = repository.UpdateDriverFields(d.Id, map[string]interface{}{"status": 1, "rest_until": nil})
-		Logger.Logger.Info("司机休息结束，恢复可用", zap.Uint("driverId", d.Id))
-	}
-}
-
-// --- 随机事件触发函数（供 moveVehicle / startNextPlannedTaskForVehicle 调用） ---
-
-// tryTriggerTransportRandomEvents 在车辆推进前尝试触发极端天气/车祸随机事件。
-// 返回 true 表示事件已触发，本 tick 不应再推进。
-func tryTriggerTransportRandomEvents(task *model.OrderTask, v *model.Vehicle) bool {
-	cfg := randomEventCfg
-	if !cfg.Enabled || v == nil || task == nil {
-		return false
-	}
-
-	driver, err := repository.GetDriverByVehicle(v.Id)
-	var driverID uint
-	lf := 1.0
-	if err == nil && driver != nil {
-		driverID = driver.Id
-		lf = levelFactor(driver.Level)
-	}
-
-	// 极端天气：运输延后（车辆暂停，但保持 Running）
-	if cfg.WeatherProbPerTick > 0 && rand.Float64() < cfg.WeatherProbPerTick {
-		duration := randomRangeSeconds(cfg.WeatherDelaySeconds)
-		until := time.Now().Add(time.Duration(duration) * time.Second)
-		_ = repository.UpdateVehicleFields(int(v.Id), map[string]interface{}{"pause_until": until})
-		recordRandomEvent("weather", v.Id, driverID, task.ShipmentId, task.Id, 2, duration, "极端天气导致运输延后", "")
-		Logger.Logger.Warn("随机事件：极端天气致运输延后", zap.Uint("vehicleId", v.Id), zap.Int("seconds", duration))
-		return true
-	}
-
-	// 车祸：车辆受损进入维修状态（短暂退出运力池）
-	if cfg.AccidentProbPerTick > 0 && rand.Float64() < cfg.AccidentProbPerTick*lf {
-		duration := randomRangeSeconds(cfg.MaintenanceSeconds)
-		until := time.Now().Add(time.Duration(duration) * time.Second)
-		_ = repository.UpdateVehicleFields(int(v.Id), map[string]interface{}{"pause_until": until})
-		if err := repository.UpdateVehicleStatus(int(v.Id), constant.VehicleStatusMaintenance, constant.VehicleStatusRunning); err != nil {
-			Logger.Logger.Warn("车祸触发：车辆状态更新失败", zap.Uint("vehicleId", v.Id), zap.Error(err))
-			return false
-		}
-		recordRandomEvent("accident", v.Id, driverID, task.ShipmentId, task.Id, 4, duration, "发生车祸，车辆受损进入维修", "")
-		RecordSystemEvent("fault", "error", "车辆发生车祸受损，进入维修", "vehicle_id=" + intToStrUint(v.Id) + ", shipment_id=" + intToStrUint(task.ShipmentId))
-		Logger.Logger.Warn("随机事件：车辆发生车祸受损，进入维修", zap.Uint("vehicleId", v.Id), zap.Int("maintenanceSeconds", duration))
-		return true
-	}
-
-	return false
-}
-
 // accumulateDriverFatigue 每推进一段里程累计司机连续驾驶时长，达到阈值触发强制休息。
-// 休息期间车辆暂停移动(pause_until)，司机标记休息中。
-func accumulateDriverFatigue(task *model.OrderTask, v *model.Vehicle, durationHour float64) {
-	cfg := randomEventCfg
+// 休息期间车辆暂停移动(pause_until)，司机标记休息中。全部使用虚拟时钟与实验有效配置（rt.eventCfg）。
+func accumulateDriverFatigue(rt *ExperimentRuntime, task *model.OrderTask, v *model.Vehicle, durationHour float64) {
+	cfg := rt.eventCfg
 	if !cfg.Enabled || v == nil || task == nil || durationHour <= 0 {
 		return
 	}
@@ -337,25 +222,26 @@ func accumulateDriverFatigue(task *model.OrderTask, v *model.Vehicle, durationHo
 	if err != nil || driver == nil {
 		return
 	}
+	now := rt.Clock.Now()
 	// 已在休息窗口内的司机不重复累计
-	if driver.RestUntil != nil && time.Now().Before(*driver.RestUntil) {
+	if driver.RestUntil != nil && now.Before(*driver.RestUntil) {
 		return
 	}
 
 	newHours := driver.ContinuousHours + durationHour
 	if newHours >= cfg.RestAfterHours {
 		restSeconds := int(cfg.RestMinutes * 60)
-		restUntil := time.Now().Add(time.Duration(restSeconds) * time.Second)
+		restUntil := now.Add(time.Duration(restSeconds) * time.Second)
 		_ = repository.UpdateDriverFields(driver.Id, map[string]interface{}{
 			"rest_until":       restUntil,
 			"status":           2,
 			"continuous_hours": 0, // 休息后重置
 			"fatigue":          1.0,
-			"update_time":      time.Now(),
+			"update_time":      now,
 		})
 		// 车辆同步暂停
 		_ = repository.UpdateVehicleFields(int(v.Id), map[string]interface{}{"pause_until": restUntil})
-		recordRandomEvent("rest", v.Id, driver.Id, task.ShipmentId, task.Id, 1, restSeconds, "司机连续驾驶达到阈值，强制休息", "")
+		rt.recordRandomEvent("rest", v.Id, driver.Id, task.ShipmentId, task.Id, 1, restSeconds, "司机连续驾驶达到阈值，强制休息", "", now)
 		Logger.Logger.Warn("随机事件：司机疲劳需强制休息", zap.Uint("vehicleId", v.Id), zap.Uint("driverId", driver.Id), zap.Float64("hours", newHours))
 		return
 	}
@@ -367,15 +253,15 @@ func accumulateDriverFatigue(task *model.OrderTask, v *model.Vehicle, durationHo
 	_ = repository.UpdateDriverFields(driver.Id, map[string]interface{}{
 		"continuous_hours": newHours,
 		"fatigue":          fatigue,
-		"update_time":      time.Now(),
+		"update_time":      now,
 	})
 }
 
 // maybeRefuseAssignment 发车前判定司机是否拒绝接本单。
 // 返回 true 表示已拒绝并完成回退(删除任务/释放载重/运单回退 Sleeping)，调用方应放弃发车。
 // 同一运单被拒次数达到上限时强制接受，防止死循环。
-func maybeRefuseAssignment(task *model.OrderTask, v *model.Vehicle, shipment *model.Shipment) bool {
-	cfg := randomEventCfg
+func maybeRefuseAssignment(rt *ExperimentRuntime, task *model.OrderTask, v *model.Vehicle, shipment *model.Shipment) bool {
+	cfg := rt.eventCfg
 	if !cfg.Enabled || task == nil || v == nil || shipment == nil {
 		return false
 	}
@@ -390,7 +276,7 @@ func maybeRefuseAssignment(task *model.OrderTask, v *model.Vehicle, shipment *mo
 		return false
 	}
 
-	if rand.Float64() >= cfg.DriverRefuseProb*levelFactor(driver.Level) {
+	if rt.Draw() >= cfg.DriverRefuseProb*levelFactorOf(cfg, driver.Level) {
 		return false
 	}
 
@@ -415,7 +301,7 @@ func maybeRefuseAssignment(task *model.OrderTask, v *model.Vehicle, shipment *mo
 	_ = repository.UpdateShipmentStatus(int(shipment.Id), constant.ShipmentStatusSleeping, constant.ShipmentStatusQueued)
 
 	// 司机拒单次数累计
-	_ = repository.UpdateDriverFields(driver.Id, map[string]interface{}{"refuse_count": driver.RefuseCount + 1, "update_time": time.Now()})
+	_ = repository.UpdateDriverFields(driver.Id, map[string]interface{}{"refuse_count": driver.RefuseCount + 1, "update_time": rt.Clock.Now()})
 
 	// 车辆若因此单进入 Ready 且无其他 Planned 任务，则回退为空闲
 	if v.Status == constant.VehicleStatusReady {
@@ -424,7 +310,7 @@ func maybeRefuseAssignment(task *model.OrderTask, v *model.Vehicle, shipment *mo
 		}
 	}
 
-	recordRandomEvent("refuse", v.Id, driver.Id, shipment.Id, task.Id, 1, 0, "司机拒绝接单，运单回退待重新分配", "")
+	rt.recordRandomEvent("refuse", v.Id, driver.Id, shipment.Id, task.Id, 1, 0, "司机拒绝接单，运单回退待重新分配", "", rt.Clock.Now())
 	Logger.Logger.Warn("随机事件：司机拒绝接单", zap.Uint("vehicleId", v.Id), zap.Uint("driverId", driver.Id), zap.Uint("shipmentId", shipment.Id))
 	return true
 }

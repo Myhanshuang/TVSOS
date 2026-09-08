@@ -33,33 +33,34 @@ func TestLevelFactor(t *testing.T) {
 // TestRandomRangeSeconds 验证随机时长区间取值落在边界内。
 func TestRandomRangeSeconds(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		v := randomRangeSeconds([2]float64{60, 120})
+		v := randomRangeSeconds([2]float64{60, 120}, float64(i)/100.0)
 		if v < 60 || v > 120 {
 			t.Fatalf("randomRangeSeconds out of range: %d", v)
 		}
 	}
 	// 等边界时恒等
-	if v := randomRangeSeconds([2]float64{90, 90}); v != 90 {
+	if v := randomRangeSeconds([2]float64{90, 90}, 0.5); v != 90 {
 		t.Fatalf("equal bounds should return bound, got %d", v)
 	}
 }
 
 // TestIsVehiclePaused 验证暂停判定逻辑。
 func TestIsVehiclePaused(t *testing.T) {
-	if isVehiclePaused(nil) {
+	now := time.Now()
+	if isVehiclePaused(nil, now) {
 		t.Fatal("nil vehicle should not be paused")
 	}
-	if isVehiclePaused(&model.Vehicle{}) {
+	if isVehiclePaused(&model.Vehicle{}, now) {
 		t.Fatal("vehicle without pause_until should not be paused")
 	}
 
-	future := time.Now().Add(10 * time.Minute)
-	if !isVehiclePaused(&model.Vehicle{PauseUntil: &future}) {
+	future := now.Add(10 * time.Minute)
+	if !isVehiclePaused(&model.Vehicle{PauseUntil: &future}, now) {
 		t.Fatal("vehicle with future pause_until should be paused")
 	}
 
-	past := time.Now().Add(-10 * time.Minute)
-	if isVehiclePaused(&model.Vehicle{PauseUntil: &past}) {
+	past := now.Add(-10 * time.Minute)
+	if isVehiclePaused(&model.Vehicle{PauseUntil: &past}, now) {
 		t.Fatal("vehicle with past pause_until should NOT be paused")
 	}
 }
@@ -101,15 +102,14 @@ func TestRefuseAssignmentFlow(t *testing.T) {
 	}
 
 	// 强制拒单
-	old := randomEventCfg
-	defer func() { randomEventCfg = old }()
-	randomEventCfg.Enabled = true
-	randomEventCfg.DriverRefuseProb = 1.0
-	randomEventCfg.RefuseMaxPerShipment = 2
+	refuseRt := newStubRuntime()
+	refuseRt.eventCfg.Enabled = true
+	refuseRt.eventCfg.DriverRefuseProb = 1.0
+	refuseRt.eventCfg.RefuseMaxPerShipment = 2
 
 	reloadedVehicle, _ := repository.GetVehicle(int(vehicle.Id))
 	reloadedShipment, _ := repository.GetShipment(int(shipment.Id))
-	if !maybeRefuseAssignment(&task, reloadedVehicle, reloadedShipment) {
+	if !maybeRefuseAssignment(refuseRt, &task, reloadedVehicle, reloadedShipment) {
 		t.Fatal("expected refuse to trigger")
 	}
 
@@ -181,17 +181,18 @@ func TestAccidentAndRecoveryFlow(t *testing.T) {
 		t.Fatalf("create task failed: %v", err)
 	}
 
-	// 强制车祸
-	old := randomEventCfg
-	defer func() { randomEventCfg = old }()
-	randomEventCfg.Enabled = true
-	randomEventCfg.AccidentProbPerTick = 1.0
-	randomEventCfg.MaintenanceSeconds = [2]float64{60, 60}
-
+	// 通过预生成脚本事件触发车祸（沙箱系统：天气/车祸由脚本驱动，不再现场摇号）
+	rt := newStubRuntime()
+	rt.Exp.Id = 0
 	reloadedVehicle, _ := repository.GetVehicle(int(vehicle.Id))
-	if !tryTriggerTransportRandomEvents(&task, reloadedVehicle) {
-		t.Fatal("expected accident to trigger")
+	scripted := &model.ExperimentEvent{
+		VirtualTime:     rt.Clock.Now(),
+		EventType:       "accident",
+		VehicleLicense:  reloadedVehicle.License,
+		Severity:        4,
+		DurationSeconds: 60,
 	}
+	rt.applyScriptedEvent(scripted, reloadedVehicle, rt.Clock.Now())
 
 	// 验证车辆转维修中
 	updatedVehicle, _ := repository.GetVehicle(int(vehicle.Id))
@@ -202,12 +203,12 @@ func TestAccidentAndRecoveryFlow(t *testing.T) {
 		t.Fatal("pause_until should be set after accident")
 	}
 
-	// 将 pause_until 改为过去时间，模拟维修到期
-	past := time.Now().Add(-1 * time.Minute)
+	// 将 pause_until 改为虚拟时钟之前的时刻，模拟维修到期
+	past := rt.Clock.Now().Add(-1 * time.Minute)
 	_ = repository.UpdateVehicleFields(int(vehicle.Id), map[string]interface{}{"pause_until": past})
 
-	// 运行恢复逻辑
-	recoverMaintenanceVehicles()
+	// 运行恢复逻辑（运行时方法，实验作用域 + 虚拟时钟）
+	rt.recoverMaintenanceVehicles()
 
 	// 车辆应恢复 Running(因为有在途任务)
 	recovered, _ := repository.GetVehicle(int(vehicle.Id))
@@ -243,15 +244,15 @@ func TestRestTrigger(t *testing.T) {
 		t.Fatalf("create driver failed: %v", err)
 	}
 
-	// 强制休息阈值极低
-	old := randomEventCfg
-	defer func() { randomEventCfg = old }()
-	randomEventCfg.Enabled = true
-	randomEventCfg.RestAfterHours = 0.0001
-	randomEventCfg.RestMinutes = 20
+	// 强制休息阈值极低（桩运行时有效配置）
+	rt := newStubRuntime()
+	rt.Exp.Id = 0
+	rt.eventCfg.Enabled = true
+	rt.eventCfg.RestAfterHours = 0.0001
+	rt.eventCfg.RestMinutes = 20
 
 	task := model.OrderTask{ShipmentId: 999, VehicleId: vehicle.Id, Sequential: constant.OrderTaskSequentialTransporting}
-	accumulateDriverFatigue(&task, &vehicle, 0.1)
+	accumulateDriverFatigue(rt, &task, &vehicle, 0.1)
 
 	updatedDriver, _ := repository.GetDriverByVehicle(vehicle.Id)
 	if updatedDriver.Status != 2 {

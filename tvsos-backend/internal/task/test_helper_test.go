@@ -1,12 +1,15 @@
 package task
 
 import (
+	"math/rand"
 	"strings"
 	"testing"
 
 	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/database"
+	"github.com/kiritosuki/mover/internal/model"
+	sandboxpkg "github.com/kiritosuki/mover/internal/sandbox"
 )
 
 // setupTestDB 测试数据库初始化（安全红线）：
@@ -24,4 +27,17 @@ func setupTestDB(t *testing.T) {
 		t.Skipf("跳过：config-test.yml 的 database.dbname=%q 不含 test 字样，为避免清库事故拒绝运行", dbName)
 	}
 	database.InitDB()
+}
+// newStubRuntime 构造不连库的纯内存实验运行时（SA/成本类纯函数单测用）。
+func newStubRuntime() *ExperimentRuntime {
+	rules := sandboxpkg.DefaultWorldRules()
+	params := sandboxpkg.DefaultExperimentParams()
+	return &ExperimentRuntime{
+		Exp:      &model.Experiment{Id: 0, Seed: 1},
+		Rules:    rules,
+		Params:   params,
+		rng:      rand.New(rand.NewSource(1)),
+		Clock:    NewVirtualClock("2026-01-01 08:00:00", 10, 24),
+		eventCfg: effectiveEventConfig(params, rules),
+	}
 }

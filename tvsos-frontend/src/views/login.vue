@@ -7,8 +7,8 @@
                     <h1>注册</h1>
                 </el-form-item>
 
-                <el-form-item prop="email">
-                    <el-input :prefix-icon="Message" placeholder="请输入邮箱" v-model="formModel.email"></el-input>
+                <el-form-item prop="username">
+                    <el-input :prefix-icon="User" placeholder="请输入用户名" v-model="formModel.username"></el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                     <el-input name="password" :prefix-icon="Lock" type="password" placeholder="请输入密码"
@@ -29,8 +29,8 @@
                 <el-form-item>
                     <h1>登录</h1>
                 </el-form-item>
-                <el-form-item prop="email">
-                    <el-input :prefix-icon="Message" placeholder="请输入邮箱" v-model="formModel.email"></el-input>
+                <el-form-item prop="username">
+                    <el-input :prefix-icon="User" placeholder="请输入用户名" v-model="formModel.username"></el-input>
                 </el-form-item>
                 <el-form-item prop="password">
                     <el-input name="password" :prefix-icon="Lock" type="password" placeholder="请输入密码"
@@ -58,36 +58,41 @@
 import { ElMessage } from 'element-plus';
 import { ref, watch } from 'vue';
 import { useUserStore } from '@/stores';
+import { userLogin, userRegister } from '@/api/user';
+import { User, Lock } from '@element-plus/icons-vue';
 import router from '@/router';
 
+const userStore = useUserStore()
 const isRegister = ref(false)
 const form = ref(null)
 const formModel = ref({
-    email: '',
+    username: '',
     password: '',
     repassword: ''
 })
 
 const register = async () => {
     await form.value.validate()
-    ElMessage.success('注册成功')
+    const res = await userRegister({ username: formModel.value.username, password: formModel.value.password })
+    if (res.data.code !== 1) return
+    ElMessage.success('注册成功，请登录')
     isRegister.value = false
 }
 
 const login = async () => {
     await form.value.validate()
+    const res = await userLogin({ username: formModel.value.username, password: formModel.value.password })
+    if (res.data.code !== 1) return
+    const { token, userId, username, displayName } = res.data.data
+    userStore.setToken(token)
+    userStore.setUserInfo({ id: userId, name: username, display: displayName })
     ElMessage.success('登录成功')
     router.push('/admin')
 }
 
 const rules = {
-    email: [
-        { required: true, message: '请输入邮箱', trigger: 'change' },
-        {
-            pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-            message: '邮箱格式不正确',
-            trigger: 'blur'
-        },
+    username: [
+        { required: true, message: '请输入用户名', trigger: 'change' },
     ],
     password: [
         { required: true, message: '请输入密码', trigger: 'change' },
@@ -110,7 +115,7 @@ const rules = {
 
 watch(isRegister, () => {
     formModel.value = {
-        email: '',
+        username: '',
         password: '',
         repassword: ''
     }

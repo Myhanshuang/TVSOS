@@ -2,7 +2,6 @@ package task
 
 import (
 	"math"
-	"math/rand"
 	"time"
 
 	"github.com/kiritosuki/mover/internal/model"
@@ -19,8 +18,10 @@ const (
 
 // assignBySimulatedAnnealing 核心调度算法：基于模拟退火(Simulated Annealing)完成运单到车辆的分配
 // 通过多次迭代以及目标温度衰减（Metropolis接受准则）跳出局部最优，寻找综合代价(Cost)最小的派单策略。
+// 随机源为实验种子 RNG（rt.Draw/DrawIntn，严格复现）；超参取实验参数（rt.Params.Algorithm）。
 // 返回: 运单ID (Shipment ID) 到分配的车辆 (Vehicle) 的映射字典
 func assignBySimulatedAnnealing(
+	rt *ExperimentRuntime,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
 	stats *Statistics,
@@ -32,7 +33,26 @@ func assignBySimulatedAnnealing(
 		return make(map[uint]*model.Vehicle)
 	}
 
-	rand.Seed(time.Now().UnixNano())
+	// SA 超参：实验参数优先，零值回落常量默认
+	saCfg := rt.Params.Algorithm
+	initialTemp := saCfg.SAInitialTemp
+	if initialTemp <= 0 {
+		initialTemp = SAInitialTemp
+	}
+	coolingRate := saCfg.SACoolingRate
+	if coolingRate <= 0 || coolingRate >= 1 {
+		coolingRate = SACoolingRate
+	}
+	minTemp := saCfg.SAMinTemp
+	if minTemp <= 0 {
+		minTemp = SAMinTemp
+	}
+	itersPerTemp := saCfg.SAItersPerTemp
+	if itersPerTemp <= 0 {
+		itersPerTemp = SAItersPerTemp
+	}
+
+	now := rt.Clock.Now()
 
 	// 初始解: 使用类似贪心的随机初始分配
 	currentAssigned := make([]int, len(shipments)) // shipment_index -> vehicle_index
@@ -40,7 +60,7 @@ func assignBySimulatedAnnealing(
 		cargo := getCargoByCache(cargoCache, ship.CargoId)
 		// 随机找一个可行车辆
 		for j := 0; j < 10; j++ {
-			vIdx := rand.Intn(len(vehicles))
+			vIdx := rt.DrawIntn(len(vehicles))
 			if isVehicleFeasible(vehicles[vIdx], ship, cargo, projectedLoads[vehicles[vIdx].Id]) {
 				currentAssigned[i] = vIdx
 				break
@@ -49,18 +69,19 @@ func assignBySimulatedAnnealing(
 		}
 	}
 
-	currentCost := evaluateStateCost(currentAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+	currentCost := evaluateStateCost(currentAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 	bestAssigned := make([]int, len(shipments))
 	copy(bestAssigned, currentAssigned)
 	bestCost := currentCost
 
-	temp := SAInitialTemp
-	for temp > SAMinTemp {
-		for i := 0; i < SAItersPerTemp; i++ {
-			neighborDesc, nextAssigned := generateSANeighbor(currentAssigned, len(vehicles))
-			nextCost := evaluateStateCost(nextAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+	batch := rt.Clock.Tick()
+	temp := initialTemp
+	for temp > minTemp {
+		for i := 0; i < itersPerTemp; i++ {
+			neighborDesc, nextAssigned := generateSANeighbor(rt, currentAssigned, len(vehicles))
+			nextCost := evaluateStateCost(nextAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 
-			if nextCost < currentCost || math.Exp((currentCost-nextCost)/temp) > rand.Float64() {
+			if nextCost < currentCost || math.Exp((currentCost-nextCost)/temp) > rt.Draw() {
 				currentAssigned = nextAssigned
 				currentCost = nextCost
 				if currentCost < bestCost {
@@ -70,7 +91,9 @@ func assignBySimulatedAnnealing(
 			}
 			_ = neighborDesc // hold
 		}
-		temp *= SACoolingRate
+		// 收敛曲线采样（算法性能记录，对齐 PDF 结果数据层）
+		rt.RecordConvergence(ConvergencePoint{Batch: batch, Temp: temp, BestCost: bestCost})
+		temp *= coolingRate
 	}
 
 	result := make(map[uint]*model.Vehicle)
@@ -82,22 +105,22 @@ func assignBySimulatedAnnealing(
 
 // generateSANeighbor 邻域动作生成函数：生成模拟退火算法的下一个状态(邻居解)
 // 主要通过交换两运单的指派车辆(Swap)或直接修改某一运单的指派车辆(Move)实现状态扰动
-func generateSANeighbor(current []int, numVehicles int) (string, []int) {
+func generateSANeighbor(rt *ExperimentRuntime, current []int, numVehicles int) (string, []int) {
 	next := make([]int, len(current))
 	copy(next, current)
 
-	if len(current) > 1 && rand.Float32() < 0.5 {
+	if len(current) > 1 && rt.Draw() < 0.5 {
 		// Swap
-		idx1 := rand.Intn(len(current))
-		idx2 := rand.Intn(len(current))
+		idx1 := rt.DrawIntn(len(current))
+		idx2 := rt.DrawIntn(len(current))
 		if next[idx1] != next[idx2] {
 			next[idx1], next[idx2] = next[idx2], next[idx1]
 			return "swap", next
 		}
 	}
 	// Move
-	idx := rand.Intn(len(current))
-	vIdx := rand.Intn(numVehicles)
+	idx := rt.DrawIntn(len(current))
+	vIdx := rt.DrawIntn(numVehicles)
 	next[idx] = vIdx
 	return "move", next
 }
@@ -112,6 +135,7 @@ func evaluateStateCost(
 	cargoCache map[uint]*model.Cargo,
 	projectedLoads map[uint]int,
 	pois map[uint]*model.Poi,
+	now time.Time,
 ) float64 {
 	totalCost := 0.0
 
@@ -126,7 +150,7 @@ func evaluateStateCost(
 			continue
 		}
 		v := vehicles[vIdx]
-		vCost, feasible := evaluateVehicleTasks(v, tasks, stats, cargoCache, projectedLoads[v.Id], pois)
+		vCost, feasible := evaluateVehicleTasks(v, tasks, stats, cargoCache, projectedLoads[v.Id], pois, now)
 		if !feasible {
 			totalCost += SAPenaltyInf
 		}
@@ -143,6 +167,7 @@ func evaluateVehicleTasks(
 	cargoCache map[uint]*model.Cargo,
 	initialProjectedLoad int,
 	pois map[uint]*model.Poi,
+	now time.Time,
 ) (float64, bool) {
 	vCost := 0.0
 	currentProjected := initialProjectedLoad
@@ -157,7 +182,7 @@ func evaluateVehicleTasks(
 		// 累加基础贪婪Cost分值
 		startPoi := pois[task.StartPoiId]
 		endPoi := pois[task.EndPoiId]
-		cost := CalculateCost(v, task, stats, cargo, startPoi, endPoi)
+		cost := CalculateCost(v, task, stats, cargo, startPoi, endPoi, now)
 		vCost += cost
 	}
 

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/kiritosuki/mover/internal/Logger"
-	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/constant"
 	"github.com/kiritosuki/mover/internal/model"
 	"github.com/kiritosuki/mover/internal/realtime"
@@ -50,40 +49,21 @@ type SchedulerOptions struct {
 	CostFallback string
 }
 
-// CreateOrderTask 后台守护常驻轮询任务：循环扫描调度休眠装运(Sleeping Shipment)集合。
-// 定时去数据库把刚产生、还没指派车的运单拉出，交由模拟退火引擎（或备用的 Next Fit 引擎）批量分配并发车。
-func CreateOrderTask() {
-	for {
-		shipments, err := repository.GetSleepingShipment()
-		if err != nil {
-			Logger.Logger.Error("查询待创建任务的订单时出错")
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		if len(shipments) > 0 {
-			doCreateOrderTaskBatch(shipments)
-		}
-
-		time.Sleep(constant.OrderTaskCreatingGap * time.Second)
-	}
-}
-
 // doCreateOrderTaskBatch 全局最核心指派下发逻辑（单批次处理函数）。
 // 使用互斥资源防止并发出错。在这里抓取当前全部车辆状态和当前的大盘评估快照 (statsSnapshot) ，
 // 将该批次的待分配运单数组(shipments)输入 SA 求解器引擎进行全局代价最小的最优分配。
 // 并循环地落实分配结果即创建 OrderTask。最后还会自动检查车斗满载/发车情况并驱动车子发车。
-func doCreateOrderTaskBatch(shipments []*model.Shipment) {
+func doCreateOrderTaskBatch(rt *ExperimentRuntime, shipments []*model.Shipment) {
 	nfMu.Lock()
 	defer nfMu.Unlock()
 
-	vehicles, err := repository.ListVehicles(0) // 获取所有车辆以进行 NF
+	vehicles, err := repository.ListVehiclesByExp(rt.Exp.Id, 0) // 本实验实例车辆
 	if err != nil || len(vehicles) == 0 {
 		Logger.Logger.Warn("没有可用车辆")
 		return
 	}
 
-	statsSnapshot, err := CalculateGlobalStats()
+	statsSnapshot, err := CalculateGlobalStats(rt.Exp.Id, rt.Clock.Now())
 	if err != nil {
 		Logger.Logger.Warn("统计快照获取失败，将回退为NF首可行", zap.Error(err))
 		statsSnapshot = nil
@@ -107,14 +87,14 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 
 	// A2 单批求解耗时打点：记录 SA 求解器本批耗时(毫秒)，供实时看板展示均值/峰值
 	solveStart := time.Now()
-	bestAssignment := assignBySimulatedAnnealing(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
+	bestAssignment := assignBySimulatedAnnealing(rt, shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
 	RecordSolverTiming(float64(time.Since(solveStart).Microseconds()) / 1000.0)
 
 	// A3 优化质量评估：小规模批次通过精确枚举计算 SA 与全局最优的 gap(黑盒/算法无关)
-	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)
+	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
 
 	// M1-M4/C1 匹配质量后验评估：逐单条件成本排名 + 贪心基线对比，结果回填 matching_log
-	quality := evaluateMatchingQuality(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment)
+	quality := evaluateMatchingQuality(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
 
 	for _, shipment := range shipments {
 		cargo := getCargoByCache(cargoCache, shipment.CargoId)
@@ -132,7 +112,7 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 		}
 
 		shipmentLoad := cargo.Weight * shipment.Count
-		if !assignShipmentToVehicle(shipment, v, shipmentLoad, quality) {
+		if !assignShipmentToVehicle(rt, shipment, v, shipmentLoad, quality) {
 			Logger.Logger.Warn("订单分配失败", zap.Uint("shipmentId", shipment.Id), zap.Uint("vehicleId", v.Id))
 			unassigned = append(unassigned, shipment)
 			continue
@@ -146,7 +126,7 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 		if !isVehicleClosedForBatch(vehicle, projectedLoads[vehicleID], unassigned, cargoCache) {
 			continue
 		}
-		if !startNextPlannedTaskForVehicle(vehicleID) {
+		if !startNextPlannedTaskForVehicle(rt, vehicleID) {
 			Logger.Logger.Warn("车辆闭合后发车触发失败", zap.Uint("vehicleId", vehicleID))
 		}
 	}
@@ -154,16 +134,17 @@ func doCreateOrderTaskBatch(shipments []*model.Shipment) {
 
 // assignShipmentToVehicle 原子核心落地操作：当订单分配在算法层面敲定车牌后执行的事务处理。
 // 新增 OrderTask，同时增加该车的预占预估载重、并原子更新所属 Shipment 状态(为排队待拉走)。
-func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmentLoad int, quality *matchingQualityResult) bool {
-	// 创建任务
-	now := time.Now()
+func assignShipmentToVehicle(rt *ExperimentRuntime, shipment *model.Shipment, v *model.Vehicle, shipmentLoad int, quality *matchingQualityResult) bool {
+	// 创建任务（虚拟时钟时间戳，严格复现）
+	now := rt.Clock.Now()
 	newTask := &model.OrderTask{
-		ShipmentId: shipment.Id,
-		VehicleId:  v.Id,
-		Sequential: constant.OrderTaskSequentialPlanned,
-		CreateTime: now,
-		UpdateTime: now,
-		AssignTime: &now, // 记录运单被分配车辆时刻(T2 匹配响应时间起点)
+		ShipmentId:   shipment.Id,
+		VehicleId:    v.Id,
+		Sequential:   constant.OrderTaskSequentialPlanned,
+		CreateTime:   now,
+		UpdateTime:   now,
+		AssignTime:   &now, // 记录运单被分配车辆时刻(T2 匹配响应时间起点)
+		ExperimentId: rt.Exp.Id,
 	}
 
 	err := repository.CreateOrderTask(newTask)
@@ -189,6 +170,7 @@ func assignShipmentToVehicle(shipment *model.Shipment, v *model.Vehicle, shipmen
 		CandidateRanking:   rankingJSON,
 		GroundTruthVehicle: groundTruth,
 		CreatedAt:          now,
+		ExperimentId:       rt.Exp.Id,
 	})
 
 	// 更新订单状态：待创建 -> 已分配待发车
@@ -244,6 +226,7 @@ func selectBestCandidateByCost(
 	startPoi *model.Poi,
 	endPoi *model.Poi,
 	stats *Statistics,
+	now time.Time,
 ) VehicleCandidate {
 	if len(candidates) == 0 {
 		return VehicleCandidate{}
@@ -257,7 +240,7 @@ func selectBestCandidateByCost(
 	found := false
 
 	for _, c := range candidates {
-		cost := CalculateCost(c.Vehicle, shipment, stats, cargo, startPoi, endPoi)
+		cost := CalculateCost(c.Vehicle, shipment, stats, cargo, startPoi, endPoi, now)
 		if math.IsNaN(cost) || math.IsInf(cost, 0) {
 			continue
 		}
@@ -282,6 +265,7 @@ func selectBestCandidate(
 	startPoi *model.Poi,
 	endPoi *model.Poi,
 	stats *Statistics,
+	now time.Time,
 ) VehicleCandidate {
 	if len(candidates) == 0 {
 		return VehicleCandidate{}
@@ -295,7 +279,7 @@ func selectBestCandidate(
 		return candidates[0]
 	}
 
-	return selectBestCandidateByCost(candidates, shipment, cargo, startPoi, endPoi, stats)
+	return selectBestCandidateByCost(candidates, shipment, cargo, startPoi, endPoi, stats, now)
 }
 
 func isVehicleFeasible(v *model.Vehicle, shipment *model.Shipment, cargo *model.Cargo, projectedSize int) bool {
@@ -352,7 +336,7 @@ func isVehicleClosedForBatch(vehicle *model.Vehicle, projectedSize int, remainin
 }
 
 // startNextPlannedTaskForVehicle 将某辆车最早的Planned任务切到Accepting并下发首段路径。
-func startNextPlannedTaskForVehicle(vehicleID uint) bool {
+func startNextPlannedTaskForVehicle(rt *ExperimentRuntime, vehicleID uint) bool {
 	task, err := repository.GetFirstTaskByVehicleAndSequential(vehicleID, constant.OrderTaskSequentialPlanned)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -374,7 +358,7 @@ func startNextPlannedTaskForVehicle(vehicleID uint) bool {
 	}
 
 	// 随机事件：司机有概率拒绝接单（拒单则删除任务/释放载重/运单回退 Sleeping，返回 false）
-	if maybeRefuseAssignment(task, vehicle, shipment) {
+	if maybeRefuseAssignment(rt, task, vehicle, shipment) {
 		return false
 	}
 
@@ -470,32 +454,21 @@ func planRouteWithFallback(startLon float64, startLat float64, endLon float64, e
 	return interpolatePoints(points, 0.05)
 }
 
-func getSchedulerOptions() SchedulerOptions {
+// getSchedulerOptions 调度器选项：实验参数优先，回落默认值（config-dev.yml 的 scheduler 段为最终兜底）。
+func getSchedulerOptions(rt *ExperimentRuntime) SchedulerOptions {
 	options := SchedulerOptions{
 		Mode:         schedulerModeHybrid,
 		CandidateK:   candidateVehicleLimit,
 		CostFallback: schedulerFallbackNFFirst,
 	}
-
-	if config.VP == nil {
-		return options
+	if rt != nil {
+		if rt.Params.Algorithm.Mode == schedulerModeNF || rt.Params.Algorithm.Mode == schedulerModeHybrid {
+			options.Mode = rt.Params.Algorithm.Mode
+		}
+		if rt.Params.Algorithm.CandidateK > 0 {
+			options.CandidateK = rt.Params.Algorithm.CandidateK
+		}
 	}
-
-	mode := config.VP.GetString("scheduler.mode")
-	if mode == schedulerModeNF || mode == schedulerModeHybrid {
-		options.Mode = mode
-	}
-
-	k := config.VP.GetInt("scheduler.candidate_k")
-	if k > 0 {
-		options.CandidateK = k
-	}
-
-	fallback := config.VP.GetString("scheduler.cost_fallback")
-	if fallback == schedulerFallbackNFFirst {
-		options.CostFallback = fallback
-	}
-
 	return options
 }
 

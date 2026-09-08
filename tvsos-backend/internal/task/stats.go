@@ -180,19 +180,20 @@ type LoadMetrics struct {
 	Estimated bool // 当前无装卸事件日志，只能按重量比例估算
 }
 
-// CalculateGlobalStats 采集数据库并计算当前系统全局的所有统计指标。
+// CalculateGlobalStats 采集数据库并计算指定实验的所有统计指标（experiment_id 作用域）。
 // 包含了运能、在线率、总距离、等待延迟、运单分发比例等，
 // 一次性构建完整的系统运行状况快照，是生成大屏看板数据和 Cost 动态算子的核心入口。
-func CalculateGlobalStats() (*Statistics, error) {
-	vehicles, err := repository.ListVehicles(0)
+// now 为虚拟时钟时刻（实验运行时传入），保证指标时间口径与严格复现一致。
+func CalculateGlobalStats(experimentID uint, now time.Time) (*Statistics, error) {
+	vehicles, err := repository.ListVehiclesByExp(experimentID, 0)
 	if err != nil {
 		return nil, err
 	}
-	tasks, err := repository.GetAllTasks()
+	tasks, err := repository.GetAllTasksByExp(experimentID)
 	if err != nil {
 		return nil, err
 	}
-	shipments, err := repository.ListShipments()
+	shipments, err := repository.ListShipmentsByExp(experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +215,7 @@ func CalculateGlobalStats() (*Statistics, error) {
 		poiMap[poi.Id] = poi
 	}
 
-	return buildStatistics(vehicles, tasks, shipments, cargoMap, poiMap, time.Now()), nil
+	return buildStatistics(vehicles, tasks, shipments, cargoMap, poiMap, now), nil
 }
 
 // buildStatistics 将入参中传递的内存字典组装映射为 `Statistics` 通用大结构。

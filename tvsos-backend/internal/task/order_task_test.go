@@ -2,6 +2,7 @@ package task
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kiritosuki/mover/internal/model"
 )
@@ -36,12 +37,12 @@ func TestSelectBestCandidateModesAndFallback(t *testing.T) {
 	start := &model.Poi{}
 	end := &model.Poi{}
 
-	nf := selectBestCandidate(SchedulerOptions{Mode: schedulerModeNF}, candidates, shipment, cargo, start, end, nil)
+	nf := selectBestCandidate(SchedulerOptions{Mode: schedulerModeNF}, candidates, shipment, cargo, start, end, nil, time.Now())
 	if nf.Vehicle.Id != 1 {
 		t.Fatalf("nf mode picked vehicle %d, want 1", nf.Vehicle.Id)
 	}
 
-	hybridFallback := selectBestCandidate(SchedulerOptions{Mode: schedulerModeHybrid, CostFallback: schedulerFallbackNFFirst}, candidates, shipment, cargo, start, end, nil)
+	hybridFallback := selectBestCandidate(SchedulerOptions{Mode: schedulerModeHybrid, CostFallback: schedulerFallbackNFFirst}, candidates, shipment, cargo, start, end, nil, time.Now())
 	if hybridFallback.Vehicle.Id != 1 {
 		t.Fatalf("hybrid fallback picked vehicle %d, want 1", hybridFallback.Vehicle.Id)
 	}

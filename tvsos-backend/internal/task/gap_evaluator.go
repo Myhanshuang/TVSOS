@@ -2,6 +2,7 @@ package task
 
 import (
 	"math"
+	"time"
 
 	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/model"
@@ -24,6 +25,11 @@ const (
 // 通过 GetLastOptimizationGap 暴露给实时看板(A3)。
 var lastOptimizationGap = 0.0
 
+// ResetOptimizationGap 清空最近 gap（实验启动时调用，保证 A3 按实验窗口统计）。
+func ResetOptimizationGap() {
+	lastOptimizationGap = 0
+}
+
 // GetLastOptimizationGap 返回最近一次批次级优化 gap 评估结果(百分比，0 表示无数据)。
 func GetLastOptimizationGap() float64 {
 	return lastOptimizationGap
@@ -39,6 +45,7 @@ func evaluateBatchOptimizationGap(
 	projectedLoads map[uint]int,
 	pois map[uint]*model.Poi,
 	saAssignment map[uint]*model.Vehicle,
+	now time.Time,
 ) (float64, float64, float64) {
 	if len(shipments) == 0 || len(shipments) > maxExactShipments || len(vehicles) == 0 || len(vehicles) > maxExactVehicles {
 		return 0, 0, 0
@@ -59,7 +66,7 @@ func evaluateBatchOptimizationGap(
 			return 0, 0, 0
 		}
 	}
-	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 
 	// 穷举所有指派组合求全局最优(深度受限的迭代枚举)
 	bestCost := math.MaxFloat64
@@ -68,7 +75,7 @@ func evaluateBatchOptimizationGap(
 	var dfs func(idx int)
 	dfs = func(idx int) {
 		if idx == len(shipments) {
-			cost := evaluateStateCost(cur, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+			cost := evaluateStateCost(cur, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 			if cost < bestCost {
 				bestCost = cost
 				found = true
@@ -110,11 +117,12 @@ func evaluateAndLogOptimizationGap(
 	projectedLoads map[uint]int,
 	pois map[uint]*model.Poi,
 	saAssignment map[uint]*model.Vehicle,
+	now time.Time,
 ) {
 	if len(shipments) == 0 || len(shipments) > maxExactShipments || len(vehicles) > maxExactVehicles {
 		return
 	}
-	saCost, bestCost, gap := evaluateBatchOptimizationGap(shipments, vehicles, stats, cargoCache, projectedLoads, pois, saAssignment)
+	saCost, bestCost, gap := evaluateBatchOptimizationGap(shipments, vehicles, stats, cargoCache, projectedLoads, pois, saAssignment, now)
 	if gap > 0 || saCost > 0 {
 		lastOptimizationGap = gap
 		Logger.Logger.Info("A3 优化质量评估", zap.Int("shipments", len(shipments)), zap.Int("vehicles", len(vehicles)),

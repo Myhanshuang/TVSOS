@@ -27,6 +27,13 @@ func RecordSolverTiming(elapsedMs float64) {
 	solverTimingMu.Unlock()
 }
 
+// ResetSolverTiming 清空累计（实验启动时调用，保证 A2 按实验窗口统计）。
+func ResetSolverTiming() {
+	solverTimingMu.Lock()
+	solverBatches, solverTotalMs, solverMaxMs = 0, 0, 0
+	solverTimingMu.Unlock()
+}
+
 // GetSolverTimingStats 返回 (已计时批次数, 平均耗时ms, 峰值耗时ms)。
 func GetSolverTimingStats() (int, float64, float64) {
 	solverTimingMu.Lock()

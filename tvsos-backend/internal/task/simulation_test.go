@@ -72,11 +72,15 @@ func TestFullScheduleSimulation(t *testing.T) {
 
 	Logger.Logger.Info("测试数据准备就绪，开始模拟调度...")
 
+	// 桩运行时：实验作用域 + 虚拟时钟（测试数据 experiment_id=0）
+	rt := newStubRuntime()
+	rt.Exp.Id = 0
+
 	// 运行一次调度分配
-	shipments, _ := repository.GetSleepingShipment()
+	shipments, _ := repository.GetSleepingShipmentByExp(0)
 	if len(shipments) > 0 {
 		Logger.Logger.Info("执行一批次调度分配", zap.Int("count", len(shipments)))
-		doCreateOrderTaskBatch(shipments)
+		doCreateOrderTaskBatch(rt, shipments)
 	}
 
 	// 检查分配结果
@@ -89,10 +93,10 @@ func TestFullScheduleSimulation(t *testing.T) {
 	}
 
 	// 运行一两次移动模拟
-	tasks, _ := repository.GetRunningTasksOrderedByVehicle()
+	tasks, _ := repository.GetRunningTasksOrderedByVehicleByExp(0)
 	Logger.Logger.Info("推进车辆移动", zap.Int("runningTasks", len(tasks)))
 
-	// 模拟几次移动循环
+	// 模拟几次移动循环（单线程顺序推进，与运行时一致）
 	for i := 0; i < 3; i++ {
 		movingVehicles := make(map[uint]bool)
 		for _, task := range tasks {
@@ -100,7 +104,7 @@ func TestFullScheduleSimulation(t *testing.T) {
 				continue
 			}
 			movingVehicles[task.VehicleId] = true
-			moveVehicle(task) // 同步运行以便观察
+			moveVehicle(rt, task) // 同步运行以便观察
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

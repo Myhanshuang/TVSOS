@@ -7,6 +7,7 @@ import (
 	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/repository"
 	"github.com/kiritosuki/mover/internal/result"
+	"github.com/kiritosuki/mover/internal/task"
 	"go.uber.org/zap"
 )
 
@@ -32,8 +33,15 @@ func ListVehicles(c *gin.Context) {
 		return
 	}
 	Logger.Logger.Info("查询条件", zap.Any("status", status))
-	// 查询数据库
-	vehicles, err := repository.ListVehicles(status)
+	// 沙箱系统：优先返回活跃实验的实例车辆；无运行中实验时回落沙箱模板车队(experiment_id=0)。
+	// 也支持显式 experiment_id 查询历史实验车辆。
+	expID := task.CurrentExperimentID()
+	if expStr := c.Query("experiment_id"); expStr != "" {
+		if v, parseErr := strconv.Atoi(expStr); parseErr == nil && v >= 0 {
+			expID = uint(v)
+		}
+	}
+	vehicles, err := repository.ListVehiclesByExp(expID, status)
 	if err != nil {
 		result.Fail(c, "数据库查询错误！", err)
 		return

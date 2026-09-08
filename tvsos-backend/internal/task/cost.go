@@ -6,8 +6,27 @@ import (
 
 	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/model"
+	sandboxpkg "github.com/kiritosuki/mover/internal/sandbox"
 	"go.uber.org/zap"
 )
+
+// 经济环境规则（沙箱级，对齐 PDF 经济环境变量）：实验启动时由运行时注入，停止时清空。
+// 单实验串行模型下进程内最多一份；nil 表示未启用（成本退化为无量纲加权形态）。
+var economyRules *sandboxpkg.EconomyRules
+
+// SetEconomyRules 注入/清空经济环境规则
+func SetEconomyRules(rules *sandboxpkg.EconomyRules) { economyRules = rules }
+
+// economyCostPerKm 每公里货币化直接成本 = 油耗成本 + 过路费。未启用经济环境时返回 0。
+// 油耗按 12L/100km 折算（模拟车队均值），司机时薪折算为每公里 0.8 元（约 35km/h 下 28 元/h 含装卸等待）。
+func economyCostPerKm() float64 {
+	if economyRules == nil {
+		return 0
+	}
+	fuel := economyRules.FuelPricePerLiter * 12.0 / 100.0
+	wage := economyRules.DriverWagePerHour / 35.0
+	return fuel + economyRules.TollPerKm + wage
+}
 
 // CostWeights 成本计算中的各类权重
 type CostWeights struct {
@@ -61,6 +80,7 @@ var DefaultWeights = CostWeights{
 
 // CalculateCost 计算将指定运单派发给当前车辆时产生的综合成本 (F)
 // 该函数是对底层各项指标多维组合和加权后的对外调用入口，返回最终加权成本。
+// now 为虚拟时钟时刻（实验运行时传入；测试传 time.Now()）。
 func CalculateCost(
 	v *model.Vehicle,
 	shipment *model.Shipment,
@@ -68,8 +88,9 @@ func CalculateCost(
 	cargo *model.Cargo,
 	startPoi *model.Poi,
 	endPoi *model.Poi,
+	now time.Time,
 ) float64 {
-	return calculateCostBreakdown(v, shipment, stats, cargo, startPoi, endPoi, time.Now()).F
+	return calculateCostBreakdown(v, shipment, stats, cargo, startPoi, endPoi, now).F
 }
 
 // calculateCostBreakdown 根据调度平台设定的加权公式具体计算成本的各个维度子指标
@@ -146,7 +167,11 @@ func calculateCostBreakdown(
 	projectedRemainingCapacity := float64(stats.UtilizationStats.TotalCapacity) - projectedUsedCapacity
 	projectedMinGap := minCapacityGapAfterAssign(stats.vehicleCapacityGapByVehicle, v, shipmentLoadKg)
 
+	// A: 直接成本 = 等待 + 空驶；启用经济环境时追加货币化里程成本（油价/过路费/人力，PDF p9）
 	costA := weights.K1A*projectedVehicleWaitTotal + weights.K2A*projectedTotalEmpty
+	if perKm := economyCostPerKm(); perKm > 0 {
+		costA += perKm * (distToStart + tripDistance)
+	}
 	costB := weights.K1B*projectedWeightedCargoWait + weights.K2B*projectedSlowestCargoWait
 	costC := 0.0
 	if projectedTotalDistance > 0 {

@@ -9,7 +9,6 @@ import (
 	"github.com/kiritosuki/mover/internal/config"
 	"github.com/kiritosuki/mover/internal/constant"
 	"github.com/kiritosuki/mover/internal/model"
-	"github.com/kiritosuki/mover/internal/realtime"
 	"github.com/kiritosuki/mover/internal/repository"
 	"go.uber.org/zap"
 )
@@ -30,6 +29,13 @@ type NumericStatView struct {
 }
 
 type RealtimeSummary struct {
+	// ---- 沙箱系统：实验与虚拟时钟信息 ----
+	ExperimentId   uint    `json:"experiment_id"`   // 当前实验 id
+	ExperimentName string  `json:"experiment_name"` // 实验名
+	VirtualTime    string  `json:"virtual_time"`    // 虚拟时钟当前时刻
+	Progress       float64 `json:"progress"`        // 虚拟时钟进度 0~1
+	Speed          float64 `json:"speed"`           // 当前时间加速比
+
 	TotalThroughput     float64     `json:"total_throughput"`
 	CostValue           float64     `json:"cost_value"`
 	CargoPending        float64     `json:"cargo_pending"`
@@ -125,28 +131,30 @@ type trendStore struct {
 
 var dashboardTrendStore = &trendStore{}
 
-func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
-	stats, err := CalculateGlobalStats()
+// BuildRealtimeDashboard 构建指定实验运行时的实时看板（experiment_id 作用域 + 虚拟时钟口径）。
+// R1-R3/T1 观测窗口 = 本实验虚拟时钟起点（替代旧"最近一次 startup 事件"口径）。
+func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
+	stats, err := CalculateGlobalStats(rt.Exp.Id, rt.Clock.Now())
 	if err != nil {
 		return nil, err
 	}
 
 	maintenanceVehicleCount, restingDriverCount := 0, 0
-	if vehicles, err := repository.ListVehicles(0); err == nil {
+	if vehicles, err := repository.ListVehiclesByExp(rt.Exp.Id, 0); err == nil {
 		for _, v := range vehicles {
 			if v.Status == constant.VehicleStatusMaintenance {
 				maintenanceVehicleCount++
 			}
 		}
 	}
-	if drivers, err := repository.ListDrivers(2); err == nil {
+	if drivers, err := repository.ListDriversByExp(rt.Exp.Id, 2); err == nil {
 		restingDriverCount = len(drivers)
 	}
-	refuseEventCount, _ := repository.CountRandomEventsByType("refuse", "")
-	accidentEventCount, _ := repository.CountRandomEventsByType("accident", "")
+	refuseEventCount, _ := repository.CountRandomEventsByTypeByExp(rt.Exp.Id, "refuse")
+	accidentEventCount, _ := repository.CountRandomEventsByTypeByExp(rt.Exp.Id, "accident")
 	// 构建 车辆ID -> 车牌号 映射，供随机事件流展示真实车牌
 	vehicleLicenseMap := make(map[uint]string)
-	if allVehicles, err := repository.ListVehicles(0); err == nil {
+	if allVehicles, err := repository.ListVehiclesByExp(rt.Exp.Id, 0); err == nil {
 		for _, v := range allVehicles {
 			if v != nil {
 				license := v.License
@@ -157,11 +165,11 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 			}
 		}
 	}
-	// R1-R3 可靠性 / T1 匹配吞吐量：统一以最近一次 startup 事件为观测窗口
-	now := time.Now()
-	windowStart := observationWindowStart(now)
-	reliability := calculateReliabilityMetrics(len(vehicleLicenseMap), windowStart, now)
-	matchTotalCount, _ := repository.CountMatchingLogsSince(windowStart)
+	// R1-R3 可靠性 / T1 匹配吞吐量：观测窗口 = 本实验虚拟时钟起点至今（虚拟时间）
+	now := rt.Clock.Now()
+	windowStart := rt.Clock.Start()
+	reliability := calculateReliabilityMetrics(rt.Exp.Id, len(vehicleLicenseMap), windowStart, now)
+	matchTotalCount, _ := repository.CountMatchingLogsSinceByExp(rt.Exp.Id, windowStart)
 	matchThroughput := 0.0
 	if windowHours := now.Sub(windowStart).Hours(); windowHours > 0 && matchTotalCount > 0 {
 		matchThroughput = float64(matchTotalCount) / windowHours
@@ -170,7 +178,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 	matchP, matchR, matchF1, matchMrr, matchEval := GetMatchingQualityStats()
 
 	var recentEvents []EventView
-	if events, err := repository.ListRandomEvents(10); err == nil {
+	if events, err := repository.ListRandomEventsByExp(rt.Exp.Id, 10); err == nil {
 		recentEvents = make([]EventView, 0, len(events))
 		for _, ev := range events {
 			recentEvents = append(recentEvents, EventView{
@@ -189,7 +197,7 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 		}
 	}
 
-	cargoDemand, err := buildCargoDemandByType()
+	cargoDemand, err := buildCargoDemandByType(rt.Exp.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +217,11 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 
 	dashboard := &RealtimeDashboard{
 		Summary: RealtimeSummary{
+			ExperimentId:        rt.Exp.Id,
+			ExperimentName:      rt.Exp.Name,
+			VirtualTime:         now.Format("2006-01-02 15:04:05"),
+			Progress:            rt.Clock.Progress(),
+			Speed:               rt.GetSpeed(),
 			TotalThroughput:     stats.ThroughputStats.TotalTransportedTons,
 			CostValue:           stats.TotalCost,
 			CargoPending:        stats.CargoStats.PendingDemandTons,
@@ -283,23 +296,14 @@ func BuildRealtimeDashboard() (*RealtimeDashboard, error) {
 	return dashboard, nil
 }
 
-func BroadcastStatsLoop() {
-	for {
-		interval := getStatsPushInterval()
-		if realtime.GlobalHub().StatsSubscriberCount() == 0 {
-			time.Sleep(interval)
-			continue
-		}
-
-		snapshot, err := BuildRealtimeDashboard()
-		if err != nil {
-			Logger.Logger.Warn("实时统计推送失败", zap.Error(err))
-			time.Sleep(interval)
-			continue
-		}
-		realtime.GlobalHub().BroadcastStats("snapshot", snapshot)
-		time.Sleep(interval)
-	}
+// resetDashboardTrends 重置趋势累计（实验启动时调用，新实验新窗口）
+func resetDashboardTrends() {
+	dashboardTrendStore.mu.Lock()
+	defer dashboardTrendStore.mu.Unlock()
+	dashboardTrendStore.throughput = nil
+	dashboardTrendStore.pending = nil
+	dashboardTrendStore.cost = nil
+	dashboardTrendStore.efficiency = nil
 }
 
 func appendAndExportTrends(d *RealtimeDashboard) map[string][]float64 {
@@ -328,8 +332,8 @@ func appendAndExportTrends(d *RealtimeDashboard) map[string][]float64 {
 	return trends
 }
 
-func buildCargoDemandByType() ([]NameValue, error) {
-	shipments, err := repository.ListShipments()
+func buildCargoDemandByType(experimentID uint) ([]NameValue, error) {
+	shipments, err := repository.ListShipmentsByExp(experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -414,54 +418,19 @@ func getStatsPushInterval() time.Duration {
 }
 
 // RecordSystemEvent 记录一条系统运行事件(启动/恢复/故障/修复)，供 R1-R3 可靠性指标计算。
+// experimentID=0 表示服务级事件；>0 表示某次实验的事件（观测窗口按实验生命周期）。
 // 事件落库失败仅记录日志，不影响主流程。
-func RecordSystemEvent(eventType string, level string, message string, detail string) {
+func RecordSystemEvent(experimentID uint, eventType string, level string, message string, detail string) {
 	err := repository.CreateSystemEvent(&model.SystemEvent{
-		EventTime: time.Now(),
-		EventType: eventType,
-		Level:     level,
-		Message:   message,
-		Detail:    detail,
+		EventTime:    time.Now(),
+		EventType:    eventType,
+		Level:        level,
+		Message:      message,
+		Detail:       detail,
+		ExperimentId: experimentID,
 	})
 	if err != nil {
 		Logger.Logger.Warn("记录系统事件失败", zap.String("eventType", eventType), zap.Error(err))
-	}
-}
-
-// MetricSnapshotLoop 周期采样协程：将全局核心指标落库到 metric_snapshot 表。
-// 支撑历史趋势、成本效益对比(C1)与可用性分析(R3)等时序类指标；同时刷新排放因子缓存。
-func MetricSnapshotLoop() {
-	for {
-		snapshot, err := BuildRealtimeDashboard()
-		if err != nil {
-			Logger.Logger.Warn("指标采样失败", zap.Error(err))
-			time.Sleep(getStatsPushInterval())
-			continue
-		}
-
-		record := &model.MetricSnapshot{
-			SnapshotTime:        time.Now(),
-			CostValue:           snapshot.Summary.CostValue,
-			TotalThroughput:     snapshot.Summary.TotalThroughput,
-			CargoPending:        snapshot.Summary.CargoPending,
-			TransportEfficiency: snapshot.Summary.TransportEfficiency,
-			TotalWaitingTime:    snapshot.Summary.TotalWaitingTime,
-			TotalEmptyMileage:   snapshot.Summary.TotalEmptyMileage,
-			UnitCost:            snapshot.Summary.UnitCost,
-			EmptyRate:           snapshot.Summary.EmptyRate,
-			LoadingRateStdDev:   snapshot.Summary.LoadingRateStdDev,
-			MatchResponseP50:    snapshot.Summary.MatchResponseP50,
-			MatchResponseP95:    snapshot.Summary.MatchResponseP95,
-			MatchResponseP99:    snapshot.Summary.MatchResponseP99,
-			GiniCoefficient:     snapshot.Summary.GiniCoefficient,
-			CarbonTotal:         snapshot.Summary.CarbonTotal,
-			CarbonPerTonKm:      snapshot.Summary.CarbonPerTonKm,
-		}
-		if err := repository.CreateMetricSnapshot(record); err != nil {
-			Logger.Logger.Warn("指标采样落库失败", zap.Error(err))
-		}
-
-		time.Sleep(getStatsPushInterval())
 	}
 }
 

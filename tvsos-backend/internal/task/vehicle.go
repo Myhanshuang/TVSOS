@@ -14,38 +14,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// SimulateMoving 模拟车辆行驶
-func SimulateMoving() {
-	for {
-		// 查询正在进行中的任务，按车辆和创建时间排序以保证顺序执行
-		tasks, err := repository.GetRunningTasksOrderedByVehicle()
-		if err != nil {
-			Logger.Logger.Error("查询正在进行中的任务失败")
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		// 记录哪些车已经在动了，避免同一辆车在一次循环中启动多个任务
-		movingVehicles := make(map[uint]bool)
-		for _, task := range tasks {
-			if movingVehicles[task.VehicleId] {
-				continue
-			}
-			movingVehicles[task.VehicleId] = true
-			go moveVehicle(task)
-		}
-		speed := GetSimulationSpeed()
-		base := time.Duration(constant.VehicleSimulateMovingGap) * time.Second
-		interval := time.Duration(float64(base) / speed)
-		if interval < 100*time.Millisecond {
-			interval = 100 * time.Millisecond
-		}
-		time.Sleep(interval)
-	}
-}
-
-// 车辆行驶的核心逻辑
-func moveVehicle(task *model.OrderTask) {
+// 车辆行驶的核心逻辑（由 ExperimentRuntime.moveAll 每虚拟 tick 顺序调用，单线程保证复现）
+func moveVehicle(rt *ExperimentRuntime, task *model.OrderTask) {
 	vehicleID := task.VehicleId
 
 	// 发车前的最后防线防脏数据：二次校验车辆状态必须为行驶中
@@ -59,14 +29,12 @@ func moveVehicle(task *model.OrderTask) {
 		return
 	}
 
-	// 随机事件：暂停窗口(休息/极端天气)内不推进
-	if isVehiclePaused(latestVehicle) {
+	now := rt.Clock.Now()
+	// 随机事件：暂停窗口(休息/极端天气)内不推进（虚拟时间比较）
+	if isVehiclePaused(latestVehicle, now) {
 		return
 	}
-	// 随机事件：尝试触发极端天气/车祸（触发后本 tick 不推进）
-	if tryTriggerTransportRandomEvents(task, latestVehicle) {
-		return
-	}
+	// 天气/车祸事件由预生成脚本驱动（consumeDueEvents），此处不再现场摇号
 
 	shipmentID := task.ShipmentId
 	meta, points, ok := getRuntimeRouteState(vehicleID)
@@ -80,10 +48,15 @@ func moveVehicle(task *model.OrderTask) {
 		return
 	}
 
-	idx := meta.Progress + 1
+	// 交通环境模型：本 tick 推进点数 = 有效时速 × 虚拟步长 / 50m（高峰降速，确定性）
+	steps := int(math.Round(rt.SpeedKmhAt(now) * float64(rt.Clock.TickSeconds()) / 3.6 / 50.0))
+	if steps < 1 {
+		steps = 1
+	}
+	idx := meta.Progress + steps
 	// 越界判断 如果这辆车已经走到了这段路的末尾
 	if idx >= len(points) {
-		handlePathFinished(task)
+		handlePathFinished(rt, task)
 		return
 	}
 	// 取当前位置
@@ -113,14 +86,14 @@ func moveVehicle(task *model.OrderTask) {
 		case constant.OrderTaskSequentialTransporting:
 			transportDistanceDelta = segmentDistanceKM
 		}
-		durationDeltaHour = estimateDurationHours(segmentDistanceKM, 35)
+		durationDeltaHour = estimateDurationHours(segmentDistanceKM, rt.SpeedKmhAt(now))
 		_ = repository.AddVehicleTravelMetrics(int(vehicleID), emptyMileageDelta, transportDistanceDelta, durationDeltaHour)
 		// 随机事件：司机疲劳累计（达到阈值触发强制休息）
-		accumulateDriverFatigue(task, latestVehicle, durationDeltaHour)
+		accumulateDriverFatigue(rt, task, latestVehicle, durationDeltaHour)
 	}
 
-	// 更新数据库中的车辆位置
-	err = repository.UpdateVehicleLocation(int(vehicleID), point.Lon, point.Lat)
+	// 更新数据库中的车辆位置（虚拟时钟时间戳）
+	err = repository.UpdateVehicleLocationAt(int(vehicleID), point.Lon, point.Lat, now)
 	if err != nil {
 		Logger.Logger.Error("更新车辆位置失败")
 		return
@@ -129,16 +102,17 @@ func moveVehicle(task *model.OrderTask) {
 	realtime.GlobalHub().BroadcastPath(vehicleID, "progress", buildProgressPayload(meta, point))
 }
 
-// 到达路段终点 做状态更新
-func handlePathFinished(task *model.OrderTask) {
+// 到达路段终点 做状态更新（时间戳一律取虚拟时钟，严格复现）
+func handlePathFinished(rt *ExperimentRuntime, task *model.OrderTask) {
 	switch task.Sequential {
 	// 到达起点（准备装货）
 	case constant.OrderTaskSequentialAccepting:
 		Logger.Logger.Info("车辆到达起点，开始装货", zap.Uint("shipment", task.ShipmentId))
+		now := rt.Clock.Now()
 		// 记录阶段时间戳：到达提货点 + 开始装货
 		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
-			"reach_pickup_time": time.Now(),
-			"load_start_time":   time.Now(),
+			"reach_pickup_time": now,
+			"load_start_time":   now,
 		})
 		// 装货（增加载重）
 		err := LoadCargo(task)
@@ -147,8 +121,8 @@ func handlePathFinished(task *model.OrderTask) {
 		}
 		// 记录阶段时间戳：完成装货 + 开始运输
 		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
-			"load_end_time":        time.Now(),
-			"transport_start_time": time.Now(),
+			"load_end_time":        now,
+			"transport_start_time": now,
 		})
 		// 更新订单状态：待取货 -> 运输中
 		// CAS锁一律格式 旧的status放后面的参数
@@ -195,10 +169,11 @@ func handlePathFinished(task *model.OrderTask) {
 	// 到达终点（完成任务）
 	case constant.OrderTaskSequentialTransporting:
 		Logger.Logger.Info("车辆到达终点，任务完成", zap.Uint("shipment", task.ShipmentId))
+		now := rt.Clock.Now()
 		// 记录阶段时间戳：到达收货点 + 开始卸货
 		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
-			"reach_delivery_time": time.Now(),
-			"unload_start_time":   time.Now(),
+			"reach_delivery_time": now,
+			"unload_start_time":   now,
 		})
 		// 卸货（减少载重）
 		err := UnloadCargo(task)
@@ -207,8 +182,8 @@ func handlePathFinished(task *model.OrderTask) {
 		}
 		// 记录阶段时间戳：完成卸货 + 签收完成
 		_ = repository.UpdateTaskPhaseTimes(int(task.Id), map[string]interface{}{
-			"unload_end_time": time.Now(),
-			"signoff_time":    time.Now(),
+			"unload_end_time": now,
+			"signoff_time":    now,
 		})
 
 		// 更新任务阶段
@@ -228,7 +203,7 @@ func handlePathFinished(task *model.OrderTask) {
 		realtime.GlobalHub().BroadcastPath(task.VehicleId, "clear", buildClearPayload(meta))
 
 		// 如果该车还有已分配待发车任务，立即拉起下一单；否则释放车辆。
-		if !startNextPlannedTaskForVehicle(task.VehicleId) {
+		if !startNextPlannedTaskForVehicle(rt, task.VehicleId) {
 			_ = repository.UpdateVehicleStatus(int(task.VehicleId), constant.VehicleStatusFree, constant.VehicleStatusRunning)
 			broadcastVehicleEvent("vehicle_update", task.VehicleId)
 		}

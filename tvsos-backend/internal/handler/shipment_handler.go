@@ -1,16 +1,13 @@
 package handler
 
 import (
-	"errors"
-	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kiritosuki/mover/internal/constant"
-	"github.com/kiritosuki/mover/internal/model"
 	"github.com/kiritosuki/mover/internal/repository"
 	"github.com/kiritosuki/mover/internal/result"
+	"github.com/kiritosuki/mover/internal/task"
 )
 
 type shipmentListItem struct {
@@ -29,7 +26,14 @@ type shipmentListItem struct {
 // 兼容前端 taskManage 组件的搜索字段，支持用 ID (num) 和 状态(status) 进行筛选过滤。
 // 自动组装起点(StartPoi)和终点(EndPoi)的经纬度数据并返回。
 func ListShipments(c *gin.Context) {
-	shipments, err := repository.ListShipments()
+	// 沙箱系统：优先活跃实验运单；无运行中实验时回落模板/全局(experiment_id=0)；支持显式 experiment_id。
+	expID := task.CurrentExperimentID()
+	if expStr := c.Query("experiment_id"); expStr != "" {
+		if v, parseErr := strconv.Atoi(expStr); parseErr == nil && v >= 0 {
+			expID = uint(v)
+		}
+	}
+	shipments, err := repository.ListShipmentsByExp(expID)
 	if err != nil {
 		result.Fail(c, "查询订单失败", err)
 		return
@@ -84,59 +88,4 @@ func ListShipments(c *gin.Context) {
 	}
 
 	result.Success(c, items)
-}
-
-// MockShipments 处理客户端生成模拟大批量运单的请求 (多用于并发压力测试与调度算法可视化演示)。
-// 根据传入的数量(count)参数，随机选择起终点 POI 和货物类型(Cargo)，
-// 并将生成的批量 Shipment 落库，状态初始化为 Pending。
-func MockShipments(c *gin.Context) {
-	count, err := strconv.Atoi(c.Param("count"))
-	if err != nil || count <= 0 {
-		result.Fail(c, "count 必须是正整数", errors.New("invalid count"))
-		return
-	}
-
-	pois, err := repository.ListAllPois()
-	if err != nil {
-		result.Fail(c, "查询POI失败", err)
-		return
-	}
-	if len(pois) < 2 {
-		result.Fail(c, "POI数量不足，至少需要2个", errors.New("not enough pois"))
-		return
-	}
-
-	cargos, err := repository.ListCargos()
-	if err != nil {
-		result.Fail(c, "查询货物类型失败", err)
-		return
-	}
-	if len(cargos) == 0 {
-		result.Fail(c, "货物类型为空", errors.New("cargo list is empty"))
-		return
-	}
-
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	created := 0
-	for i := 0; i < count; i++ {
-		startIndex := rng.Intn(len(pois))
-		endIndex := rng.Intn(len(pois) - 1)
-		if endIndex >= startIndex {
-			endIndex++
-		}
-
-		cargo := cargos[rng.Intn(len(cargos))]
-		shipment := &model.Shipment{
-			StartPoiId: uint(pois[startIndex].Id),
-			EndPoiId:   uint(pois[endIndex].Id),
-			Status:     constant.ShipmentStatusSleeping,
-			CargoId:    cargo.Id,
-			Count:      rng.Intn(5) + 1,
-		}
-		if createErr := repository.CreateShipment(shipment); createErr == nil {
-			created++
-		}
-	}
-
-	result.Success(c, gin.H{"created": created})
 }

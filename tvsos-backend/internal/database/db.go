@@ -371,6 +371,60 @@ func InitDB() {
 		Logger.Logger.Info("数据库迁移：已新增实验维度列", zap.String("table", table))
 	}
 
+	// 沙箱预生成脚本表：实验订单流 / 随机事件脚本（数据生成器输出）
+	scriptTableMigrations := []tableMigration{
+		{
+			Name: "experiment_order",
+			DDL: `CREATE TABLE IF NOT EXISTS experiment_order (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				experiment_id bigint unsigned NOT NULL COMMENT '所属实验',
+				virtual_time datetime NOT NULL COMMENT '虚拟释放时刻',
+				start_poi_id bigint unsigned NOT NULL DEFAULT 0,
+				end_poi_id bigint unsigned NOT NULL DEFAULT 0,
+				cargo_id bigint unsigned NOT NULL DEFAULT 0,
+				count int NOT NULL DEFAULT 1,
+				released tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否已释放为shipment',
+				PRIMARY KEY (id),
+				KEY idx_exp_time (experiment_id, virtual_time)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+		{
+			Name: "experiment_event",
+			DDL: `CREATE TABLE IF NOT EXISTS experiment_event (
+				id bigint unsigned NOT NULL AUTO_INCREMENT,
+				experiment_id bigint unsigned NOT NULL COMMENT '所属实验',
+				virtual_time datetime NOT NULL COMMENT '虚拟触发时刻',
+				event_type varchar(32) NOT NULL DEFAULT '' COMMENT 'weather/accident',
+				vehicle_license varchar(64) NOT NULL DEFAULT '' COMMENT '目标车辆车牌(空=全体)',
+				severity int NOT NULL DEFAULT 1,
+				duration_seconds int NOT NULL DEFAULT 0 COMMENT '影响时长(虚拟秒)',
+				detail text,
+				consumed tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否已消费',
+				PRIMARY KEY (id),
+				KEY idx_exp_time (experiment_id, virtual_time)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+		},
+	}
+	for _, tm := range scriptTableMigrations {
+		var tableCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+		`, tm.Name).Scan(&tableCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查脚本表", zap.String("table", tm.Name), zap.Error(err))
+			panic(err)
+		}
+		if tableCount > 0 {
+			continue
+		}
+		if err = DB.Exec(tm.DDL).Error; err != nil {
+			Logger.Logger.Error("数据库迁移失败：创建脚本表", zap.String("table", tm.Name), zap.Error(err))
+			panic(err)
+		}
+		Logger.Logger.Info("数据库迁移：已创建脚本表", zap.String("table", tm.Name))
+	}
+
 	// order_task 任务阶段时间戳列迁移（支撑调度时序还原与响应时间分位统计）
 	orderTaskColumnMigrations := []vehicleColumnMigration{
 		{Name: "assign_time", DDL: "ALTER TABLE order_task ADD COLUMN assign_time datetime DEFAULT NULL COMMENT '订单被分配车辆时间'"},

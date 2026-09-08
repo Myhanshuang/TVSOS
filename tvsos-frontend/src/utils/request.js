@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useUserStore } from '@/stores';
 import { ElMessage } from 'element-plus';
+import router from '@/router';
 const baseURL = '/api'
 const instance = axios.create({
   baseURL,
@@ -9,8 +10,8 @@ const instance = axios.create({
 
 instance.interceptors.request.use(function (config) {
   const useStore = useUserStore()
-  if (config.token) {
-    config.headers.Authorization = useStore.token
+  if (useStore.token) {
+    config.headers.Authorization = `Bearer ${useStore.token}`
   }
   return config;
 }, function (error) {
@@ -25,7 +26,15 @@ instance.interceptors.response.use(function (response) {
   return response;
 },
   function (error) {
-    ElMessage.error(error.response.data.message || '服务异常')
+    if (error.response && error.response.status === 401) {
+      // 未登录/过期：清 token 并回登录页
+      const useStore = useUserStore()
+      useStore.removeToken()
+      router.push('/login')
+      ElMessage.error('请先登录')
+    } else {
+      ElMessage.error((error.response && error.response.data && error.response.data.message) || '服务异常')
+    }
     return Promise.reject(error);
   });
 export default instance

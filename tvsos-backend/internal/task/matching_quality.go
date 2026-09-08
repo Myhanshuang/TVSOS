@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/kiritosuki/mover/internal/model"
 )
@@ -46,6 +47,14 @@ var (
 	qualityRecipSum     float64 // MRR 倒数排名累计
 	lastBaselineImprove float64 // C1 最近完整批次的成本改善百分比
 )
+
+// ResetMatchingQuality 清空匹配质量滚动累计（实验启动时调用，保证 M1-M4/C1 按实验窗口统计）。
+func ResetMatchingQuality() {
+	qualityMu.Lock()
+	qualityEvaluated, qualityRank1, qualityRecallTotal, qualityRecallHit = 0, 0, 0, 0
+	qualityRecipSum, lastBaselineImprove = 0, 0
+	qualityMu.Unlock()
+}
 
 // GetMatchingQualityStats 返回 M1-M4 滚动指标(P/R/F1 为百分比)与已评估运单数。
 func GetMatchingQualityStats() (precision, recall, f1, mrr float64, evaluated int64) {
@@ -96,6 +105,7 @@ func evaluateMatchingQuality(
 	projectedLoads map[uint]int,
 	pois map[uint]*model.Poi,
 	saAssignment map[uint]*model.Vehicle,
+	now time.Time,
 ) *matchingQualityResult {
 	if stats == nil || len(shipments) == 0 || len(shipments) > maxQualityShipments ||
 		len(vehicles) == 0 || len(vehicles) > maxQualityVehicles || saAssignment == nil {
@@ -130,7 +140,7 @@ func evaluateMatchingQuality(
 		cands := make([]qualityCand, 0, len(vehicles))
 		for vi := range vehicles {
 			variant[i] = vi
-			cands = append(cands, qualityCand{vi, evaluateStateCost(variant, shipments, vehicles, stats, cargoCache, projectedLoads, pois)})
+			cands = append(cands, qualityCand{vi, evaluateStateCost(variant, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)})
 		}
 		sort.Slice(cands, func(a, b int) bool { return cands[a].cost < cands[b].cost })
 
@@ -171,7 +181,7 @@ func evaluateMatchingQuality(
 	// C1：完整指派批次与贪心首可行基线对比
 	blImprove, blOK := 0.0, false
 	if complete {
-		blImprove, blOK = evaluateBaselineImprovement(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+		blImprove, blOK = evaluateBaselineImprovement(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 	}
 
 	qualityMu.Lock()
@@ -199,6 +209,7 @@ func evaluateBaselineImprovement(
 	cargoCache map[uint]*model.Cargo,
 	projectedLoads map[uint]int,
 	pois map[uint]*model.Poi,
+	now time.Time,
 ) (float64, bool) {
 	blIdx := make([]int, len(shipments))
 	blLoads := make(map[uint]int, len(vehicles))
@@ -220,8 +231,8 @@ func evaluateBaselineImprovement(
 		}
 	}
 
-	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
-	blCost := evaluateStateCost(blIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	blCost := evaluateStateCost(blIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 	if saCost <= 0 || blCost <= 0 || saCost >= SAPenaltyInf || blCost >= SAPenaltyInf {
 		return 0, false
 	}

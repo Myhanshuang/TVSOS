@@ -19,18 +19,10 @@ type reliabilityMetrics struct {
 	Availability     float64 // R3 服务可用性（百分比 0-100）
 }
 
-// observationWindowStart 返回可靠性/吞吐类指标的观测起点：最近一次 startup 事件时刻。
-// 无 startup 记录时退化为当前时刻（窗口为零，指标无数据）。
-func observationWindowStart(now time.Time) time.Time {
-	if evs, err := repository.ListSystemEvents("startup", 1); err == nil && len(evs) > 0 && evs[0] != nil {
-		return evs[0].EventTime
-	}
-	return now
-}
-
-// calculateReliabilityMetrics 计算车队级可靠性指标。
-// fleetSize 为车辆总数（可用运力池的分母）；windowStart 为观测起点。
-func calculateReliabilityMetrics(fleetSize int, windowStart time.Time, now time.Time) reliabilityMetrics {
+// calculateReliabilityMetrics 计算车队级可靠性指标（experiment_id 作用域）。
+// 观测窗口 = 实验虚拟时钟起点至今（虚拟时间口径，沙箱系统新约定）；
+// fleetSize 为车辆总数（可用运力池的分母）；windowStart 为观测起点（虚拟）。
+func calculateReliabilityMetrics(experimentID uint, fleetSize int, windowStart time.Time, now time.Time) reliabilityMetrics {
 	m := reliabilityMetrics{}
 	windowSec := now.Sub(windowStart).Seconds()
 	if windowSec <= 0 {
@@ -38,7 +30,7 @@ func calculateReliabilityMetrics(fleetSize int, windowStart time.Time, now time.
 	}
 	m.ObservationHours = windowSec / 3600.0
 
-	accidents, err := repository.ListRandomEventsByType("accident", 1000)
+	accidents, err := repository.ListRandomEventsByTypeByExp(experimentID, "accident", 1000)
 	if err != nil {
 		return m
 	}

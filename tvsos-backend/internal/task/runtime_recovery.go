@@ -8,49 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// RecoverRuntimeState 在服务启动时恢复运行时路径状态，避免数据库状态与内存路线不一致。
-func RecoverRuntimeState() {
-	resetRuntimeRouteCaches()
-	// 记录运行态恢复事件（R1-R3 可靠性指标数据源）
-	RecordSystemEvent("recovery", "info", "服务启动，恢复运行时任务与车辆状态", "")
-
-	tasks, err := repository.GetRunningTasksOrderedByVehicle()
-	if err != nil {
-		Logger.Logger.Error("启动恢复运行时状态失败：查询运行中任务失败", zap.Error(err))
-		return
-	}
-
-	runningVehicles := make(map[uint]struct{}, len(tasks))
-	for _, task := range tasks {
-		if task == nil {
-			continue
-		}
-		runningVehicles[task.VehicleId] = struct{}{}
-		if hydrateRuntimeRoute(task.VehicleId, task.ShipmentId, task.Sequential) {
-			continue
-		}
-		if !recoverTaskRoute(task.VehicleId, task.ShipmentId, task.Sequential) {
-			Logger.Logger.Warn("启动恢复任务路径失败，将继续后续任务", zap.Uint("vehicleId", task.VehicleId), zap.Uint("shipmentId", task.ShipmentId))
-		}
-	}
-
-	vehicles, err := repository.ListVehicles(constant.VehicleStatusRunning)
-	if err != nil {
-		Logger.Logger.Error("启动恢复运行时状态失败：查询运行中车辆失败", zap.Error(err))
-		return
-	}
-
-	for _, vehicle := range vehicles {
-		if vehicle == nil {
-			continue
-		}
-		if _, ok := runningVehicles[vehicle.Id]; ok {
-			continue
-		}
-		reconcileStaleRunningVehicle(vehicle.Id)
-	}
-}
-
 func hydrateRuntimeRoute(vehicleID uint, shipmentID uint, sequential int) bool {
 	meta, points, ok := getRuntimeRouteState(vehicleID)
 	if !ok || len(points) == 0 {

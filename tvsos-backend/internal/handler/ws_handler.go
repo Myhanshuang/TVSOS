@@ -34,7 +34,8 @@ func WsVehicles(c *gin.Context) {
 	defer hub.RemoveVehicleClient(client)
 	defer conn.Close()
 
-	vehicles, err := repository.ListVehicles(0)
+	// 沙箱系统：初始快照取活跃实验实例车辆；无运行中实验时回落模板车队(experiment_id=0)
+	vehicles, err := repository.ListVehiclesByExp(task.CurrentExperimentID(), 0)
 	if err == nil {
 		hub.SendClient(client, "snapshot", map[string]interface{}{"vehicles": repository.BuildVehicleViews(vehicles)})
 	}
@@ -79,9 +80,11 @@ func WsStats(c *gin.Context) {
 	defer hub.RemoveStatsClient(client)
 	defer conn.Close()
 
-	snapshot, err := task.BuildRealtimeDashboard()
-	if err == nil {
-		hub.SendClient(client, "snapshot", snapshot)
+	// 沙箱系统：统计快照必须绑定活跃实验（无运行中实验时不发初始快照，等待 broadcast）
+	if rt := task.CurrentRuntime(); rt != nil {
+		if snapshot, err := task.BuildRealtimeDashboard(rt); err == nil {
+			hub.SendClient(client, "snapshot", snapshot)
+		}
 	}
 
 	runWSLoop(conn, client)
