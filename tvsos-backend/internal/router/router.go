@@ -69,6 +69,38 @@ func SetupRouter(r *gin.Engine) {
 		reportGroup.GET("/realtime", handler.GetRealtimeReport)
 	}
 
+	// 沙箱系统接口 - 沙箱/实验方案/实验(批次)/数据生成/生命周期/种子导入导出/对比
+	sandboxGroup := authed.Group("/sandboxes")
+	{
+		sandboxGroup.GET("", handler.ListSandboxes)
+		sandboxGroup.POST("", handler.CreateSandbox)
+		sandboxGroup.GET("/:id", handler.GetSandbox)
+		sandboxGroup.PUT("/:id", handler.UpdateSandbox)
+		sandboxGroup.DELETE("/:id", handler.ArchiveSandbox)
+		sandboxGroup.GET("/:id/schemes", handler.ListSchemes)
+		sandboxGroup.POST("/:id/schemes", handler.CreateScheme)
+		sandboxGroup.GET("/:id/experiments", handler.ListExperiments)
+		sandboxGroup.POST("/:id/experiments", handler.CreateExperiment)
+		sandboxGroup.POST("/:id/import", handler.ImportExperiment)
+	}
+	schemeGroup := authed.Group("/schemes")
+	{
+		schemeGroup.PUT("/:schemeId", handler.UpdateScheme)
+		schemeGroup.DELETE("/:schemeId", handler.DeleteScheme)
+	}
+	experimentGroup := authed.Group("/experiments")
+	{
+		experimentGroup.GET("/:id", handler.GetExperiment)
+		experimentGroup.PUT("/:id/params", handler.UpdateExperimentParams)
+		experimentGroup.POST("/:id/generate", handler.GenerateExperimentData)
+		experimentGroup.POST("/:id/start", handler.StartExperiment)
+		experimentGroup.POST("/:id/stop", handler.StopExperiment)
+		experimentGroup.GET("/:id/status", handler.GetExperimentStatus)
+		experimentGroup.GET("/:id/export", handler.ExportExperiment)
+		experimentGroup.GET("/:id/result", handler.GetExperimentResult)
+	}
+	authed.GET("/compare", handler.CompareExperiments)
+
 	// websocket接口 - 服务于前端看板的实时推流(车辆坐标/局部路径/统计数据)
 	// WS 握手不支持自定义头，token 经 ?token= 传递（AuthRequired 已兼容）
 	wsGroup := authed.Group("/ws")
