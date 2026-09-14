@@ -1,0 +1,12 @@
+com/tvsos/service/impl/VehicleServiceImpl.class
+com/tvsos/service/impl/PoiServiceImpl.class
+com/tvsos/service/VehicleService.class
+com/tvsos/controller/PoiController.class
+com/tvsos/config/SwaggerConfig.class
+com/tvsos/utils/HttpUtils.class
+com/tvsos/controller/VehicleController.class
+com/tvsos/utils/SimulatorUtils.class
+com/tvsos/mapper/PoiMapper.class
+com/tvsos/service/PoiService.class
+com/tvsos/RoutingServerApplication.class
+com/tvsos/mapper/VehicleMapper.class

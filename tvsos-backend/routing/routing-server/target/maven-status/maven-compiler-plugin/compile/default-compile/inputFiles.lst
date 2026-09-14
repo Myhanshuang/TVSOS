@@ -1,0 +1,13 @@
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/RoutingServerApplication.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/config/SwaggerConfig.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/controller/PoiController.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/controller/VehicleController.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/mapper/PoiMapper.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/mapper/VehicleMapper.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/runner/BusinessLogicRunner.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/service/PoiService.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/service/VehicleService.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/service/impl/PoiServiceImpl.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/service/impl/VehicleServiceImpl.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/utils/HttpUtils.java
+/Users/kirito/mysrc/project/zongshe/tvsos/tvsos-backend/routing/routing-server/src/main/java/com/tvsos/utils/SimulatorUtils.java

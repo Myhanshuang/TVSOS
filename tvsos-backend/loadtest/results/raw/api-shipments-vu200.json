@@ -1,0 +1,148 @@
+{
+    "root_group": {
+        "groups": {},
+        "checks": {
+                "HTTP 状态为 200": {
+                    "path": "::HTTP 状态为 200",
+                    "id": "2e05ee80a6ff13b0675ad507fdc45c38",
+                    "passes": 9800,
+                    "fails": 0,
+                    "name": "HTTP 状态为 200"
+                },
+                "业务状态成功": {
+                    "name": "业务状态成功",
+                    "path": "::业务状态成功",
+                    "id": "da705338e916bc55c53ecc6b6d3f7f7c",
+                    "passes": 9746,
+                    "fails": 54
+                }
+            },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "metrics": {
+        "http_req_waiting": {
+            "p(95)": 8.776249999999997,
+            "avg": 3.3891622448979675,
+            "min": 0.41,
+            "med": 2.225,
+            "max": 34.681,
+            "p(90)": 5.872400000000001
+        },
+        "data_sent": {
+            "count": 774200,
+            "rate": 152042.3299043618
+        },
+        "http_req_duration": {
+            "avg": 3.416971428571441,
+            "min": 0.416,
+            "med": 2.2365000000000004,
+            "max": 34.688,
+            "p(90)": 6.002,
+            "p(95)": 8.789249999999997,
+            "thresholds": {
+                "p(95)<1500": false
+            }
+        },
+        "http_req_receiving": {
+            "min": 0.003,
+            "med": 0.006,
+            "max": 1.121,
+            "p(90)": 0.019,
+            "p(95)": 0.029,
+            "avg": 0.009724183673469519
+        },
+        "business_failures": {
+            "passes": 54,
+            "fails": 9746,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0.005510204081632653
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 9800,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "vus": {
+            "value": 200,
+            "min": 200,
+            "max": 200
+        },
+        "vus_max": {
+            "min": 200,
+            "max": 200,
+            "value": 200
+        },
+        "http_req_blocked": {
+            "avg": 0.036228469387739826,
+            "min": 0,
+            "med": 0.001,
+            "max": 4.78,
+            "p(90)": 0.002,
+            "p(95)": 0.003
+        },
+        "data_received": {
+            "count": 7796694,
+            "rate": 1531164.4553233767
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "iteration_duration": {
+            "med": 102.409729,
+            "max": 134.755583,
+            "p(90)": 106.164042,
+            "p(95)": 109.2470566,
+            "avg": 103.58225332867337,
+            "min": 100.463916
+        },
+        "http_req_duration{expected_response:true}": {
+            "med": 2.2365000000000004,
+            "max": 34.688,
+            "p(90)": 6.002,
+            "p(95)": 8.789249999999997,
+            "avg": 3.416971428571441,
+            "min": 0.416
+        },
+        "http_req_sending": {
+            "max": 2.974,
+            "p(90)": 0.006,
+            "p(95)": 0.014,
+            "avg": 0.018085000000003557,
+            "min": 0.001,
+            "med": 0.002
+        },
+        "checks": {
+            "passes": 19546,
+            "fails": 54,
+            "value": 0.9972448979591837
+        },
+        "http_reqs": {
+            "count": 9800,
+            "rate": 1924.5864544855924
+        },
+        "http_req_connecting": {
+            "avg": 0.03340285714285716,
+            "min": 0,
+            "med": 0,
+            "max": 3.429,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "iterations": {
+            "count": 9800,
+            "rate": 1924.5864544855924
+        }
+    }
+}
