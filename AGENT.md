@@ -110,7 +110,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - MockShipments 接口与前端 mock 按钮已删除（由数据生成器取代）。
 
 ### 前端要点
-- 新页面：views/sandboxList.vue、sandboxDetail.vue（方案+实验记录+种子导入导出）、experimentResult.vue、experimentCompare.vue、components/experimentConfig.vue（表单↔TOML 双向）。
+- 新页面：views/sandboxList.vue、sandboxDetail.vue（方案+实验记录+参数导入导出）、experimentResult.vue、experimentCompare.vue、components/experimentConfig.vue（表单↔TOML 双向，实验与方案新建共用——方案走 scheme-mode 属性：多描述字段、仅创建不生成）。导出=参数 TOML 独立文件浏览器下载（Blob+URL.createObjectURL，不再走剪贴板 JSON 种子包）；导入双格式：JSON 种子包走 /import，纯 TOML 文本走 createExperiment 按参数建实验。
 - index.vue 两屏（地图/任务管理）是实验视图 /admin/experiment/:id（原独立统计分析屏已删除，并入地图覆盖层 mapDataOverlay.vue）；header.vue 按场景切换导航（实验侧有地图/任务管理/显示数据开关/倍速/虚拟时钟进度条/结束实验；沙箱侧只有沙箱管理入口），退出登录真实化。
 - WS 连接统一经 withToken() 附加 ?token=（mapDataOverlay.vue / vehiclePolling.js）。
 - request.js 无条件携带 Authorization: Bearer，401 自动清 token 回登录页。

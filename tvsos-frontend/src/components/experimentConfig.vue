@@ -1,12 +1,15 @@
 <template>
-  <el-dialog v-model="visible" :title="isEdit ? '编辑实验参数' : '新建实验'" width="760px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" :title="dialogTitle" width="760px" :close-on-click-modal="false">
     <el-tabs v-model="activeTab">
       <!-- 表单模式 -->
       <el-tab-pane label="表单配置" name="form">
         <el-form label-width="120px" class="cfg-form">
           <el-divider content-position="left">基础</el-divider>
-          <el-form-item label="实验名称">
-            <el-input v-model="form.name" placeholder="留空自动命名" />
+          <el-form-item :label="schemeMode ? '方案名' : '实验名称'">
+            <el-input v-model="form.name" :placeholder="schemeMode ? '如：基准方案-20车' : '留空自动命名'" />
+          </el-form-item>
+          <el-form-item v-if="schemeMode" label="描述">
+            <el-input v-model="form.description" type="textarea" :rows="2" placeholder="可选，方案用途说明" />
           </el-form-item>
           <el-form-item label="随机种子">
             <el-input-number v-model="form.seed" :min="0" :step="1" style="width: 220px" />
@@ -102,8 +105,8 @@
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
       <el-button @click="applyToml" v-if="activeTab === 'toml'">应用到表单</el-button>
-      <el-button type="primary" :loading="saving" @click="handleSubmit(false)">仅保存</el-button>
-      <el-button type="success" :loading="saving" @click="handleSubmit(true)">
+      <el-button type="primary" :loading="saving" @click="handleSubmit(false)">{{ schemeMode ? '创建方案' : '仅保存' }}</el-button>
+      <el-button v-if="!schemeMode" type="success" :loading="saving" @click="handleSubmit(true)">
         {{ startLabel }}
       </el-button>
     </template>
@@ -116,6 +119,8 @@ import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   startLabel: { type: String, default: '保存并生成数据' },
+  // 方案模式：新建实验方案（多一个描述字段，仅保存，不提供"生成数据并开始"入口）
+  schemeMode: { type: Boolean, default: false },
 })
 const emit = defineEmits(['submit'])
 
@@ -124,9 +129,14 @@ const saving = ref(false)
 const activeTab = ref('form')
 const isEdit = ref(false)
 const editId = ref(0)
+const dialogTitle = computed(() => {
+  if (props.schemeMode) return '新建实验方案'
+  return isEdit.value ? '编辑实验参数' : '新建实验'
+})
 
 const defaultForm = () => ({
   name: '',
+  description: '',
   seed: 12345,
   durationHours: 24,
   speed: 1,
@@ -235,12 +245,13 @@ const applyToml = () => {
 }
 
 // 打开面板：mode='create' 新实验；mode='edit' 编辑已有实验参数；initialToml 预填（种子导入/再次运行）
-const open = ({ mode = 'create', initialToml = '', name = '', id = 0 } = {}) => {
+const open = ({ mode = 'create', initialToml = '', name = '', id = 0, description = '' } = {}) => {
   isEdit.value = mode === 'edit'
   editId.value = id
   form.value = defaultForm()
   if (initialToml) applyTomlToForm(initialToml)
   if (name) form.value.name = name
+  if (description) form.value.description = description
   tomlText.value = initialToml || buildToml()
   activeTab.value = 'form'
   visible.value = true
@@ -252,6 +263,7 @@ const handleSubmit = (andGenerate) => {
     id: editId.value,
     isEdit: isEdit.value,
     name: form.value.name,
+    description: form.value.description,
     seed: form.value.seed,
     paramsToml: t,
     andGenerate,

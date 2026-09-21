@@ -8,7 +8,7 @@
       </div>
       <div class="head-actions">
         <el-button @click="goCompare">实验对比</el-button>
-        <el-button :icon="Download" @click="importVisible = true">种子导入</el-button>
+        <el-button :icon="Download" @click="importVisible = true">导入</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateExperiment">新建实验</el-button>
       </div>
     </div>
@@ -20,7 +20,7 @@
           <template #header>
             <div class="card-head">
               <span>实验方案（参数模板）</span>
-              <el-button size="small" :icon="Plus" @click="schemeVisible = true">新建方案</el-button>
+              <el-button size="small" :icon="Plus" @click="openCreateScheme">新建方案</el-button>
             </div>
           </template>
           <div v-if="schemes.length === 0" class="empty-tip">暂无方案，可直接新建实验</div>
@@ -70,7 +70,7 @@
                   @click="goExperiment(row)">进入实验</el-button>
                 <el-button v-if="row.status === 'finished'" size="small" type="primary" plain
                   @click="goResult(row)">查看结果</el-button>
-                <el-button size="small" :icon="Download" circle title="导出种子"
+                <el-button size="small" :icon="Download" circle title="导出参数TOML"
                   @click="handleExport(row)" />
                 <el-button size="small" :icon="RefreshRight" circle title="以此参数再次运行"
                   @click="rerunExperiment(row)" />
@@ -85,28 +85,12 @@
     <!-- 实验参数配置面板 -->
     <experiment-config ref="configPanel" @submit="handleConfigSubmit" start-label="生成数据并开始实验" />
 
-    <!-- 新建方案对话框 -->
-    <el-dialog v-model="schemeVisible" title="新建实验方案" width="560px">
-      <el-form label-width="90px">
-        <el-form-item label="方案名" required>
-          <el-input v-model="schemeForm.name" placeholder="如：基准方案-20车" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="schemeForm.description" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="参数TOML">
-          <el-input v-model="schemeForm.paramsToml" type="textarea" :rows="10" placeholder="留空使用默认实验参数" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="schemeVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateScheme">创建</el-button>
-      </template>
-    </el-dialog>
+    <!-- 新建方案：图形化表单与 TOML 共存配置（复用实验配置面板的方案模式） -->
+    <experiment-config ref="schemePanel" scheme-mode @submit="handleSchemeSubmit" />
 
     <!-- 种子导入对话框 -->
-    <el-dialog v-model="importVisible" title="导入实验种子包" width="560px">
-      <p class="tip">粘贴由"导出种子"得到的 JSON 种子包，将在本沙箱创建同参数同种子的新实验（生成数据后即可复现）</p>
+    <el-dialog v-model="importVisible" title="导入参数 / 种子包" width="560px">
+      <p class="tip">粘贴"导出参数TOML"下载的文件内容（按参数创建新实验），或完整 JSON 种子包（同参数同种子复现）；生成数据后即可运行</p>
       <el-input v-model="importText" type="textarea" :rows="10" spellcheck="false"
         placeholder='{"seed":12345,"dataVersion":1,"paramsToml":"..."}' />
       <template #footer>
@@ -126,7 +110,7 @@ import experimentConfig from '@/components/experimentConfig.vue'
 import {
   getSandbox, listSchemes, createScheme, deleteScheme,
   listExperiments, createExperiment, updateExperimentParams,
-  generateExperimentData, startExperiment, exportExperiment, importExperiment,
+  generateExperimentData, startExperiment, importExperiment,
 } from '@/api/sandbox'
 
 const route = useRoute()
@@ -139,8 +123,7 @@ const experiments = ref([])
 const loading = ref(false)
 const configPanel = ref(null)
 
-const schemeVisible = ref(false)
-const schemeForm = ref({ name: '', description: '', paramsToml: '' })
+const schemePanel = ref(null)
 const importVisible = ref(false)
 const importText = ref('')
 
@@ -184,6 +167,7 @@ const formatTime = (t) => (t || '').replace('T', ' ').slice(0, 19)
 
 // ---- 实验创建/编辑/运行 ----
 const openCreateExperiment = () => configPanel.value.open({ mode: 'create' })
+const openCreateScheme = () => schemePanel.value.open({ mode: 'create' })
 const editExperiment = (row) => configPanel.value.open({ mode: 'edit', id: row.id, name: row.name, initialToml: row.paramsToml })
 const rerunExperiment = (row) => configPanel.value.open({ mode: 'create', name: row.name + '-复跑', initialToml: row.paramsToml })
 const runScheme = (s) => configPanel.value.open({ mode: 'create', name: s.name + '-' + new Date().toTimeString().slice(0, 5), initialToml: s.paramsToml })
@@ -234,48 +218,79 @@ const handleStart = async (row) => {
   if (res.data.code === 1) router.push(`/admin/experiment/${row.id}`)
 }
 
-// ---- 种子导出/导入 ----
-const handleExport = async (row) => {
-  const res = await exportExperiment(row.id)
-  if (res.data.code !== 1) return
-  const text = JSON.stringify(res.data.data, null, 2)
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('种子包已复制到剪贴板')
-  } catch {
-    ElMessageBox.alert(text, '实验种子包（请手动复制）', { confirmButtonText: '关闭' })
-  }
+// ---- 参数导出/导入 ----
+// 导出参数 TOML：作为独立 .toml 文件在浏览器中下载（替代原"复制 JSON 种子包到剪贴板"）
+const handleExport = (row) => {
+  const toml = row.paramsToml || ''
+  const safeName = (row.name || 'experiment-' + row.id).replace(/[\\/:*?"<>|]/g, '_')
+  const blob = new Blob([toml], { type: 'application/toml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = safeName + '.toml'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  ElMessage.success('已导出参数文件：' + safeName + '.toml')
 }
 
+// 导入支持两种格式：JSON 种子包（原有）/ 参数 TOML（新导出格式，按参数直接创建实验）
 const handleImport = async () => {
-  let payload
-  try {
-    payload = JSON.parse(importText.value)
-  } catch {
-    ElMessage.error('JSON 解析失败，请检查种子包格式')
+  const text = importText.value.trim()
+  if (!text) {
+    ElMessage.warning('请粘贴参数 TOML 或 JSON 种子包')
     return
   }
-  const res = await importExperiment(sandboxId, payload)
-  if (res.data.code === 1) {
-    ElMessage.success(`已导入为实验 #${res.data.data.id}，请生成数据后启动`)
+  const done = () => {
     importVisible.value = false
     importText.value = ''
     load()
   }
+  if (text.startsWith('{')) {
+    let payload
+    try {
+      payload = JSON.parse(text)
+    } catch {
+      ElMessage.error('JSON 解析失败，请检查种子包格式')
+      return
+    }
+    const res = await importExperiment(sandboxId, payload)
+    if (res.data.code === 1) {
+      ElMessage.success(`已导入为实验 #${res.data.data.id}，请生成数据后启动`)
+      done()
+    }
+    return
+  }
+  // 参数 TOML：种子取 TOML 首行 seed 命名，后端解析校验后创建实验
+  const seedMatch = text.match(/^seed\s*=\s*(\d+)/m)
+  const res = await createExperiment(sandboxId, {
+    name: seedMatch ? `导入参数-${seedMatch[1]}` : '导入参数',
+    paramsToml: text,
+  })
+  if (res.data.code === 1) {
+    ElMessage.success(`已按 TOML 参数创建实验 #${res.data.data.id}，生成数据后即可运行`)
+    done()
+  }
 }
 
 // ---- 方案 ----
-const handleCreateScheme = async () => {
-  if (!schemeForm.value.name.trim()) {
+// 新建方案：图形化表单与 TOML 双向共存（experimentConfig 方案模式），提交创建参数模板
+const handleSchemeSubmit = async ({ name, description, paramsToml, close, setSaving }) => {
+  if (!name || !name.trim()) {
     ElMessage.warning('请填写方案名')
     return
   }
-  const res = await createScheme(sandboxId, schemeForm.value)
-  if (res.data.code === 1) {
-    ElMessage.success('方案已创建')
-    schemeVisible.value = false
-    schemeForm.value = { name: '', description: '', paramsToml: '' }
-    load()
+  setSaving(true)
+  try {
+    const res = await createScheme(sandboxId, { name, description, paramsToml })
+    if (res.data.code === 1) {
+      ElMessage.success('方案已创建')
+      close()
+      load()
+    }
+  } finally {
+    setSaving(false)
   }
 }
 
