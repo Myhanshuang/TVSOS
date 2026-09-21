@@ -48,7 +48,7 @@
 
       <!-- 参数差异（git diff 视图） -->
       <el-card style="margin-top:16px">
-        <template #header>参数 TOML 差异（git diff · 基准 = 第一个实验）</template>
+        <template #header>参数 TOML 差异（git 分栏 diff · 左列基准 = 第一个实验）</template>
         <div v-for="d in paramDiffs" :key="d.id" class="diff-block">
           <div class="diff-title">
             <h4>#{{ d.id }} {{ d.name }}</h4>
@@ -56,13 +56,23 @@
             <el-tag v-else size="small" type="warning" effect="plain">+{{ d.addCount }} / -{{ d.delCount }} 行变更</el-tag>
           </div>
           <div v-if="d.hunks.length" class="diff-view">
+            <div class="d-col-head">
+              <span class="d-col-title base">#{{ baseExpInfo.id }} {{ baseExpInfo.name }}（基准）</span>
+              <span class="d-col-title">#{{ d.id }} {{ d.name }}</span>
+            </div>
             <template v-for="(h, hi) in d.hunks" :key="hi">
               <div class="d-hunk">{{ h.header }}</div>
-              <div v-for="(ln, li) in h.lines" :key="hi + '-' + li" class="d-line" :class="ln.type">
-                <span class="d-no">{{ ln.aNo ?? '' }}</span>
-                <span class="d-no">{{ ln.bNo ?? '' }}</span>
-                <span class="d-mk">{{ ln.marker }}</span>
-                <span class="d-txt">{{ ln.text || ' ' }}</span>
+              <div v-for="(row, ri) in h.rows" :key="hi + '-' + ri" class="d-row">
+                <div class="d-cell" :class="row.left ? row.left.type : 'empty'">
+                  <span class="d-no">{{ row.left?.no ?? '' }}</span>
+                  <span class="d-mk">{{ row.left?.type === 'del' ? '-' : '' }}</span>
+                  <span class="d-txt">{{ row.left?.text ?? ' ' }}</span>
+                </div>
+                <div class="d-cell" :class="row.right ? row.right.type : 'empty'">
+                  <span class="d-no">{{ row.right?.no ?? '' }}</span>
+                  <span class="d-mk">{{ row.right?.type === 'add' ? '+' : '' }}</span>
+                  <span class="d-txt">{{ row.right?.text ?? ' ' }}</span>
+                </div>
               </div>
             </template>
           </div>
@@ -91,6 +101,7 @@ const comparedExps = ref([])
 const comparedResults = ref({}) // expId -> primaryMetrics object
 const rows = ref([])
 const paramDiffs = ref([])
+const baseExpInfo = ref({ id: 0, name: '' })
 const radarRef = ref(null)
 const barRef = ref(null)
 let radarChart = null
@@ -143,11 +154,47 @@ const diffLines = (a, b) => {
   return out
 }
 
-// buildHunks：把 diff 序列切成带 3 行上下文的 hunk，产出 git unified 头 @@ -a,n +b,n @@
+// buildSplitRows：把 diff 序列折算成"成对行"——左=基准侧，右=对比侧；
+// 相等行两侧同文本；变更块内按序 zip 配对（第k个删除 ↔ 第k个新增，如 seed=12345 ↔ seed=777），单侧多余留空。
+const buildSplitRows = (diffs) => {
+  const rows = []
+  let i = 0
+  while (i < diffs.length) {
+    if (diffs[i].type === 'equal') {
+      rows.push({
+        left: { no: diffs[i].aNo, text: diffs[i].text, type: 'equal' },
+        right: { no: diffs[i].bNo, text: diffs[i].text, type: 'equal' },
+      })
+      i++
+      continue
+    }
+    const dels = []
+    const adds = []
+    while (i < diffs.length && diffs[i].type !== 'equal') {
+      if (diffs[i].type === 'del') dels.push(diffs[i])
+      else adds.push(diffs[i])
+      i++
+    }
+    const pairs = Math.max(dels.length, adds.length)
+    for (let k = 0; k < pairs; k++) {
+      const dl = dels[k] || null
+      const ad = adds[k] || null
+      rows.push({
+        left: dl ? { no: dl.aNo, text: dl.text, type: 'del' } : null,
+        right: ad ? { no: ad.bNo, text: ad.text, type: 'add' } : null,
+      })
+    }
+  }
+  return rows
+}
+
+// buildSplitHunks：3 行上下文切 hunk；头仍用 git @@ -a,n +b,n @@ 口径（各按本侧非空行计数）
 const DIFF_CONTEXT = 3
-const buildHunks = (diffs) => {
+const buildSplitHunks = (rows) => {
   const changed = []
-  diffs.forEach((d, idx) => { if (d.type !== 'equal') changed.push(idx) })
+  rows.forEach((r, idx) => {
+    if ((r.left && r.left.type === 'del') || (r.right && r.right.type === 'add')) changed.push(idx)
+  })
   if (!changed.length) return []
   // 相邻变更间隔 <= 2*CONTEXT+1 归并进同一个 hunk
   const groups = []
@@ -159,16 +206,16 @@ const buildHunks = (diffs) => {
   groups.push(g)
   return groups.map((gr) => {
     const from = Math.max(0, gr[0] - DIFF_CONTEXT)
-    const to = Math.min(diffs.length - 1, gr[gr.length - 1] + DIFF_CONTEXT)
-    const slice = diffs.slice(from, to + 1)
-    const aLines = slice.filter((d) => d.type !== 'add')
-    const bLines = slice.filter((d) => d.type !== 'del')
-    // 纯新增 hunk 无基准侧行号时，取前一行基准侧行号作锚点（git -n,0 口径）
-    const aStart = aLines.length ? aLines[0].aNo : (from > 0 ? diffs[from - 1].aNo : 0)
-    const bStart = bLines.length ? bLines[0].bNo : (from > 0 ? diffs[from - 1].bNo : 0)
+    const to = Math.min(rows.length - 1, gr[gr.length - 1] + DIFF_CONTEXT)
+    const slice = rows.slice(from, to + 1)
+    const aCount = slice.filter((r) => r.left).length
+    const bCount = slice.filter((r) => r.right).length
+    // 单侧为空的 hunk（纯增/纯删）取前一成对行同侧行号作锚点（git -n,0 口径）
+    const aStart = slice.find((r) => r.left)?.left?.no ?? (from > 0 && rows[from - 1].left ? rows[from - 1].left.no : 0)
+    const bStart = slice.find((r) => r.right)?.right?.no ?? (from > 0 && rows[from - 1].right ? rows[from - 1].right.no : 0)
     return {
-      header: `@@ -${aStart},${aLines.length} +${bStart},${bLines.length} @@`,
-      lines: slice.map((d) => ({ ...d, marker: d.type === 'add' ? '+' : d.type === 'del' ? '-' : ' ' })),
+      header: `@@ -${aStart},${aCount} +${bStart},${bCount} @@`,
+      rows: slice,
     }
   })
 }
@@ -200,13 +247,17 @@ const load = async () => {
     while (ls.length && !ls[ls.length - 1].trim()) ls.pop()
     return ls
   }
+  const baseExp = comparedExps.value[0]
+  baseExpInfo.value = { id: baseExp?.id || 0, name: baseExp?.name || '' }
   paramDiffs.value = comparedExps.value.slice(1).map(e => {
-    const hunks = buildHunks(diffLines(splitLines(baseToml), splitLines(e.paramsToml)))
+    const diffs = diffLines(splitLines(baseToml), splitLines(e.paramsToml))
+    const rowPairs = buildSplitRows(diffs)
+    const hunks = buildSplitHunks(rowPairs)
     let addCount = 0
     let delCount = 0
-    for (const h of hunks) for (const ln of h.lines) {
-      if (ln.type === 'add') addCount++
-      else if (ln.type === 'del') delCount++
+    for (const r of rowPairs) {
+      if (r.left && r.left.type === 'del') delCount++
+      if (r.right && r.right.type === 'add') addCount++
     }
     return { id: e.id, name: e.name, hunks, addCount, delCount }
   })
@@ -282,21 +333,31 @@ onUnmounted(() => { radarChart?.dispose(); barChart?.dispose() })
 .diff-title { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .diff-title h4 { margin: 0; }
 
-/* git diff 统一视图：双侧行号槽 + 变更标记 + 红删绿增 */
+/* git 分栏 diff：左列基准实验、右列对比实验，成对行对齐 */
 .diff-view {
   border: 1px solid #ebeef5; border-radius: 6px; overflow-x: auto;
   font-family: Consolas, 'Courier New', monospace; font-size: 12px; background: #fff;
 }
+.d-col-head { display: flex; border-bottom: 1px solid #ebeef5; }
+.d-col-title {
+  flex: 1; min-width: 300px; padding: 5px 10px; background: #f5f7fa;
+  color: #606266; font-family: initial; font-size: 12px; border-bottom: 1px solid #ebeef5;
+}
+.d-col-title.base { border-right: 1px solid #ebeef5; color: #909399; }
 .d-hunk {
   background: #f5f7fa; color: #909399; padding: 2px 10px;
   border-top: 1px solid #ebeef5; border-bottom: 1px solid #ebeef5;
 }
-.d-line { display: flex; white-space: pre; }
-.d-line .d-no { width: 38px; flex-shrink: 0; text-align: right; color: #c0c4cc; padding-right: 8px; user-select: none; }
-.d-line .d-mk { width: 16px; flex-shrink: 0; text-align: center; user-select: none; color: #909399; }
-.d-line .d-txt { flex: 1; padding-right: 10px; color: #303133; }
-.d-line.del { background: #fef0f0; }
-.d-line.del .d-mk, .d-line.del .d-txt { color: #f56c6c; }
-.d-line.add { background: #f0f9eb; }
-.d-line.add .d-mk, .d-line.add .d-txt { color: #67c23a; }
+.d-row { display: flex; }
+.d-cell { flex: 1; min-width: 300px; display: flex; }
+.d-cell + .d-cell { border-left: 1px solid #ebeef5; }
+.d-cell .d-no { width: 34px; flex-shrink: 0; text-align: right; color: #c0c4cc; padding-right: 6px; user-select: none; }
+.d-cell .d-mk { width: 14px; flex-shrink: 0; text-align: center; user-select: none; color: #909399; }
+.d-cell .d-txt { flex: 1; padding-right: 8px; color: #303133; white-space: pre; }
+.d-cell.del { background: #fef0f0; }
+.d-cell.del .d-mk, .d-cell.del .d-txt { color: #f56c6c; }
+.d-cell.add { background: #f0f9eb; }
+.d-cell.add .d-mk, .d-cell.add .d-txt { color: #67c23a; }
+.d-cell.empty { background: #fafbfc; }
+.d-cell.empty .d-txt { color: #c0c4cc; }
 </style>
