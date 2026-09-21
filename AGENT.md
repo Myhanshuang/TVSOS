@@ -50,7 +50,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 
 核心链路：`internal/task/stats.go CalculateGlobalStats()` → `realtime_stats.go BuildRealtimeDashboard()` → RealtimeSummary（WS `/ws/stats` 推送间隔 3s，前端轮询 15s 兜底）。
 
-实时展示已改为地图覆盖层（`components/mapDataOverlay.vue`，凹字形六面板）：左上运行健康图（吞吐/积压/P95+事件标记）、左下运力效率趋势（U2/U4/U3+状态堆叠带）、右上 Top3 最值榜（载货最重/载货时间最长，点击弹完整列表）、右中车辆状态饼图、右下调配效率雷达（里程利用率/装载率/派单率/货物流动率/运力利用率，后端 radar 字段 0~100）、正下最终优化指标值(F/C2/C1/A3)+随机事件流。完整指标体系（M/U/T/A/C/R/F/G 八章）保留在实验结果页。
+实时展示已改为地图覆盖层（`components/mapDataOverlay.vue`，非弹窗三整板）：左整板全高（运行健康图：吞吐/积压/P95+事件标记；运力效率趋势：U2/U4/U3+状态堆叠带）向右滑入；右整板全高（Top3 最值榜：载货最重/载货时长，点击弹完整列表；车辆状态饼图；调配效率五维雷达：里程利用率/装载率/派单率/货物流动率/运力利用率，后端 radar 字段 0~100）向左滑入；底整板（最终优化指标值 F/C2/C1/A3 + 随机事件流）向上滑入。三整板完全打开后边缘完全贴合零空隙。完整指标体系（M/U/T/A/C/R/F/G 八章）保留在实验结果页。
 
 - M1-M4（P/R/F1/MRR）：参考答案为**条件最优**（固定其余指派、该单改派各车取整批成本最低者，`matching_quality.go`），逐单候选排名+ground truth 已回填 `matching_log`
 - C1：SA 相对贪心首可行基线的成本改善%；A2 求解耗时（`solver_timing.go`）；A3 gap（`gap_evaluator.go`，≤4 单 ≤6 车才枚举，20 车队实际跳过）

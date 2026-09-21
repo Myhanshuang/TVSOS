@@ -315,71 +315,79 @@ const openTopDialog = async (metric) => {
 
 <template>
   <div class="data-overlay" :class="{ shown: panelsShown }">
-    <!-- 左上：运行健康图（吞吐/积压/P95 + 事件标记） -->
-    <section class="panel p-health from-left" style="--d: 0ms">
-      <div class="panel-head">
-        <span class="panel-title">运行健康</span>
-        <span class="panel-kpi">{{ healthHead }}</span>
+    <!-- 左侧整板（全高，向右过渡滑入）：运行健康 + 运力效率趋势 -->
+    <section class="block b-left" style="--d: 0ms">
+      <div class="sec sec-health">
+        <div class="sec-head">
+          <span class="sec-title">运行健康</span>
+          <span class="sec-kpi">{{ healthHead }}</span>
+        </div>
+        <div ref="healthRef" class="sec-chart"></div>
       </div>
-      <div ref="healthRef" class="chart-body"></div>
-    </section>
-
-    <!-- 左下：运力效率趋势图（装载率/空驶率/在线率 + 车辆状态堆叠带） -->
-    <section class="panel p-eff from-left" style="--d: 90ms">
-      <div class="panel-head">
-        <span class="panel-title">运力效率趋势</span>
-      </div>
-      <div ref="effRef" class="chart-body"></div>
-    </section>
-
-    <!-- 右上：最值统计（Top3，点击展开完整列表） -->
-    <section class="panel p-top from-right" style="--d: 40ms">
-      <div class="top-col" @click="openTopDialog('load')" title="点击查看完整车辆列表">
-        <div class="panel-head"><span class="panel-title">Top 载货最重</span></div>
-        <ul class="top-list">
-          <li v-for="(v, i) in (summary.top_load_vehicles || [])" :key="'l' + i">
-            <i class="rank" :class="'r' + (i + 1)">{{ i + 1 }}</i>
-            <span class="plate">{{ v.license }}</span>
-            <b>{{ fmt2(v.value) }} t</b>
-          </li>
-          <li v-if="!(summary.top_load_vehicles || []).length" class="empty">暂无数据</li>
-        </ul>
-      </div>
-      <div class="top-col" @click="openTopDialog('time')" title="点击查看完整车辆列表">
-        <div class="panel-head"><span class="panel-title">Top 载货时间最长</span></div>
-        <ul class="top-list">
-          <li v-for="(v, i) in (summary.top_time_vehicles || [])" :key="'t' + i">
-            <i class="rank" :class="'r' + (i + 1)">{{ i + 1 }}</i>
-            <span class="plate">{{ v.license }}</span>
-            <b>{{ fmt2(v.value) }} h</b>
-          </li>
-          <li v-if="!(summary.top_time_vehicles || []).length" class="empty">暂无数据</li>
-        </ul>
+      <div class="h-divider"></div>
+      <div class="sec sec-eff">
+        <div class="sec-head">
+          <span class="sec-title">运力效率趋势</span>
+          <span class="sec-sub">U2 装载率 · U4 空驶率 · U3 在线率</span>
+        </div>
+        <div ref="effRef" class="sec-chart"></div>
       </div>
     </section>
 
-    <!-- 右中：车辆状态饼状图 -->
-    <section class="panel p-pie from-right" style="--d: 120ms">
-      <div class="panel-head">
-        <span class="panel-title">车辆状态分布</span>
+    <!-- 右侧整板（全高，向左过渡滑入）：最值统计 + 车辆状态饼 + 调配效率雷达 -->
+    <section class="block b-right" style="--d: 140ms">
+      <div class="sec sec-top">
+        <div class="sec-head">
+          <span class="sec-title">最值统计</span>
+          <span class="sec-sub">点击查看完整列表</span>
+        </div>
+        <div class="top-grid">
+          <div class="top-col" @click="openTopDialog('load')" title="点击查看完整车辆列表">
+            <div class="top-col-title">Top 载货最重</div>
+            <ul class="top-list">
+              <li v-for="(v, i) in (summary.top_load_vehicles || [])" :key="'l' + i">
+                <i class="rank" :class="'r' + (i + 1)">{{ i + 1 }}</i>
+                <span class="plate">{{ v.license }}</span>
+                <b>{{ fmt2(v.value) }} t</b>
+              </li>
+              <li v-if="!(summary.top_load_vehicles || []).length" class="empty">暂无数据</li>
+            </ul>
+          </div>
+          <div class="top-col" @click="openTopDialog('time')" title="点击查看完整车辆列表">
+            <div class="top-col-title">Top 载货时间最长</div>
+            <ul class="top-list">
+              <li v-for="(v, i) in (summary.top_time_vehicles || [])" :key="'t' + i">
+                <i class="rank" :class="'r' + (i + 1)">{{ i + 1 }}</i>
+                <span class="plate">{{ v.license }}</span>
+                <b>{{ fmt2(v.value) }} h</b>
+              </li>
+              <li v-if="!(summary.top_time_vehicles || []).length" class="empty">暂无数据</li>
+            </ul>
+          </div>
+        </div>
       </div>
-      <div ref="pieRef" class="chart-body"></div>
+      <div class="h-divider"></div>
+      <div class="sec sec-pie">
+        <div class="sec-head">
+          <span class="sec-title">车辆状态分布</span>
+        </div>
+        <div ref="pieRef" class="sec-chart"></div>
+      </div>
+      <div class="h-divider"></div>
+      <div class="sec sec-radar">
+        <div class="sec-head">
+          <span class="sec-title">调配效率雷达</span>
+        </div>
+        <div ref="radarRef" class="sec-chart"></div>
+      </div>
     </section>
 
-    <!-- 右下：调配效率雷达图 -->
-    <section class="panel p-radar from-right" style="--d: 180ms">
-      <div class="panel-head">
-        <span class="panel-title">调配效率雷达</span>
-      </div>
-      <div ref="radarRef" class="chart-body"></div>
-    </section>
-
-    <!-- 正下：最终优化指标值 + 随机事件流 -->
-    <section class="panel p-bottom from-bottom" style="--d: 140ms">
+    <!-- 底部整板（夹于左右整板之间，向上过渡滑入）：最终优化指标值 + 随机事件流 -->
+    <section class="block b-bottom" style="--d: 70ms">
       <div class="opt-half">
-        <div class="panel-head">
-          <span class="panel-title">最终优化指标值</span>
-          <span class="panel-sub">优化目标：综合成本 F</span>
+        <div class="sec-head">
+          <span class="sec-title">最终优化指标值</span>
+          <span class="sec-sub">优化目标：综合成本 F</span>
         </div>
         <div class="opt-grid">
           <div class="opt-item">
@@ -400,10 +408,11 @@ const openTopDialog = async (metric) => {
           </div>
         </div>
       </div>
+      <div class="v-divider"></div>
       <div class="event-half">
-        <div class="panel-head">
-          <span class="panel-title">随机事件流</span>
-          <span class="panel-sub">事故 {{ fmtNum(summary.accident_count) }} · 拒单 {{ fmtNum(summary.refuse_count) }}</span>
+        <div class="sec-head">
+          <span class="sec-title">随机事件流</span>
+          <span class="sec-sub">事故 {{ fmtNum(summary.accident_count) }} · 拒单 {{ fmtNum(summary.refuse_count) }}</span>
         </div>
         <div class="event-list">
           <div v-if="!(summary.recent_events || []).length" class="event-empty">暂无随机事件记录</div>
@@ -430,7 +439,7 @@ const openTopDialog = async (metric) => {
 </template>
 
 <style scoped>
-/* 覆盖层：绝对铺满地图容器，自身不拦截事件，仅各面板可交互 */
+/* 覆盖层：绝对铺满地图容器，自身不拦截事件，仅各整板可交互 */
 .data-overlay {
   position: absolute;
   inset: 0;
@@ -439,49 +448,66 @@ const openTopDialog = async (metric) => {
   overflow: hidden;
 }
 
-.panel {
+/* 三大整板：左/右全高贴边，底板夹其间——完全打开后板块之间零空隙（边缘完全贴合） */
+.block {
   position: absolute;
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 10px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
-  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.16);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  transition: transform 0.38s ease, opacity 0.38s ease;
+  overflow: hidden;
+  transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.4s ease;
   transition-delay: 0ms;
 }
 
-/* 入场：从四周渐进滑入（错峰 delay 由 --d 控制） */
-.data-overlay.shown .panel { transition-delay: var(--d, 0ms); }
-.data-overlay:not(.shown) .panel { opacity: 0; pointer-events: none; }
-.data-overlay:not(.shown) .from-left { transform: translateX(-110%); }
-.data-overlay:not(.shown) .from-right { transform: translateX(110%); }
-.data-overlay:not(.shown) .from-bottom { transform: translateY(110%); }
-
-/* 各面板位置（凹字形：左右列 + 正下横条） */
-.p-health { top: 12px; left: 12px; width: min(34%, 470px); height: 37%; }
-.p-eff { bottom: 12px; left: 12px; width: min(34%, 470px); height: 34%; }
-.p-top {
-  top: 12px; right: 12px; width: min(25%, 330px); height: 25%;
-  flex-direction: row; gap: 10px;
+.b-left {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: min(28vw, 430px);
+  padding: 12px 14px 14px;
 }
-.p-pie { top: calc(25% + 22px); right: 12px; width: min(25%, 330px); height: 30%; }
-.p-radar { bottom: 12px; right: 12px; width: min(25%, 330px); height: 33%; }
-.p-bottom {
-  bottom: 12px;
-  left: calc(min(34%, 470px) + 24px);
-  right: calc(min(25%, 330px) + 24px);
-  height: 21%;
-  min-height: 140px;
+
+.b-right {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(25vw, 370px);
+  padding: 12px 14px 14px;
+}
+
+.b-bottom {
+  left: min(28vw, 430px);
+  right: min(25vw, 370px);
+  bottom: 0;
+  height: 23%;
+  min-height: 150px;
   flex-direction: row;
-  gap: 12px;
+  padding: 10px 16px 12px;
 }
 
-.panel-head {
+/* 入场：左板向右滑入、底板向上滑入、右板向左滑入（错峰渐进）；退场无延迟统一渐出 */
+.data-overlay.shown .block { transition-delay: var(--d, 0ms); }
+.data-overlay:not(.shown) .block { opacity: 0; pointer-events: none; transition-delay: 0ms; }
+.data-overlay:not(.shown) .b-left { transform: translateX(-100%); }
+.data-overlay:not(.shown) .b-bottom { transform: translateY(100%); }
+.data-overlay:not(.shown) .b-right { transform: translateX(100%); }
+
+/* 板内分区 */
+.sec { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sec-health { flex: 1.15; }
+.sec-eff { flex: 1; }
+.sec-top { flex: 0 0 auto; }
+.sec-pie { flex: 1.2; }
+.sec-radar { flex: 1; }
+
+.h-divider { height: 1px; background: #ebeef5; margin: 8px 0; flex-shrink: 0; }
+.v-divider { width: 1px; background: #ebeef5; margin: 0 14px; flex-shrink: 0; }
+
+.sec-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -489,15 +515,17 @@ const openTopDialog = async (metric) => {
   margin-bottom: 4px;
   flex-shrink: 0;
 }
-.panel-title { font-size: 13px; font-weight: 700; color: #2c3e50; white-space: nowrap; }
-.panel-kpi { font-size: 11px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.panel-sub { font-size: 11px; color: #909399; white-space: nowrap; }
-.chart-body { flex: 1; min-height: 0; width: 100%; }
+.sec-title { font-size: 13px; font-weight: 700; color: #2c3e50; white-space: nowrap; }
+.sec-kpi { font-size: 11px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-sub { font-size: 11px; color: #909399; white-space: nowrap; }
+.sec-chart { flex: 1; min-height: 0; width: 100%; }
 
 /* 最值统计 */
-.top-col { flex: 1; min-width: 0; cursor: pointer; display: flex; flex-direction: column; border-radius: 8px; }
-.top-col:hover .panel-title { color: #1890ff; }
-.top-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.top-grid { display: flex; gap: 12px; }
+.top-col { flex: 1; min-width: 0; cursor: pointer; }
+.top-col:hover .top-col-title { color: #1890ff; }
+.top-col-title { font-size: 12px; font-weight: 600; color: #606266; margin-bottom: 4px; }
+.top-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .top-list li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #303133; }
 .top-list .rank {
   width: 16px; height: 16px; border-radius: 4px; font-style: normal; font-size: 11px;
@@ -512,7 +540,7 @@ const openTopDialog = async (metric) => {
 .top-list .empty { color: #909399; font-size: 12px; }
 
 /* 最终优化指标值 */
-.opt-half { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #ebeef5; padding-right: 12px; }
+.opt-half { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .opt-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: center; }
 .opt-item {
   background: #f5f7fa; border-radius: 8px; padding: 6px 10px;
