@@ -440,7 +440,9 @@ const openTopDialog = async (metric) => {
 
 <style scoped>
 /* 覆盖层：绝对铺满地图容器，自身不拦截事件，仅各整板可交互 */
+/* --side-w：左右整板统一宽度（等宽），底板 left/right 取同值以保证零空隙贴合 */
 .data-overlay {
+  --side-w: min(26vw, 400px);
   position: absolute;
   inset: 0;
   z-index: 600;
@@ -467,7 +469,7 @@ const openTopDialog = async (metric) => {
   left: 0;
   top: 0;
   bottom: 0;
-  width: min(28vw, 430px);
+  width: var(--side-w);
   padding: 12px 14px 14px;
 }
 
@@ -475,13 +477,13 @@ const openTopDialog = async (metric) => {
   right: 0;
   top: 0;
   bottom: 0;
-  width: min(25vw, 370px);
+  width: var(--side-w);
   padding: 12px 14px 14px;
 }
 
 .b-bottom {
-  left: min(28vw, 430px);
-  right: min(25vw, 370px);
+  left: var(--side-w);
+  right: var(--side-w);
   bottom: 0;
   height: 23%;
   min-height: 150px;
