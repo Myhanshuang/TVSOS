@@ -41,6 +41,8 @@ const router = createRouter({
         { path: '/admin/home', redirect: '/admin/sandboxes' },
       ],
     },
+    // 兜底：任何未匹配路径（如 /admin/sandbox/ 空参）回沙箱列表，避免导航被静默丢弃"卡死"在当前页
+    { path: '/:pathMatch(.*)*', redirect: '/admin/sandboxes' },
   ],
 })
 

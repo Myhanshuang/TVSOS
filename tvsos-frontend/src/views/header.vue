@@ -114,13 +114,24 @@ const handleExitExperiment = async () => {
         await stopExperiment(experimentId.value)
         ElMessage.info('实验已中止')
     } catch (e) { /* 可能已自然完成 */ }
-    goSandboxPage()
+    await goSandboxPage()
 }
 // 从实验详情里拿不到 sandboxId 时回沙箱首页兜底
 const routeSandboxId = ref('')
-// 确定性回沙箱：优先沙箱详情页，缺失时回沙箱列表页（不用 router.back，避免历史栈不确定）
-const goSandboxPage = () => {
-    if (routeSandboxId.value) router.push(`/admin/sandbox/${routeSandboxId.value}`)
+// 确定性回沙箱：优先沙箱详情页；进入实验页时没拿到 sandboxId 则实时补查一次；
+// 仍拿不到则回沙箱列表页（不用 router.back，避免历史栈不确定）
+const goSandboxPage = async () => {
+    let sandboxId = routeSandboxId.value
+    if (!sandboxId && experimentId.value) {
+        try {
+            const res = await getExperiment(experimentId.value)
+            if (res.data.code === 1) {
+                sandboxId = res.data.data.experiment.sandboxId
+                routeSandboxId.value = sandboxId
+            }
+        } catch (e) { /* 补查失败走列表页兜底 */ }
+    }
+    if (sandboxId) router.push(`/admin/sandbox/${sandboxId}`)
     else router.push('/admin/sandboxes')
 }
 import { getExperiment } from '@/api/sandbox'

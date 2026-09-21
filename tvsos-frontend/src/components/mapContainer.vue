@@ -265,7 +265,7 @@ onUnmounted(() => {
     mapAnimationStore.globalStopPolling();
 
     // 清理 WebGL 相关资源
-    if (webglLayerObj?.cleanup) webglLayerObj.cleanup();
+    if (webglManager?.cleanup) webglManager.cleanup();
 
     // 显式清理地图上的所有动态 Marker 和 Polyline
     vehiclesMap.value.forEach(car => {
