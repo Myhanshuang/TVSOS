@@ -72,7 +72,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - 每个子页 section 内部纵向自由滚动
 - 事件流与统计展示一律用**车牌号**（License 字段），不用「车辆#1」这类 ID 称呼
 - `infoPanel.vue`：暂停中显示「等待中(休息/天气)」、速度 0.00、维修中状态
-- 数据覆盖层：`dataPanel` Store 控制显隐（导航“显示数据”按钮），与 infoPanel 互斥（信息面板开→覆盖层渐出，关→自动回落，覆盖层不动地图尺寸）；infoPanel 进入动画延迟 0.2s 让覆盖层先渐出
+- 数据覆盖层：`dataPanel` Store 控制显隐（导航“显示数据”按钮，header.vue handleToggleData），与 infoPanel 双向互斥（数据面板开→点车辆/POI 时覆盖层先渐出、infoPanel 延迟 0.2s 进入；infoPanel 开→点“显示数据”先收回 infoPanel、0.3s 后再拉入数据整板，300ms 内连点视为取消；覆盖层不动地图尺寸）
 
 ## Windows/工具注意事项
 

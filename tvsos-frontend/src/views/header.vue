@@ -1,6 +1,6 @@
 <script setup>
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useMapAnimationStore, useVisibleStore, useTargetStore, useUserStore, useDataPanelStore } from '@/stores'
+import { useMapAnimationStore, useVisibleStore, useTargetStore, useUserStore, useDataPanelStore, useImformStore } from '@/stores'
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation'
@@ -22,8 +22,36 @@ const target = useTargetStore()
 const visible = useVisibleStore()
 const userStore = useUserStore()
 const dataPanel = useDataPanelStore()
+const imform = useImformStore()
 const drawerVisible = ref(false)
 const vehicleDrawerVisible = ref(false)
+
+// ---- “显示数据”开关：信息面板打开时先收回它，再拉入数据面板 ----
+// 互斥方向一：数据面板已开 → 点击车辆/POI 时 mapDataOverlay 自动渐出、infoPanel 延迟进入；
+// 互斥方向二：infoPanel 已开 → 点“显示数据”先收回 infoPanel，稍候再渐进拉入数据整板。
+let pendingShowPanels = null
+const handleToggleData = () => {
+    // 300ms 内连点：取消尚未落地的“待显示”，视为关闭
+    if (pendingShowPanels) {
+        clearTimeout(pendingShowPanels)
+        pendingShowPanels = null
+        return
+    }
+    if (dataPanel.showDataPanels) {
+        dataPanel.setDataPanels(false) // 关闭：整板直接渐出
+        return
+    }
+    if (imform.imformIf) {
+        imform.imformHide() // 先收回车辆/POI 信息面板
+        pendingShowPanels = setTimeout(() => {
+            pendingShowPanels = null
+            dataPanel.setDataPanels(true) // 信息面板退出后再拉入数据面板
+        }, 300)
+    } else {
+        dataPanel.setDataPanels(true)
+    }
+}
+onUnmounted(() => { if (pendingShowPanels) { clearTimeout(pendingShowPanels); pendingShowPanels = null } })
 
 const openDrawer = () => drawerVisible.value = true
 const openVehicleDrawer = () => vehicleDrawerVisible.value = true
@@ -159,7 +187,7 @@ const handleLogout = async () => {
                 <span class="nav-text">任务管理</span>
             </div>
             <!-- 数据面板开关：凹字形面板从地图四周渐入/渐出（与车辆/POI信息面板互斥） -->
-            <div class="nav-item" :class="{ active: dataPanel.showDataPanels }" @click="dataPanel.toggleDataPanels()">
+            <div class="nav-item" :class="{ active: dataPanel.showDataPanels }" @click="handleToggleData()">
                 <el-icon>
                     <DataAnalysis />
                 </el-icon>
