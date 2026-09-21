@@ -122,11 +122,16 @@ const renderEff = () => {
   const sm = vehicleStatusMap.value
   charts.eff.setOption({
     animation: false,
-    legend: { top: 0, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8, data: ['装载率', '空驶率', '在线率'] },
+    legend: [
+      // 上图图例：三条趋势线
+      { top: 0, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8, data: ['装载率', '空驶率', '在线率'] },
+      // 下图（柱状图）图例：四个车辆状态
+      { bottom: 0, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8, data: ['行驶中', '空闲中', '待发车', '维修中'] }
+    ],
     tooltip: { trigger: 'axis' },
     grid: [
-      { left: 40, right: 14, top: 26, height: '46%' },
-      { left: 40, right: 14, top: '72%', bottom: 18 }
+      { left: 40, right: 14, top: 26, height: '38%' },
+      { left: 40, right: 14, top: '56%', bottom: 30 }
     ],
     xAxis: [
       { type: 'category', gridIndex: 0, boundaryGap: false, data: trendLabels.value, axisLabel: { fontSize: 10, color: '#909399' } },
@@ -140,10 +145,10 @@ const renderEff = () => {
       { name: '装载率', type: 'line', smooth: true, symbol: 'none', xAxisIndex: 0, yAxisIndex: 0, data: t.loading_rate || [], lineStyle: { width: 1.8 }, itemStyle: { color: '#1890ff' } },
       { name: '空驶率', type: 'line', smooth: true, symbol: 'none', xAxisIndex: 0, yAxisIndex: 0, data: t.empty_rate || [], lineStyle: { width: 1.8 }, itemStyle: { color: '#faad14' } },
       { name: '在线率', type: 'line', smooth: true, symbol: 'none', xAxisIndex: 0, yAxisIndex: 0, data: t.online_rate || [], lineStyle: { width: 1 }, areaStyle: { opacity: 0.15 }, itemStyle: { color: '#95de64' } },
-      { name: '行驶中', type: 'bar', stack: 'vs', xAxisIndex: 1, yAxisIndex: 1, barWidth: 26, data: [sm['行驶中'] || 0], itemStyle: { color: '#1890ff' } },
-      { name: '空闲中', type: 'bar', stack: 'vs', xAxisIndex: 1, yAxisIndex: 1, barWidth: 26, data: [sm['空闲中'] || 0], itemStyle: { color: '#95de64' } },
-      { name: '待发车', type: 'bar', stack: 'vs', xAxisIndex: 1, yAxisIndex: 1, barWidth: 26, data: [sm['待发车'] || 0], itemStyle: { color: '#13c2c2' } },
-      { name: '维修中', type: 'bar', stack: 'vs', xAxisIndex: 1, yAxisIndex: 1, barWidth: 26, data: [sm['维修中'] || 0], itemStyle: { color: '#f5222d' } }
+      { name: '行驶中', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: 20, data: [sm['行驶中'] || 0], itemStyle: { color: '#1890ff' } },
+      { name: '空闲中', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: 20, data: [sm['空闲中'] || 0], itemStyle: { color: '#95de64' } },
+      { name: '待发车', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: 20, data: [sm['待发车'] || 0], itemStyle: { color: '#13c2c2' } },
+      { name: '维修中', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth: 20, data: [sm['维修中'] || 0], itemStyle: { color: '#f5222d' } }
     ]
   }, { notMerge: true })
 }
