@@ -147,12 +147,26 @@ const importText = ref('')
 const load = async () => {
   loading.value = true
   try {
-    const [sbRes, scRes, exRes] = await Promise.all([
-      getSandbox(sandboxId), listSchemes(sandboxId), listExperiments(sandboxId),
-    ])
-    if (sbRes.data.code === 1) sandbox.value = sbRes.data.data
-    if (scRes.data.code === 1) schemes.value = scRes.data.data || []
-    if (exRes.data.code === 1) experiments.value = exRes.data.data || []
+    // 三个请求各自兜错：任一瞬时网络失败只影响对应区块并自动重试一次，
+    // 不再让整个 Promise.all 一起失败把页面打成空白（曾表现为退出实验后“暂无实验”）
+    const fetchAll = async () => {
+      const [sbRes, scRes, exRes] = await Promise.all([
+        getSandbox(sandboxId).catch(() => null),
+        listSchemes(sandboxId).catch(() => null),
+        listExperiments(sandboxId).catch(() => null),
+      ])
+      if (sbRes?.data?.code === 1) sandbox.value = sbRes.data.data
+      if (scRes?.data?.code === 1) schemes.value = scRes.data.data || []
+      if (exRes?.data?.code === 1) experiments.value = exRes.data.data || []
+      return !(sbRes?.data?.code === 1 && scRes?.data?.code === 1 && exRes?.data?.code === 1)
+    }
+    const failed = await fetchAll()
+    if (failed) {
+      // 路由切换高峰期的瞬时失败：延迟后自动重试一次
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      const stillFailed = await fetchAll()
+      if (stillFailed) ElMessage.error('沙箱数据加载失败，请刷新页面重试')
+    }
   } finally {
     loading.value = false
   }

@@ -71,18 +71,21 @@ const expStatus = ref({ virtualTime: '', progress: 0, status: '' })
 let statusTimer = null
 const pollExperimentStatus = async () => {
     if (!experimentId.value) return
+    const requestedId = experimentId.value
     try {
-        const res = await getExperimentStatus(experimentId.value)
+        const res = await getExperimentStatus(requestedId)
+        // 丢弃过期响应：请求期间路由已离开实验页（如人工退出），避免旧结果触发二次跳转
+        if (!experimentId.value || experimentId.value !== requestedId) return
         if (res.data.code === 1) expStatus.value = res.data.data
         // 实验已结束（自然完成/中止）→ 提示并跳结果页或返回沙箱
         if (['finished', 'aborted', 'failed'].includes(res.data.data.status)) {
             stopStatusTimer()
             if (res.data.data.status === 'finished') {
                 ElMessage.success('模拟周期已完成，正在跳转结果页')
-                router.push(`/admin/experiment/${experimentId.value}/result`)
+                router.push(`/admin/experiment/${requestedId}/result`)
             } else {
                 ElMessage.warning('实验已结束（中止/失败）')
-                router.back()
+                goSandboxPage()
             }
         }
     } catch (e) { /* 忽略瞬时错误 */ }
@@ -104,14 +107,22 @@ const handleExitExperiment = async () => {
             confirmButtonText: '中止并退出', cancelButtonText: '继续模拟', type: 'warning',
         })
     } catch { return }
+    // 关键：先停状态轮询，再做中止——否则中止后在途的轮询响应会触发额外跳转，
+    // 与本次 push 形成乒乓（实验页重挂载再弹回沙箱页），曾导致沙箱页请求高峰期瞬时失败而整页空白
+    stopStatusTimer()
     try {
         await stopExperiment(experimentId.value)
         ElMessage.info('实验已中止')
     } catch (e) { /* 可能已自然完成 */ }
-    router.push(`/admin/sandbox/${routeSandboxId.value}`)
+    goSandboxPage()
 }
 // 从实验详情里拿不到 sandboxId 时回沙箱首页兜底
 const routeSandboxId = ref('')
+// 确定性回沙箱：优先沙箱详情页，缺失时回沙箱列表页（不用 router.back，避免历史栈不确定）
+const goSandboxPage = () => {
+    if (routeSandboxId.value) router.push(`/admin/sandbox/${routeSandboxId.value}`)
+    else router.push('/admin/sandboxes')
+}
 import { getExperiment } from '@/api/sandbox'
 watch(experimentId, async (id) => {
     if (id > 0) {
