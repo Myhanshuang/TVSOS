@@ -97,7 +97,7 @@ const renderHealth = () => {
   const t = trends.value || {}
   charts.health.setOption({
     animation: false,
-    grid: { left: 46, right: 40, top: 26, bottom: 22 },
+    grid: { left: 46, right: 40, top: 22, bottom: 18 },
     tooltip: { trigger: 'axis' },
     legend: { show: false },
     xAxis: { type: 'category', boundaryGap: false, data: trendLabels.value, axisLabel: { fontSize: 10, color: '#909399' } },
@@ -122,11 +122,11 @@ const renderEff = () => {
   const sm = vehicleStatusMap.value
   charts.eff.setOption({
     animation: false,
-    legend: { top: 0, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8 },
+    legend: { top: 0, textStyle: { fontSize: 10 }, itemWidth: 12, itemHeight: 8, data: ['装载率', '空驶率', '在线率'] },
     tooltip: { trigger: 'axis' },
     grid: [
-      { left: 40, right: 14, top: 24, height: '48%' },
-      { left: 40, right: 14, top: '70%', bottom: 20 }
+      { left: 40, right: 14, top: 26, height: '46%' },
+      { left: 40, right: 14, top: '72%', bottom: 18 }
     ],
     xAxis: [
       { type: 'category', gridIndex: 0, boundaryGap: false, data: trendLabels.value, axisLabel: { fontSize: 10, color: '#909399' } },
@@ -500,8 +500,8 @@ const openTopDialog = async (metric) => {
 
 /* 板内分区 */
 .sec { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.sec-health { flex: 1.15; }
-.sec-eff { flex: 1; }
+.sec-health { flex: 0.85; }
+.sec-eff { flex: 1.15; }
 .sec-top { flex: 0 0 auto; }
 .sec-pie { flex: 1.2; }
 .sec-radar { flex: 1; }
