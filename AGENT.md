@@ -112,7 +112,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 ### 前端要点
 - 新页面：views/sandboxList.vue、sandboxDetail.vue（方案+实验记录+参数导入导出）、experimentResult.vue、experimentCompare.vue、components/experimentConfig.vue（表单↔TOML 双向，实验与方案新建共用——方案走 scheme-mode 属性：多描述字段、仅创建不生成）。导出=参数 TOML 独立文件浏览器下载（Blob+URL.createObjectURL，不再走剪贴板 JSON 种子包）；导入双格式：JSON 种子包走 /import，纯 TOML 文本走 createExperiment 按参数建实验。
 - index.vue 两屏（地图/任务管理）是实验视图 /admin/experiment/:id（原独立统计分析屏已删除，并入地图覆盖层 mapDataOverlay.vue）；header.vue 按场景切换导航（实验侧有地图/任务管理/显示数据开关/倍速/虚拟时钟进度条/结束实验；沙箱侧只有沙箱管理入口），退出登录真实化。
-- experimentResult.vue 终态 summary 不再裸字段表：按 T/U/C/A/M/R/G+事件积压 8 组卡片（率值带比例条：good=down 红色、gini 超 0.4 警示、悬停显示口径 note），右栏车队构成/货类需求条形图 + P50/P95/P99 分位条，随机事件 el-timeline（类型着色、未解决 hollow），原始字段折叠保留在页底。新增 summary 字段时在 groups computed 里补条目即可。
+- experimentResult.vue 终态 summary 不再裸字段表：按 T/U/C/A/M/R/G+事件积压 8 组卡片（率值带比例条：good=down 红色、gini 超 0.4 警示、悬停显示口径 note），右栏车队构成/货类需求条形图 + P50/P95/P99 分位条，随机事件 el-timeline（类型着色、未解决 hollow），原始字段折叠保留在页底。新增 summary 字段时在 groups computed 里补条目即可。页头「导出报告」下拉三格式（纯前端 Blob 下载，复用页面的 groups/primaryCards 数据装配）：HTML 自包含可读报告（六段：主目标/分组全景+口径/事件流/SA收敛等值压缩/时间序列快照全列/TOML，内联样式可 Ctrl+P 存 PDF）、Markdown 同构报告、JSON 原始全量（experiment+primary+summary+snapshots+convergence）。收敛序列等值压缩（bestCost 变化点）为 HTML/MD 口径，逐条序列仅 JSON 含。
 - experimentCompare.vue 参数 TOML 差异为 git **分栏（split）** diff 视图：自实现 LCS 行级差异 → buildSplitRows 把变更块按序 zip 成成对行（左列=基准实验，右列=对比实验，纯增/删行对侧留空），3 行上下文 hunk（@@ -a,n +b,n @@ 头、各侧行号、红删绿增、等宽），顶部双列标题标注基准/对比实验名，每实验头部带 +n/-n 变更统计；diffLines/buildSplitRows/buildSplitHunks 为纯函数可独立复用。
 - WS 连接统一经 withToken() 附加 ?token=（mapDataOverlay.vue / vehiclePolling.js）。
 - request.js 无条件携带 Authorization: Bearer，401 自动清 token 回登录页。

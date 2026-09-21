@@ -9,7 +9,21 @@
           创建于 {{ formatTime(experiment.createdAt) }} · 沙箱 #{{ experiment.sandboxId }}
         </p>
       </div>
-      <el-button type="primary" plain @click="goReplay" v-if="experiment">以此参数再次运行</el-button>
+      <div class="head-actions">
+        <el-dropdown @command="handleExportReport">
+          <el-button type="primary">
+            导出报告<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="html">HTML 可读报告（可打印 PDF）</el-dropdown-item>
+              <el-dropdown-item command="md">Markdown 报告</el-dropdown-item>
+              <el-dropdown-item command="json" divided>JSON 原始全量数据</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button type="primary" plain @click="goReplay" v-if="experiment">以此参数再次运行</el-button>
+      </div>
     </div>
 
     <template v-if="primary">
@@ -140,7 +154,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { getExperimentResult } from '@/api/sandbox'
 
@@ -310,6 +325,219 @@ const formatTime = (t) => (t || '').replace('T', ' ').slice(0, 19)
 
 const goReplay = () => router.push(`/admin/sandbox/${experiment.value.sandboxId}`)
 
+// ---- 结果格式化导出：HTML 可读报告（可打印PDF）/ Markdown / JSON 原始全量 ----
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+const mdCell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
+const safeName = (s) => String(s || '').replace(/[\\/:*?"<>|]/g, '_')
+
+const downloadText = (filename, content, mime) => {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const groupItemText = (it) => {
+  if (it.values) return f(it.values[0]) + ' / ' + f(it.values[1]) + ' / ' + f(it.values[2]) + ' 秒'
+  const t = f(it.value)
+  return it.unit ? t + ' ' + it.unit : String(t)
+}
+
+// 收敛序列等值压缩：只在 bestCost 变化时记一行（首末必含），等值段可由相邻点推断
+const compressConvergence = (arr) => {
+  if (!Array.isArray(arr) || !arr.length) return null
+  const points = []
+  let prev = null
+  arr.forEach((c, i) => {
+    const v = Number(c.bestCost)
+    if (prev === null || v !== prev) { points.push({ idx: i + 1, temp: c.temp, bestCost: v }); prev = v }
+  })
+  const lastEntry = arr[arr.length - 1]
+  if (points[points.length - 1].idx !== arr.length) points.push({ idx: arr.length, temp: lastEntry.temp, bestCost: Number(lastEntry.bestCost) })
+  const costs = arr.map((c) => Number(c.bestCost))
+  return { total: arr.length, points, first: costs[0], min: Math.min(...costs), last: costs[costs.length - 1] }
+}
+
+const buildHtmlReport = () => {
+  const e = experiment.value || {}
+  const s = summary.value || {}
+  const conv = compressConvergence(convergence.value)
+  const out = []
+  out.push('<h1>TVSOS 沙箱实验报告</h1>')
+  out.push('<div class="meta">实验 <b>#' + esc(e.id) + ' ' + esc(e.name) + '</b> · 种子 ' + esc(e.seed) + ' · 状态 ' + esc(statusText(e.status)) + ' · 创建于 ' + esc(formatTime(e.createdAt)) + ' · 沙箱 #' + esc(e.sandboxId) + '<br>虚拟终点 ' + esc(s.virtual_time || '-') + '（进度 ' + Math.round((s.progress || 0) * 100) + '%） · 导出于 ' + new Date().toLocaleString('zh-CN') + '</div>')
+
+  out.push('<h2>一、主目标指标</h2>')
+  out.push('<table><tr><th>指标</th><th>值</th></tr>')
+  for (const m of primaryCards.value) out.push('<tr><td>' + esc(m.label) + '</td><td class="num">' + esc(m.value) + '</td></tr>')
+  out.push('</table>')
+
+  out.push('<h2>二、终态指标全景（按维度分组）</h2>')
+  for (const g of groups.value) {
+    out.push('<h3>' + esc(g.title) + '</h3>')
+    out.push('<table><tr><th>指标</th><th>值</th><th>口径说明</th></tr>')
+    for (const it of g.items) {
+      out.push('<tr><td>' + esc(it.label) + '</td><td class="num">' + esc(groupItemText(it)) + '</td><td>' + esc(it.note || '') + '</td></tr>')
+    }
+    out.push('</table>')
+  }
+
+  out.push('<h2>三、随机事件流（最近 ' + events.value.length + ' 条）</h2>')
+  if (events.value.length) {
+    out.push('<table><tr><th>虚拟时刻</th><th>类型</th><th>车牌</th><th>描述</th><th>持续</th></tr>')
+    for (const ev of events.value) {
+      const dur = ev.duration_seconds > 0 ? Math.round(ev.duration_seconds / 60) + ' min' : '—'
+      out.push('<tr><td>' + esc(ev.event_time) + '</td><td><span class="tag ' + esc(ev.event_type) + '">' + esc(ev.event_type) + '</span></td><td>' + esc(ev.license || '车辆-' + ev.vehicle_id) + '</td><td>' + esc(ev.description) + '</td><td class="num">' + dur + '</td></tr>')
+    }
+    out.push('</table>')
+  } else {
+    out.push('<p>本实验无随机事件记录。</p>')
+  }
+
+  out.push('<h2>四、SA 收敛曲线（等值压缩）</h2>')
+  if (conv) {
+    out.push('<div class="meta">共 ' + conv.total + ' 条记录 · 初始 ' + conv.first + ' · 最优 ' + f(conv.min, 2) + ' · 终值 ' + conv.last + ' · bestCost 变化点 ' + conv.points.length + ' 个（等值段已压缩，完整逐条序列见 JSON 导出）</div>')
+    out.push('<table><tr><th>序</th><th>温度</th><th>bestCost</th></tr>')
+    for (const p of conv.points) out.push('<tr><td class="num">' + p.idx + '</td><td class="num">' + f(p.temp, 2) + '</td><td class="num">' + f(p.bestCost, 2) + '</td></tr>')
+    out.push('</table>')
+  } else {
+    out.push('<p>无收敛记录。</p>')
+  }
+
+  out.push('<h2>五、指标时间序列</h2>')
+  if (snapshots.value.length) {
+    const keys = [...new Set(snapshots.value.flatMap((o) => Object.keys(o)))].filter((k) => k !== 'id' && k !== 'experimentId')
+    out.push('<table><tr>' + keys.map((k) => '<th>' + esc(k) + '</th>').join('') + '</tr>')
+    for (const snap of snapshots.value) out.push('<tr>' + keys.map((k) => '<td class="num">' + esc(snap[k] ?? '') + '</td>').join('') + '</tr>')
+    out.push('</table>')
+  } else {
+    out.push('<p>本实验无快照序列数据。</p>')
+  }
+
+  out.push('<h2>六、参数快照（TOML）</h2>')
+  out.push('<pre>' + esc(e.paramsToml || '') + '</pre>')
+  out.push('<footer>TVSOS 数据实验沙箱 · 本报告由实验终态数据在前端生成 · 浏览器打印（Ctrl+P）可另存为 PDF</footer>')
+
+  return '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>TVSOS 实验报告 #' + esc(e.id) + ' ' + esc(e.name) + '</title><style>'
+    + 'body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:960px;margin:0 auto;padding:40px 32px;color:#303133;line-height:1.6}'
+    + 'h1{font-size:24px;border-bottom:3px solid #409eff;padding-bottom:8px}'
+    + '.meta{color:#909399;font-size:13px;margin:8px 0 24px}'
+    + 'h2{font-size:18px;margin-top:28px;border-left:4px solid #409eff;padding-left:10px}'
+    + 'h3{font-size:15px;margin:16px 0 8px;color:#2c3e50}'
+    + 'table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:13px}'
+    + 'th,td{border:1px solid #dcdfe6;padding:6px 10px;text-align:left;word-break:break-all}'
+    + 'th{background:#f5f7fa}tr:nth-child(even) td{background:#fafafa}'
+    + 'td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}'
+    + '.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px}'
+    + '.tag.accident{background:#fef0f0;color:#f56c6c}.tag.weather{background:#ecf5ff;color:#409eff}'
+    + '.tag.refuse{background:#fdf6ec;color:#e6a23c}.tag.rest{background:#f0f9eb;color:#67c23a}.tag{background:#f4f4f5;color:#909399}'
+    + 'pre{background:#fafafa;border:1px solid #ebeef5;border-radius:6px;padding:12px;font-size:12px;overflow-x:auto}'
+    + 'footer{margin-top:32px;color:#c0c4cc;font-size:12px;text-align:center}'
+    + '@media print{body{padding:0}}'
+    + '</style></head><body>' + out.join('\n') + '</body></html>'
+}
+
+const buildMarkdownReport = () => {
+  const e = experiment.value || {}
+  const s = summary.value || {}
+  const conv = compressConvergence(convergence.value)
+  const out = []
+  out.push('# TVSOS 沙箱实验报告')
+  out.push('')
+  out.push('> 实验 #' + mdCell(e.id) + ' ' + mdCell(e.name) + ' · 种子 ' + mdCell(e.seed) + ' · 状态 ' + mdCell(statusText(e.status)) + ' · 创建于 ' + mdCell(formatTime(e.createdAt)) + ' · 沙箱 #' + mdCell(e.sandboxId))
+  out.push('> 虚拟终点 ' + mdCell(s.virtual_time || '-') + '（进度 ' + Math.round((s.progress || 0) * 100) + '%） · 导出于 ' + new Date().toLocaleString('zh-CN'))
+  out.push('')
+  out.push('## 一、主目标指标')
+  out.push('')
+  out.push('| 指标 | 值 |')
+  out.push('| --- | ---: |')
+  for (const m of primaryCards.value) out.push('| ' + mdCell(m.label) + ' | ' + mdCell(m.value) + ' |')
+  out.push('')
+  out.push('## 二、终态指标全景（按维度分组）')
+  for (const g of groups.value) {
+    out.push('')
+    out.push('### ' + mdCell(g.title))
+    out.push('')
+    out.push('| 指标 | 值 | 口径说明 |')
+    out.push('| --- | ---: | --- |')
+    for (const it of g.items) out.push('| ' + mdCell(it.label) + ' | ' + mdCell(groupItemText(it)) + ' | ' + mdCell(it.note || '') + ' |')
+  }
+  out.push('')
+  out.push('## 三、随机事件流（最近 ' + events.value.length + ' 条）')
+  out.push('')
+  if (events.value.length) {
+    out.push('| 虚拟时刻 | 类型 | 车牌 | 描述 | 持续 |')
+    out.push('| --- | --- | --- | --- | ---: |')
+    for (const ev of events.value) {
+      const dur = ev.duration_seconds > 0 ? Math.round(ev.duration_seconds / 60) + ' min' : '—'
+      out.push('| ' + mdCell(ev.event_time) + ' | ' + mdCell(ev.event_type) + ' | ' + mdCell(ev.license || '车辆-' + ev.vehicle_id) + ' | ' + mdCell(ev.description) + ' | ' + dur + ' |')
+    }
+  } else {
+    out.push('本实验无随机事件记录。')
+  }
+  out.push('')
+  out.push('## 四、SA 收敛曲线（等值压缩）')
+  out.push('')
+  if (conv) {
+    out.push('共 ' + conv.total + ' 条记录 · 初始 ' + conv.first + ' · 最优 ' + f(conv.min, 2) + ' · 终值 ' + conv.last + ' · bestCost 变化点 ' + conv.points.length + ' 个（等值段已压缩，完整序列见 JSON 导出）')
+    out.push('')
+    out.push('| 序 | 温度 | bestCost |')
+    out.push('| ---: | ---: | ---: |')
+    for (const p of conv.points) out.push('| ' + p.idx + ' | ' + f(p.temp, 2) + ' | ' + f(p.bestCost, 2) + ' |')
+  } else {
+    out.push('无收敛记录。')
+  }
+  out.push('')
+  out.push('## 五、指标时间序列')
+  out.push('')
+  if (snapshots.value.length) {
+    const keys = [...new Set(snapshots.value.flatMap((o) => Object.keys(o)))].filter((k) => k !== 'id' && k !== 'experimentId')
+    out.push('| ' + keys.join(' | ') + ' |')
+    out.push('| ' + keys.map(() => '---:').join(' | ') + ' |')
+    for (const snap of snapshots.value) out.push('| ' + keys.map((k) => mdCell(snap[k] ?? '')).join(' | ') + ' |')
+  } else {
+    out.push('本实验无快照序列数据。')
+  }
+  out.push('')
+  out.push('## 六、参数快照（TOML）')
+  out.push('')
+  out.push('```toml')
+  out.push(e.paramsToml || '')
+  out.push('```')
+  out.push('')
+  out.push('---')
+  out.push('*TVSOS 数据实验沙箱 · 本报告由实验终态数据在前端生成*')
+  return out.join('\n')
+}
+
+const handleExportReport = (fmt) => {
+  if (!experiment.value) return
+  const base = '实验报告-' + experiment.value.id + '-' + safeName(experiment.value.name)
+  if (fmt === 'html') {
+    downloadText(base + '.html', buildHtmlReport(), 'text/html')
+    ElMessage.success('HTML 报告已导出（浏览器打开，Ctrl+P 可另存 PDF）')
+  } else if (fmt === 'md') {
+    downloadText(base + '.md', buildMarkdownReport(), 'text/markdown')
+    ElMessage.success('Markdown 报告已导出')
+  } else {
+    const payload = {
+      generator: 'TVSOS 沙箱实验报告导出',
+      exportedAt: new Date().toISOString(),
+      experiment: experiment.value,
+      primaryMetrics: primary.value,
+      summary: summary.value,
+      convergence: convergence.value,
+      snapshots: snapshots.value,
+    }
+    downloadText(base + '.json', JSON.stringify(payload, null, 2), 'application/json')
+    ElMessage.success('JSON 原始全量数据已导出')
+  }
+}
+
 // 类型/货类中文名映射（与实时看板口径一致）
 const VEHICLE_TYPE_NAMES = { 1: '普通厢式货车', 2: '冷藏车', 3: '平板车', 4: '危化品罐车', 5: '高栏车', 6: '微型面包车' }
 const CARGO_NAMES = { 1: '普通包裹', 2: '生鲜食品', 3: '大型机械', 4: '建材石料', 5: '危险化学品', 6: '农副产品', 7: '医药及疫苗', 8: '家用电器', 9: '汽车配件', 10: '生猪活禽' }
@@ -401,6 +629,7 @@ onUnmounted(() => {
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .page-head h2 { margin: 4px 0; }
 .page-sub { color: #909399; font-size: 13px; }
+.head-actions { display: flex; gap: 8px; align-items: flex-start; }
 .metric-cards { margin-bottom: 16px; }
 .metric-card { text-align: center; margin-bottom: 12px; }
 .metric-value { font-size: 22px; font-weight: 700; color: #409eff; }
