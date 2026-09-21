@@ -33,6 +33,7 @@ type VehicleView struct {
 	EmptyMileage  float64   `json:"emptyMileage"`
 	Distance      float64   `json:"distance"`
 	Duration      float64   `json:"duration"`
+	LoadedDuration float64  `json:"loadedDuration"`
 	Angle         float64   `json:"angle"`
 }
 
@@ -87,6 +88,7 @@ func BuildVehicleView(v *model.Vehicle) *VehicleView {
 		EmptyMileage:  v.EmptyMileage,
 		Distance:      v.Distance,
 		Duration:      v.Duration,
+		LoadedDuration: v.LoadedDuration,
 		Angle:         angle,
 	}
 }

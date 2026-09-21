@@ -37,6 +37,8 @@ type RealtimeSummary struct {
 	Speed          float64 `json:"speed"`           // 当前时间加速比
 
 	TotalThroughput     float64     `json:"total_throughput"`
+	InTransitTons       float64     `json:"in_transit_tons"` // 在途货物量(吨)
+	CompletedTons       float64     `json:"completed_tons"`   // 已完成货物量(吨)
 	CostValue           float64     `json:"cost_value"`
 	CargoPending        float64     `json:"cargo_pending"`
 	TransportEfficiency float64     `json:"transport_efficiency"`
@@ -88,6 +90,12 @@ type RealtimeSummary struct {
 	RefuseCount         int64       `json:"refuse_count"`         // 拒单事件计数
 	AccidentCount       int64       `json:"accident_count"`       // 车祸事件计数
 	RecentEvents        []EventView `json:"recent_events"`        // 最近随机事件列表
+
+	// ---- 地图覆盖层面板扩展字段（指标展示建议：凹字形面板） ----
+	VehicleStatus   []NameValue      `json:"vehicle_status"`    // 车辆状态分布(行驶中/空闲中/待发车/维修中)
+	TopLoadVehicles []VehicleTopView `json:"top_load_vehicles"` // Top载货最重的车(Top3, 吨)
+	TopTimeVehicles []VehicleTopView `json:"top_time_vehicles"` // Top载货时间最长的车(Top3, 小时)
+	Radar           RadarMetrics     `json:"radar"`             // 调配效率雷达五维(0~100)
 }
 
 type WorkTime struct {
@@ -110,6 +118,24 @@ type EventView struct {
 	Status      string `json:"status"`
 }
 
+// VehicleTopView 车辆最值榜单条目（Top载货/Top载货时长）
+type VehicleTopView struct {
+	License string  `json:"license"`
+	Value   float64 `json:"value"`
+}
+
+// RadarMetrics 调配效率雷达图五维指标（均为 0~100 的百分比，前端直接渲染）。
+// 口径与文档一致：
+// 里程利用率=载货里程/总里程；装载率=实际载重/最大载重；派单率=运输中订单/总订单；
+// 货物流动率=在途货物量/总货物量；运力利用率=已使用运力吨公里/可用运力吨公里。
+type RadarMetrics struct {
+	MileageUtilization  float64 `json:"mileage_utilization"`
+	LoadingRate         float64 `json:"loading_rate"`
+	DispatchRate        float64 `json:"dispatch_rate"`
+	CargoFlowRate       float64 `json:"cargo_flow_rate"`
+	CapacityUtilization float64 `json:"capacity_utilization"`
+}
+
 type RealtimeIndividualStats struct {
 	TruckCapacity NumericStatView `json:"truck_capacity"`
 	LoadingTime   NumericStatView `json:"loading_time"`
@@ -119,15 +145,26 @@ type RealtimeDashboard struct {
 	Summary         RealtimeSummary         `json:"summary"`
 	IndividualStats RealtimeIndividualStats `json:"individual_stats"`
 	DetailTrends    map[string][]float64    `json:"detail_trends"`
+	TrendLabels     []string                `json:"trend_labels"` // 趋势点虚拟时刻标签(HH:MM:SS)
 }
 
 type trendStore struct {
-	mu         sync.Mutex
-	throughput []float64
-	pending    []float64
-	cost       []float64
-	efficiency []float64
+	mu          sync.Mutex
+	labels      []string
+	throughput  []float64
+	pending     []float64
+	cost        []float64
+	efficiency  []float64
+	p95         []float64
+	loadingRate []float64
+	emptyRate   []float64
+	onlineRate  []float64
+	inTransit   []float64
+	completed   []float64
 }
+
+// 趋势窗口容量：WS 推送周期 3s，240 点约覆盖最近 12 分钟虚拟运行过程。
+const trendPointLimit = 240
 
 var dashboardTrendStore = &trendStore{}
 
@@ -139,32 +176,44 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 		return nil, err
 	}
 
+	// 单次拉取本实验车辆列表：维修计数 / 状态分布 / 车牌映射 / Top榜 共用
+	allVehicles, _ := repository.ListVehiclesByExp(rt.Exp.Id, 0)
 	maintenanceVehicleCount, restingDriverCount := 0, 0
-	if vehicles, err := repository.ListVehiclesByExp(rt.Exp.Id, 0); err == nil {
-		for _, v := range vehicles {
-			if v.Status == constant.VehicleStatusMaintenance {
-				maintenanceVehicleCount++
-			}
+	// 构建 车辆ID -> 车牌号 映射，供随机事件流展示真实车牌
+	vehicleLicenseMap := make(map[uint]string)
+	statusCountMap := map[int]int{
+		constant.VehicleStatusRunning:     0,
+		constant.VehicleStatusFree:        0,
+		constant.VehicleStatusReady:       0,
+		constant.VehicleStatusMaintenance: 0,
+	}
+	for _, v := range allVehicles {
+		if v == nil {
+			continue
 		}
+		license := v.License
+		if license == "" {
+			license = "车辆-" + uintToStringSafe(v.Id)
+		}
+		vehicleLicenseMap[v.Id] = license
+		if _, ok := statusCountMap[v.Status]; ok {
+			statusCountMap[v.Status]++
+		}
+		if v.Status == constant.VehicleStatusMaintenance {
+			maintenanceVehicleCount++
+		}
+	}
+	vehicleStatusDist := []NameValue{
+		{Name: "行驶中", Value: float64(statusCountMap[constant.VehicleStatusRunning])},
+		{Name: "空闲中", Value: float64(statusCountMap[constant.VehicleStatusFree])},
+		{Name: "待发车", Value: float64(statusCountMap[constant.VehicleStatusReady])},
+		{Name: "维修中", Value: float64(statusCountMap[constant.VehicleStatusMaintenance])},
 	}
 	if drivers, err := repository.ListDriversByExp(rt.Exp.Id, 2); err == nil {
 		restingDriverCount = len(drivers)
 	}
 	refuseEventCount, _ := repository.CountRandomEventsByTypeByExp(rt.Exp.Id, "refuse")
 	accidentEventCount, _ := repository.CountRandomEventsByTypeByExp(rt.Exp.Id, "accident")
-	// 构建 车辆ID -> 车牌号 映射，供随机事件流展示真实车牌
-	vehicleLicenseMap := make(map[uint]string)
-	if allVehicles, err := repository.ListVehiclesByExp(rt.Exp.Id, 0); err == nil {
-		for _, v := range allVehicles {
-			if v != nil {
-				license := v.License
-				if license == "" {
-					license = "车辆-" + uintToStringSafe(v.Id)
-				}
-				vehicleLicenseMap[v.Id] = license
-			}
-		}
-	}
 	// R1-R3 可靠性 / T1 匹配吞吐量：观测窗口 = 本实验虚拟时钟起点至今（虚拟时间）
 	now := rt.Clock.Now()
 	windowStart := rt.Clock.Start()
@@ -215,6 +264,73 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 		})
 	}
 
+	// ---- Top榜：载货最重 / 载货时间最长（各取Top3，完整列表由前端走 /vehicles） ----
+	topLoadVehicles := make([]VehicleTopView, 0, 3)
+	topTimeVehicles := make([]VehicleTopView, 0, 3)
+	{
+		byLoad := make([]*model.Vehicle, 0, len(allVehicles))
+		byLoad = append(byLoad, allVehicles...)
+		sort.Slice(byLoad, func(i, j int) bool { return byLoad[i].Size > byLoad[j].Size })
+		for i := 0; i < len(byLoad) && i < 3; i++ {
+			topLoadVehicles = append(topLoadVehicles, VehicleTopView{
+				License: vehicleLicenseMap[byLoad[i].Id],
+				Value:   float64(byLoad[i].Size) / 1000.0, // kg -> 吨
+			})
+		}
+		byTime := make([]*model.Vehicle, 0, len(allVehicles))
+		byTime = append(byTime, allVehicles...)
+		sort.Slice(byTime, func(i, j int) bool { return byTime[i].LoadedDuration > byTime[j].LoadedDuration })
+		for i := 0; i < len(byTime) && i < 3; i++ {
+			topTimeVehicles = append(topTimeVehicles, VehicleTopView{
+				License: vehicleLicenseMap[byTime[i].Id],
+				Value:   byTime[i].LoadedDuration, // 小时
+			})
+		}
+	}
+
+	// ---- 调配效率雷达五维（0~100，口径见 RadarMetrics 注释） ----
+	clamp100 := func(v float64) float64 {
+		if v < 0 {
+			return 0
+		}
+		if v > 100 {
+			return 100
+		}
+		return v
+	}
+	radar := RadarMetrics{
+		LoadingRate: clamp100(stats.UtilizationStats.LoadingRateAvg * 100),
+	}
+	// 里程利用率 = 载货里程/总里程
+	if stats.EmptyDistStats.TotalDistance > 0 {
+		radar.MileageUtilization = clamp100(stats.EmptyDistStats.TotalLoaded / stats.EmptyDistStats.TotalDistance * 100)
+	}
+	// 派单率 = 实际运输中订单数/总订单数
+	if shipments, sErr := repository.ListShipmentsByExp(rt.Exp.Id); sErr == nil && len(shipments) > 0 {
+		workingCount := 0
+		for _, s := range shipments {
+			if s != nil && s.Status == constant.ShipmentStatusWorking {
+				workingCount++
+			}
+		}
+		radar.DispatchRate = clamp100(float64(workingCount) / float64(len(shipments)) * 100)
+	}
+	// 货物流动率 = 在途货物量/(在途+待处理+已完成)
+	if totalCargoTons := stats.ThroughputStats.InTransitTons + stats.CargoStats.PendingDemandTons + stats.ThroughputStats.CompletedTons; totalCargoTons > 0 {
+		radar.CargoFlowRate = clamp100(stats.ThroughputStats.InTransitTons / totalCargoTons * 100)
+	}
+	// 运力利用率 = 已使用运力吨公里/可用运力吨公里(Σ 车辆载重吨 × 已行驶里程km)
+	availableTonKm := 0.0
+	for _, v := range allVehicles {
+		if v == nil || v.Distance <= 0 {
+			continue
+		}
+		availableTonKm += (float64(v.Capacity) / 1000.0) * v.Distance
+	}
+	if availableTonKm > 0 {
+		radar.CapacityUtilization = clamp100(stats.TransportWorkStats.TotalTonDistance / availableTonKm * 100)
+	}
+
 	dashboard := &RealtimeDashboard{
 		Summary: RealtimeSummary{
 			ExperimentId:        rt.Exp.Id,
@@ -223,6 +339,8 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 			Progress:            rt.Clock.Progress(),
 			Speed:               rt.GetSpeed(),
 			TotalThroughput:     stats.ThroughputStats.TotalTransportedTons,
+			InTransitTons:       stats.ThroughputStats.InTransitTons,
+			CompletedTons:       stats.ThroughputStats.CompletedTons,
 			CostValue:           stats.TotalCost,
 			CargoPending:        stats.CargoStats.PendingDemandTons,
 			TransportEfficiency: stats.UtilizationStats.ByCapacity * 100,
@@ -269,6 +387,10 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 			RefuseCount:         refuseEventCount,
 			AccidentCount:       accidentEventCount,
 			RecentEvents:        recentEvents,
+			VehicleStatus:       vehicleStatusDist,
+			TopLoadVehicles:     topLoadVehicles,
+			TopTimeVehicles:     topTimeVehicles,
+			Radar:               radar,
 		},
 		IndividualStats: RealtimeIndividualStats{
 			TruckCapacity: NumericStatView{
@@ -292,7 +414,7 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 		},
 	}
 
-	dashboard.DetailTrends = appendAndExportTrends(dashboard)
+	dashboard.DetailTrends, dashboard.TrendLabels = appendAndExportTrends(dashboard, now.Format("15:04:05"))
 	return dashboard, nil
 }
 
@@ -300,36 +422,63 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 func resetDashboardTrends() {
 	dashboardTrendStore.mu.Lock()
 	defer dashboardTrendStore.mu.Unlock()
+	dashboardTrendStore.labels = nil
 	dashboardTrendStore.throughput = nil
 	dashboardTrendStore.pending = nil
 	dashboardTrendStore.cost = nil
 	dashboardTrendStore.efficiency = nil
+	dashboardTrendStore.p95 = nil
+	dashboardTrendStore.loadingRate = nil
+	dashboardTrendStore.emptyRate = nil
+	dashboardTrendStore.onlineRate = nil
+	dashboardTrendStore.inTransit = nil
+	dashboardTrendStore.completed = nil
 }
 
-func appendAndExportTrends(d *RealtimeDashboard) map[string][]float64 {
+// appendAndExportTrends 追加当前快照到趋势窗口并导出（labels 与所有序列等长对齐）。
+// label 为虚拟时刻(HH:MM:SS)，供覆盖层健康图/运力效率图的X轴与事件标记定位。
+func appendAndExportTrends(d *RealtimeDashboard, label string) (map[string][]float64, []string) {
 	dashboardTrendStore.mu.Lock()
 	defer dashboardTrendStore.mu.Unlock()
 
 	appendWithLimit := func(arr []float64, v float64) []float64 {
 		arr = append(arr, v)
-		if len(arr) > 24 {
-			arr = arr[len(arr)-24:]
+		if len(arr) > trendPointLimit {
+			arr = arr[len(arr)-trendPointLimit:]
 		}
 		return arr
 	}
 
+	dashboardTrendStore.labels = append(dashboardTrendStore.labels, label)
+	if len(dashboardTrendStore.labels) > trendPointLimit {
+		dashboardTrendStore.labels = dashboardTrendStore.labels[len(dashboardTrendStore.labels)-trendPointLimit:]
+	}
 	dashboardTrendStore.throughput = appendWithLimit(dashboardTrendStore.throughput, d.Summary.TotalThroughput)
 	dashboardTrendStore.pending = appendWithLimit(dashboardTrendStore.pending, d.Summary.CargoPending)
 	dashboardTrendStore.cost = appendWithLimit(dashboardTrendStore.cost, d.Summary.CostValue)
 	dashboardTrendStore.efficiency = appendWithLimit(dashboardTrendStore.efficiency, d.Summary.TransportEfficiency)
+	dashboardTrendStore.p95 = appendWithLimit(dashboardTrendStore.p95, d.Summary.MatchResponseP95)
+	dashboardTrendStore.loadingRate = appendWithLimit(dashboardTrendStore.loadingRate, d.Summary.LoadingRateAvg*100)
+	dashboardTrendStore.emptyRate = appendWithLimit(dashboardTrendStore.emptyRate, d.Summary.EmptyRate*100)
+	dashboardTrendStore.onlineRate = appendWithLimit(dashboardTrendStore.onlineRate, d.Summary.OnlineRate*100)
+	dashboardTrendStore.inTransit = appendWithLimit(dashboardTrendStore.inTransit, d.Summary.InTransitTons)
+	dashboardTrendStore.completed = appendWithLimit(dashboardTrendStore.completed, d.Summary.CompletedTons)
 
 	trends := map[string][]float64{
-		"throughput": copySlice(dashboardTrendStore.throughput),
-		"pending":    copySlice(dashboardTrendStore.pending),
-		"cost":       copySlice(dashboardTrendStore.cost),
-		"efficiency": copySlice(dashboardTrendStore.efficiency),
+		"throughput":   copySlice(dashboardTrendStore.throughput),
+		"pending":      copySlice(dashboardTrendStore.pending),
+		"cost":         copySlice(dashboardTrendStore.cost),
+		"efficiency":   copySlice(dashboardTrendStore.efficiency),
+		"p95":          copySlice(dashboardTrendStore.p95),
+		"loading_rate": copySlice(dashboardTrendStore.loadingRate),
+		"empty_rate":   copySlice(dashboardTrendStore.emptyRate),
+		"online_rate":  copySlice(dashboardTrendStore.onlineRate),
+		"in_transit":   copySlice(dashboardTrendStore.inTransit),
+		"completed":    copySlice(dashboardTrendStore.completed),
 	}
-	return trends
+	labels := make([]string, len(dashboardTrendStore.labels))
+	copy(labels, dashboardTrendStore.labels)
+	return trends, labels
 }
 
 func buildCargoDemandByType(experimentID uint) ([]NameValue, error) {

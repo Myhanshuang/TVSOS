@@ -17,14 +17,8 @@ export const useVisibleStore = defineStore('visible', () => {
    */
   const isSecondVisible = ref(false)
 
-  /** 
-   * 第三组件（订单管理/任务列表界面）的可见性开关 
-   */
-  const isThirdVisible = ref(false)
-
   return {
     isFirstVisible,
-    isSecondVisible,
-    isThirdVisible
+    isSecondVisible
   }
 })

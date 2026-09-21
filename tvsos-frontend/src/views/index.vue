@@ -1,19 +1,19 @@
 <script setup>
 import MapContainer from '@/components/mapContainer.vue'
 import taskManage from '@/components/taskManage.vue';
-import Statistics2 from '@/components/statistics2.vue';
 import { watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useVisibleStore, useTargetStore } from '@/stores/index.js'
+import { useVisibleStore, useTargetStore, useDataPanelStore } from '@/stores/index.js'
 
 const target = useTargetStore() 
 const visible = useVisibleStore()
+const dataPanel = useDataPanelStore()
 const scrollContainer = ref(null)
 
 const firstRef = ref(null)
 const secondRef = ref(null)
-const thirdRef = ref(null)
 
-const sectionIds = ['first', 'second', 'third']
+// 两屏：第一屏=地图（含凹字形数据覆盖层），第二屏=任务管理（独立数据展示面板已并入地图页）
+const sectionIds = ['first', 'second']
 
 let observer
 let onKeydown
@@ -42,13 +42,15 @@ onMounted(() => {
       const id = visibleEntry.target.id;
       visible.isFirstVisible = (id === 'first');
       visible.isSecondVisible = (id === 'second');
-      visible.isThirdVisible = (id === 'third');
     }
   }, { threshold: [0.5, 0.6] });
 
-  [firstRef, secondRef, thirdRef].forEach(refItem => {
+  [firstRef, secondRef].forEach(refItem => {
     if (refItem.value) observer.observe(refItem.value);
   });
+
+  // 进入实验页时数据面板默认隐藏（平时不影响地图查看，由导航“显示数据”开启）
+  dataPanel.setDataPanels(false)
 
   // 2. 左右方向键切页
   onKeydown = (e) => {
@@ -79,9 +81,6 @@ watch(() => target.watchLissoner, async () => {
       <MapContainer/>
     </div>
     <div id='second' ref="secondRef" class="section-container">
-      <Statistics2/>
-    </div>
-    <div id='third' ref="thirdRef" class="section-container">
       <taskManage/>
     </div>
   </div>

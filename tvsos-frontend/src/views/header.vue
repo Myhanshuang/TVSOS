@@ -1,6 +1,6 @@
 <script setup>
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useMapAnimationStore, useVisibleStore, useTargetStore, useUserStore } from '@/stores'
+import { useMapAnimationStore, useVisibleStore, useTargetStore, useUserStore, useDataPanelStore } from '@/stores'
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { setSimulationSpeed, getSimulationSpeed } from '@/api/simulation'
@@ -21,6 +21,7 @@ const route = useRoute()
 const target = useTargetStore()
 const visible = useVisibleStore()
 const userStore = useUserStore()
+const dataPanel = useDataPanelStore()
 const drawerVisible = ref(false)
 const vehicleDrawerVisible = ref(false)
 
@@ -153,15 +154,16 @@ const handleLogout = async () => {
             </div>
             <div class="nav-item" :class="{ active: visible.isSecondVisible }" @click="target.targetChange('second')">
                 <el-icon>
-                    <DataAnalysis />
-                </el-icon>
-                <span class="nav-text">统计分析</span>
-            </div>
-            <div class="nav-item" :class="{ active: visible.isThirdVisible }" @click="target.targetChange('third')">
-                <el-icon>
                     <List />
                 </el-icon>
                 <span class="nav-text">任务管理</span>
+            </div>
+            <!-- 数据面板开关：凹字形面板从地图四周渐入/渐出（与车辆/POI信息面板互斥） -->
+            <div class="nav-item" :class="{ active: dataPanel.showDataPanels }" @click="dataPanel.toggleDataPanels()">
+                <el-icon>
+                    <DataAnalysis />
+                </el-icon>
+                <span class="nav-text">{{ dataPanel.showDataPanels ? '隐藏数据' : '显示数据' }}</span>
             </div>
             <!-- 实验状态条：虚拟时钟 + 进度 -->
             <div class="exp-status" v-if="expStatus.virtualTime">

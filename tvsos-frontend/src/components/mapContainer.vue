@@ -10,6 +10,7 @@ import { useMapAnimationStore, useImformStore, usePoiBoxStore, useMapStore } fro
 import { getPOIList } from "@/api/poi";
 import { storeToRefs } from 'pinia';
 import InfoPanel from "./infoPanel.vue";
+import MapDataOverlay from "./mapDataOverlay.vue";
 
 /** 状态库：面板显示状态 */
 const imform = useImformStore();
@@ -308,6 +309,9 @@ watch(zoom, (newZoom) => {
 
         <!-- 右侧信息面板子组件：传入实时位置数据 -->
         <InfoPanel :display-position="displayPosition" />
+
+        <!-- 凹字形数据覆盖层：覆盖在地图图层之上，不改变地图实际大小 -->
+        <MapDataOverlay />
     </div>
 </template>
 
@@ -321,6 +325,7 @@ watch(zoom, (newZoom) => {
     display: inline-block;
     text-align: left;
     z-index: 1;
+    position: relative; /* 数据覆盖层(mapDataOverlay)定位基准 */
 }
 
 /* 地图盒子，包含动态尺寸切换的过渡配合 */

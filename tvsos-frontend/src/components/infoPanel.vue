@@ -298,8 +298,10 @@ const getVehicleCategoryText = (category) => {
     color: #c0c4cc;
 }
 
-/* 过渡动画：平滑右侧划入 */
-.panel-slide-enter-active,
+/* 过渡动画：平滑右侧划入（进入延迟 0.2s，让数据覆盖层先渐出，再显示信息面板） */
+.panel-slide-enter-active {
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) 0.2s;
+}
 .panel-slide-leave-active {
     transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }

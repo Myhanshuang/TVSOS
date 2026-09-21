@@ -39,14 +39,16 @@ func UpdateVehicleLocation(id int, lon float64, lat float64) error {
 	return err
 }
 
-// AddVehicleTravelMetrics 累加车辆的总体运输指标（如空驶里程、运输总距离和总行驶时长）。
+// AddVehicleTravelMetrics 累加车辆的总体运输指标（如空驶里程、运输总距离、总行驶时长与累计载货时长）。
 // 运用 gorm.Expr 表达式对数据库对应字段进行原子递增操作。
-func AddVehicleTravelMetrics(id int, emptyMileageDelta float64, transportDistanceDelta float64, durationDeltaHour float64) error {
+// loadedDurationDelta 仅在载货运输段为非零（接单空驶段为0），用于Top载货时长榜与运力统计。
+func AddVehicleTravelMetrics(id int, emptyMileageDelta float64, transportDistanceDelta float64, durationDeltaHour float64, loadedDurationDelta float64) error {
 	updates := map[string]interface{}{
-		"empty_mileage": gorm.Expr("empty_mileage + ?", emptyMileageDelta),
-		"distance":      gorm.Expr("distance + ?", transportDistanceDelta),
-		"duration":      gorm.Expr("duration + ?", durationDeltaHour),
-		"update_time":   time.Now(),
+		"empty_mileage":   gorm.Expr("empty_mileage + ?", emptyMileageDelta),
+		"distance":        gorm.Expr("distance + ?", transportDistanceDelta),
+		"duration":        gorm.Expr("duration + ?", durationDeltaHour),
+		"loaded_duration": gorm.Expr("loaded_duration + ?", loadedDurationDelta),
+		"update_time":     time.Now(),
 	}
 
 	db := database.DB.Model(&model.Vehicle{}).Where("id = ?", id)

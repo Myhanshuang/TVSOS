@@ -31,6 +31,7 @@ type Vehicle struct {
 	EmptyMileage  float64   `json:"emptyMileage" gorm:"column:empty_mileage"`
 	Distance      float64   `json:"distance"`
 	Duration      float64   `json:"duration"`
+	LoadedDuration float64  `json:"loadedDuration" gorm:"column:loaded_duration"` // 累计载货时长(小时,仅运输段)
 	Angle         float64   `json:"angle"`
 	ExperimentId uint      `json:"experimentId" gorm:"column:experiment_id;index"` // 所属实验id(0=沙箱模板/全局)
 }

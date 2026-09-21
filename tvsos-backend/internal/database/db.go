@@ -391,6 +391,29 @@ func InitDB() {
 		Logger.Logger.Info("数据库迁移：已新增实验维度列", zap.String("table", table))
 	}
 
+	// 车辆载货时长列迁移：loaded_duration 累计运输(重载)段行驶小时，用于Top载货时长榜。
+	{
+		var columnCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*)
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			  AND TABLE_NAME = 'vehicle'
+			  AND COLUMN_NAME = 'loaded_duration'
+		`).Scan(&columnCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查 vehicle.loaded_duration", zap.Error(err))
+			panic(err)
+		}
+		if columnCount == 0 {
+			if err = DB.Exec("ALTER TABLE vehicle ADD COLUMN loaded_duration double NOT NULL DEFAULT 0 COMMENT '累计载货时长(小时)'").Error; err != nil {
+				Logger.Logger.Error("数据库迁移失败：新增 vehicle.loaded_duration", zap.Error(err))
+				panic(err)
+			}
+			Logger.Logger.Info("数据库迁移：已新增 vehicle.loaded_duration")
+		}
+	}
+
 	// 沙箱预生成脚本表：实验订单流 / 随机事件脚本（数据生成器输出）
 	scriptTableMigrations := []tableMigration{
 		{

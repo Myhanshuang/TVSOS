@@ -50,7 +50,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 
 核心链路：`internal/task/stats.go CalculateGlobalStats()` → `realtime_stats.go BuildRealtimeDashboard()` → RealtimeSummary（WS `/ws/stats` 推送间隔 3s，前端轮询 15s 兜底）。
 
-分视角面板 8 章（`statistics2.vue` 的 CHAPTERS）：M 匹配精准度 / U 利用效率 / T 吞吐响应 / A 算法层 / C 成本 / R 可靠性 / F 公平 / G 绿色。**无待接入占位**。
+实时展示已改为地图覆盖层（`components/mapDataOverlay.vue`，凹字形六面板）：左上运行健康图（吞吐/积压/P95+事件标记）、左下运力效率趋势（U2/U4/U3+状态堆叠带）、右上 Top3 最值榜（载货最重/载货时间最长，点击弹完整列表）、右中车辆状态饼图、右下调配效率雷达（里程利用率/装载率/派单率/货物流动率/运力利用率，后端 radar 字段 0~100）、正下最终优化指标值(F/C2/C1/A3)+随机事件流。完整指标体系（M/U/T/A/C/R/F/G 八章）保留在实验结果页。
 
 - M1-M4（P/R/F1/MRR）：参考答案为**条件最优**（固定其余指派、该单改派各车取整批成本最低者，`matching_quality.go`），逐单候选排名+ground truth 已回填 `matching_log`
 - C1：SA 相对贪心首可行基线的成本改善%；A2 求解耗时（`solver_timing.go`）；A3 gap（`gap_evaluator.go`，≤4 单 ≤6 车才枚举，20 车队实际跳过）
@@ -72,7 +72,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - 每个子页 section 内部纵向自由滚动
 - 事件流与统计展示一律用**车牌号**（License 字段），不用「车辆#1」这类 ID 称呼
 - `infoPanel.vue`：暂停中显示「等待中(休息/天气)」、速度 0.00、维修中状态
-- `statistics2.vue` 新增 summary 字段需同步四处：`dynamicData` 声明、`initDynamicStats`（赋值风格）、`mapSnapshotToDynamicData`（对象字面量风格）、`applySnapshot`
+- 数据覆盖层：`dataPanel` Store 控制显隐（导航“显示数据”按钮），与 infoPanel 互斥（信息面板开→覆盖层渐出，关→自动回落，覆盖层不动地图尺寸）；infoPanel 进入动画延迟 0.2s 让覆盖层先渐出
 
 ## Windows/工具注意事项
 
@@ -93,7 +93,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 ## 沙箱系统（2026-09-08 落地，当前主流程）
 
 概念：`User(研究者) → Sandbox(世界设定) → ExperimentScheme(参数模板) → Experiment(批次:参数快照+种子+结果)`。
-默认主页是沙箱管理页（/admin/sandboxes），登录（admin/admin123）→ 沙箱 → 新建实验（参数面板/TOML/种子导入）→ 生成数据 → 开始实验 → 地图三屏 → 到达固定虚拟时长自动完成 → 结果页；对比页 /admin/sandbox/:id/compare。
+默认主页是沙箱管理页（/admin/sandboxes），登录（admin/admin123）→ 沙箱 → 新建实验（参数面板/TOML/种子导入）→ 生成数据 → 开始实验 → 地图+任务管理两屏（地图页可“显示数据”拉入凹字形覆盖层） → 到达固定虚拟时长自动完成 → 结果页；对比页 /admin/sandbox/:id/compare。
 
 ### 后端要点
 - **单实验串行**：`internal/task/experiment_runtime.go` ExperimentRuntime，同一时刻仅一个活跃实验；POST /experiments/:id/start|stop 控制生命周期；服务重启=当前实验 abort（AbortStaleExperiments）。
@@ -111,8 +111,8 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 
 ### 前端要点
 - 新页面：views/sandboxList.vue、sandboxDetail.vue（方案+实验记录+种子导入导出）、experimentResult.vue、experimentCompare.vue、components/experimentConfig.vue（表单↔TOML 双向）。
-- index.vue 三屏现在是实验视图 /admin/experiment/:id；header.vue 按场景切换导航（实验侧有三屏导航/倍速/虚拟时钟进度条/结束实验；沙箱侧只有沙箱管理入口），退出登录真实化。
-- WS 连接统一经 withToken() 附加 ?token=（statistics2.vue / vehiclePolling.js）。
+- index.vue 两屏（地图/任务管理）是实验视图 /admin/experiment/:id（原独立统计分析屏已删除，并入地图覆盖层 mapDataOverlay.vue）；header.vue 按场景切换导航（实验侧有地图/任务管理/显示数据开关/倍速/虚拟时钟进度条/结束实验；沙箱侧只有沙箱管理入口），退出登录真实化。
+- WS 连接统一经 withToken() 附加 ?token=（mapDataOverlay.vue / vehiclePolling.js）。
 - request.js 无条件携带 Authorization: Bearer，401 自动清 token 回登录页。
 
 ### 测试红线更新

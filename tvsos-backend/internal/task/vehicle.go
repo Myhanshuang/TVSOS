@@ -79,6 +79,7 @@ func moveVehicle(rt *ExperimentRuntime, task *model.OrderTask) {
 	emptyMileageDelta := 0.0
 	transportDistanceDelta := 0.0
 	durationDeltaHour := 0.0
+	loadedDurationDelta := 0.0
 	if segmentDistanceKM > 0 {
 		switch task.Sequential {
 		case constant.OrderTaskSequentialAccepting:
@@ -87,7 +88,11 @@ func moveVehicle(rt *ExperimentRuntime, task *model.OrderTask) {
 			transportDistanceDelta = segmentDistanceKM
 		}
 		durationDeltaHour = estimateDurationHours(segmentDistanceKM, rt.SpeedKmhAt(now))
-		_ = repository.AddVehicleTravelMetrics(int(vehicleID), emptyMileageDelta, transportDistanceDelta, durationDeltaHour)
+		// 载货时长仅累计运输(重载)段
+		if task.Sequential == constant.OrderTaskSequentialTransporting {
+			loadedDurationDelta = durationDeltaHour
+		}
+		_ = repository.AddVehicleTravelMetrics(int(vehicleID), emptyMileageDelta, transportDistanceDelta, durationDeltaHour, loadedDurationDelta)
 		// 随机事件：司机疲劳累计（达到阈值触发强制休息）
 		accumulateDriverFatigue(rt, task, latestVehicle, durationDeltaHour)
 	}
