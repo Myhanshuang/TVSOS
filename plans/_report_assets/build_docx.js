@@ -10,8 +10,10 @@ const H = require("./docx_helpers.js");
 const ch1 = require("./docx_ch1.js");
 const ch23 = require("./docx_ch23.js");
 
-const OUTPUT = path.join(__dirname, "..", "综合设计III中期报告.docx");
+const OUTPUT = process.argv[2] ? path.resolve(process.argv[2]) : path.join(__dirname, "..", "综合设计III中期报告.docx");
 
+// 注：正式报告的封面已由用户在 WPS 中替换为整页 EMF 官方封面（含边框形状）。
+// 本脚本再生成时仍是文本封面；如需与正式版一致，请以已交付 docx 为准做 XML 级合并（见 _surgery.py）。
 // ================= cover =================
 var cover = [];
 cover.push(H.spacer(1600));

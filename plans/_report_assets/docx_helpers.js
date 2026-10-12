@@ -25,6 +25,16 @@ function figure(file, targetW) {
     children: [new ImageRun({ type: "png", data: p.buf, transformation: { width: width, height: height } })],
   });
 }
+function figureImg(file, natW, natH, mime, targetW) {
+  const buf = fs.readFileSync(path.join(__dirname, file));
+  const width = targetW || 540;
+  const height = Math.round(natH * width / natW);
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 160, after: 60 },
+    children: [new ImageRun({ type: mime, data: buf, transformation: { width: width, height: height } })],
+  });
+}
 function caption(text) {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -171,7 +181,7 @@ function tableCaption(text) {
 
 module.exports = {
   FONT_BODY: FONT_BODY, FONT_HEAD: FONT_HEAD, FONT_CODE: FONT_CODE,
-  readPng: readPng, figure: figure, caption: caption, codeCaption: codeCaption,
+  readPng: readPng, figure: figure, figureImg: figureImg, caption: caption, codeCaption: codeCaption,
   t: t, b: b, P: P, H1: H1, H2: H2, H3: H3,
   codeBlock: codeBlock, refP: refP, spacer: spacer,
   coverLine: coverLine, coverTitle: coverTitle,
