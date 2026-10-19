@@ -36,26 +36,88 @@
             <span class="tip">0 = 沿用沙箱世界规则基准</span>
           </el-form-item>
 
-          <el-divider content-position="left">算法超参（模拟退火）</el-divider>
-          <el-form-item label="调度模式">
-            <el-radio-group v-model="form.algoMode">
-              <el-radio-button value="hybrid">hybrid(SA)</el-radio-button>
-              <el-radio-button value="nf">nf(贪心)</el-radio-button>
-            </el-radio-group>
+          <el-divider content-position="left">求解算法（可更换插件）</el-divider>
+          <el-form-item label="求解算法">
+            <el-select v-model="form.solver" style="width: 280px">
+              <el-option v-for="s in solverOptions" :key="s.value" :value="s.value" :label="s.label" />
+            </el-select>
+            <span class="tip">{{ solverTip }}</span>
           </el-form-item>
-          <el-form-item label="初始温度">
-            <el-input-number v-model="form.saInitialTemp" :min="1" style="width: 160px" />
-          </el-form-item>
-          <el-form-item label="冷却率">
-            <el-input-number v-model="form.saCoolingRate" :min="0.5" :max="0.999" :step="0.01" style="width: 160px" />
-          </el-form-item>
-          <el-form-item label="终止温度">
-            <el-input-number v-model="form.saMinTemp" :min="0.001" :step="0.01" style="width: 160px" />
-          </el-form-item>
-          <el-form-item label="每温迭代数">
-            <el-input-number v-model="form.saItersPerTemp" :min="1" style="width: 160px" />
-          </el-form-item>
-          <el-form-item label="候选车辆K">
+
+          <!-- SA 专有超参 -->
+          <template v-if="form.solver === 'sa'">
+            <el-form-item label="初始温度">
+              <el-input-number v-model="form.saInitialTemp" :min="1" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="冷却率">
+              <el-input-number v-model="form.saCoolingRate" :min="0.5" :max="0.999" :step="0.01" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="终止温度">
+              <el-input-number v-model="form.saMinTemp" :min="0.001" :step="0.01" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="每温迭代数">
+              <el-input-number v-model="form.saItersPerTemp" :min="1" style="width: 160px" />
+            </el-form-item>
+          </template>
+
+          <!-- 种群算法通用超参 -->
+          <template v-if="isPopulationSolver">
+            <el-form-item label="种群规模">
+              <el-input-number v-model="form.population" :min="0" :step="5" style="width: 160px" />
+              <span class="tip">0 = 自动（nsga3/moead 取权重向量数，其余 40）</span>
+            </el-form-item>
+            <el-form-item label="进化代数">
+              <el-input-number v-model="form.generations" :min="1" :step="10" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="交叉概率">
+              <el-input-number v-model="form.crossoverProb" :min="0" :max="1" :step="0.05" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="变异概率">
+              <el-input-number v-model="form.mutationProb" :min="0" :max="1" :step="0.05" style="width: 160px" />
+              <span class="tip">按每个体期望变异基因数折算为逐基因概率</span>
+            </el-form-item>
+          </template>
+
+          <!-- NSGA-III / MOEA/D 专有 -->
+          <template v-if="form.solver === 'nsga3' || form.solver === 'moead'">
+            <el-form-item label="参考点划分数">
+              <el-input-number v-model="form.refDivisions" :min="2" :step="1" style="width: 160px" />
+              <span class="tip">Das-Dennis H（4 目标下 H=4 → 35 个参考点/权重）</span>
+            </el-form-item>
+          </template>
+          <template v-if="form.solver === 'moead'">
+            <el-form-item label="邻域大小">
+              <el-input-number v-model="form.neighborhood" :min="2" :step="1" style="width: 160px" />
+              <span class="tip">按权重欧氏距离取近邻子问题数</span>
+            </el-form-item>
+            <el-form-item label="聚合函数">
+              <el-select v-model="form.decomposition" style="width: 180px">
+                <el-option value="tchebycheff" label="tchebycheff 切比雪夫" />
+                <el-option value="weighted_sum" label="weighted_sum 加权和" />
+                <el-option value="pbi" label="pbi 边界惩罚" />
+              </el-select>
+            </el-form-item>
+          </template>
+
+          <!-- SPEA2 / MOPSO 专有 -->
+          <template v-if="form.solver === 'spea2' || form.solver === 'mopso'">
+            <el-form-item label="档案容量">
+              <el-input-number v-model="form.archiveSize" :min="5" :step="5" style="width: 160px" />
+              <span class="tip">外部非支配档案规模上限</span>
+            </el-form-item>
+          </template>
+          <template v-if="form.solver === 'mopso'">
+            <el-form-item label="惯性权重w">
+              <el-input-number v-model="form.inertiaWeight" :min="0.1" :max="0.9" :step="0.05" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="认知系数c1">
+              <el-input-number v-model="form.cognitiveCoef" :min="0.5" :max="3" :step="0.1" style="width: 160px" />
+            </el-form-item>
+            <el-form-item label="社会系数c2">
+              <el-input-number v-model="form.socialCoef" :min="0.5" :max="3" :step="0.1" style="width: 160px" />
+            </el-form-item>
+          </template>
+          <el-form-item v-if="form.solver === 'sa' || form.solver === 'nf'" label="候选车辆K">
             <el-input-number v-model="form.candidateK" :min="1" style="width: 160px" />
           </el-form-item>
 
@@ -183,12 +245,23 @@ const defaultForm = () => ({
   speed: 1,
   vehicleCount: 0,
   dailyVolume: 0,
-  algoMode: 'hybrid',
+  solver: 'sa',
   saInitialTemp: 1000,
   saCoolingRate: 0.95,
   saMinTemp: 0.1,
   saItersPerTemp: 50,
   candidateK: 5,
+  population: 40,
+  generations: 60,
+  crossoverProb: 0.9,
+  mutationProb: 0.25,
+  refDivisions: 4,
+  neighborhood: 10,
+  decomposition: 'tchebycheff',
+  archiveSize: 30,
+  inertiaWeight: 0.4,
+  cognitiveCoef: 1.5,
+  socialCoef: 1.5,
   objectiveMode: 'primary',
   primaryObjective: 'C2',
   objectiveTolerance: 0.15,
@@ -207,6 +280,31 @@ const defaultForm = () => ({
 const form = ref(defaultForm())
 const tomlText = ref('')
 
+// 求解器插件选项（与后端 solverRegistry 同源）
+const solverOptions = [
+  { value: 'sa', label: 'SA 模拟退火（ε-约束+帕累托）' },
+  { value: 'nsga2', label: 'NSGA-II（非支配排序+拥挤度）' },
+  { value: 'nsga3', label: 'NSGA-III（参考点小生境）' },
+  { value: 'moead', label: 'MOEA/D（分解+邻域进化）' },
+  { value: 'spea2', label: 'SPEA2（强度适应度档案）' },
+  { value: 'mopso', label: 'MOPSO（多目标粒子群）' },
+  { value: 'nf', label: 'NF 贪心首可行（确定性基线）' },
+]
+const isPopulationSolver = computed(() =>
+  ['nsga2', 'nsga3', 'moead', 'spea2', 'mopso'].includes(form.value.solver))
+const solverTip = computed(() => {
+  const tips = {
+    sa: '温度调度的单点搜索，接受准则叠加帕累托支配',
+    nsga2: '经典多目标遗传算法，种群并行搜索 ε-可行前沿',
+    nsga3: '参考点多样性保持，适合 4 目标及以上',
+    moead: '按权重向量分解为标量子问题，邻域协同进化',
+    spea2: '档案型进化算法，密度截断保持前沿多样性',
+    mopso: '粒子群离散编码，外档案 leader 引导',
+    nf: '无迭代基线，C1 改善度的参照口径',
+  }
+  return tips[form.value.solver] || ''
+})
+
 // 软约束绝对预算表单值 → TOML budgets 内联表（仅写非默认项：0=缺省自适应不落盘，
 // 负数=显式关闭；F1 缺省 0.4 属默认值也不落盘，由后端默认参数兜底）
 const budgetEntries = () => {
@@ -219,6 +317,44 @@ const budgetEntries = () => {
   if (f.budgetF1Max !== 0.4) entries.push(`F1_gini_max = ${f.budgetF1Max}`)
   if (f.budgetG2Max !== 0) entries.push(`G2_max = ${f.budgetG2Max}`)
   return entries
+}
+
+// [algorithm] 段：solver + 按算法写超参（SA 专有 + 种群通用 + 算法专有）
+const algorithmSection = () => {
+  const f = form.value
+  let s = `solver = "${f.solver}"`
+  if (f.solver === 'sa') {
+    s += `\nsa_initial_temp = ${f.saInitialTemp}
+sa_cooling_rate = ${f.saCoolingRate}
+sa_min_temp = ${f.saMinTemp}
+sa_iters_per_temp = ${f.saItersPerTemp}
+candidate_k = ${f.candidateK}`
+  }
+  if (isPopulationSolver.value) {
+    s += `\npopulation = ${f.population}
+generations = ${f.generations}
+crossover_prob = ${f.crossoverProb}
+mutation_prob = ${f.mutationProb}`
+  }
+  if (f.solver === 'nsga3' || f.solver === 'moead') {
+    s += `\nref_divisions = ${f.refDivisions}`
+  }
+  if (f.solver === 'moead') {
+    s += `\nneighborhood = ${f.neighborhood}
+decomposition = "${f.decomposition}"`
+  }
+  if (f.solver === 'spea2' || f.solver === 'mopso') {
+    s += `\narchive_size = ${f.archiveSize}`
+  }
+  if (f.solver === 'mopso') {
+    s += `\ninertia_weight = ${f.inertiaWeight}
+cognitive_coef = ${f.cognitiveCoef}
+social_coef = ${f.socialCoef}`
+  }
+  if (f.solver === 'nf') {
+    s += `\ncandidate_k = ${f.candidateK}`
+  }
+  return s
 }
 
 // 表单 → TOML（提交时以 TOML 为准；表单是 TOML 的可视化投影）
@@ -245,12 +381,7 @@ vehicle_count = ${f.vehicleCount}
 daily_volume = ${f.dailyVolume}
 
 [algorithm]
-mode = "${f.algoMode}"
-sa_initial_temp = ${f.saInitialTemp}
-sa_cooling_rate = ${f.saCoolingRate}
-sa_min_temp = ${f.saMinTemp}
-sa_iters_per_temp = ${f.saItersPerTemp}
-candidate_k = ${f.candidateK}
+${algorithmSection()}
 
 [objectives]
 ${objectivesSection}
@@ -283,12 +414,27 @@ const applyTomlToForm = (t) => {
   const v3 = num(/speed\s*=\s*([\d.]+)/); if (v3 !== undefined) f.speed = v3
   const v4 = num(/vehicle_count\s*=\s*(\d+)/); if (v4 !== undefined) f.vehicleCount = v4
   const v5 = num(/daily_volume\s*=\s*(\d+)/); if (v5 !== undefined) f.dailyVolume = v5
-  const v6 = str(/mode\s*=\s*"(\w+)"/); if (v6 && (v6 === 'hybrid' || v6 === 'nf')) f.algoMode = v6
+  // 求解算法：在 [algorithm] 节内解析 solver；旧版 mode=nf 兼容映射
+  const algoPart = (t.split(/\[algorithm\]/)[1] || '').split(/\n\s*\[/)[0]
+  const sv = algoPart.match(/solver\s*=\s*"(sa|nsga2|nsga3|moead|spea2|mopso|nf)"/)
+  if (sv) f.solver = sv[1]
+  else if (/mode\s*=\s*"nf"/.test(algoPart)) f.solver = 'nf'
   const v7 = num(/sa_initial_temp\s*=\s*([\d.]+)/); if (v7 !== undefined) f.saInitialTemp = v7
   const v8 = num(/sa_cooling_rate\s*=\s*([\d.]+)/); if (v8 !== undefined) f.saCoolingRate = v8
   const v9 = num(/sa_min_temp\s*=\s*([\d.]+)/); if (v9 !== undefined) f.saMinTemp = v9
   const v10 = num(/sa_iters_per_temp\s*=\s*(\d+)/); if (v10 !== undefined) f.saItersPerTemp = v10
   const v11 = num(/candidate_k\s*=\s*(\d+)/); if (v11 !== undefined) f.candidateK = v11
+  const pop = numIn(algoPart, /population\s*=\s*(\d+)/); if (pop !== undefined) f.population = pop
+  const gen = numIn(algoPart, /generations\s*=\s*(\d+)/); if (gen !== undefined) f.generations = gen
+  const cx = numIn(algoPart, /crossover_prob\s*=\s*([\d.]+)/); if (cx !== undefined) f.crossoverProb = cx
+  const mut = numIn(algoPart, /mutation_prob\s*=\s*([\d.]+)/); if (mut !== undefined) f.mutationProb = mut
+  const ref = numIn(algoPart, /ref_divisions\s*=\s*(\d+)/); if (ref !== undefined) f.refDivisions = ref
+  const nb = numIn(algoPart, /neighborhood\s*=\s*(\d+)/); if (nb !== undefined) f.neighborhood = nb
+  const dc = algoPart.match(/decomposition\s*=\s*"(tchebycheff|weighted_sum|pbi)"/); if (dc) f.decomposition = dc[1]
+  const arc = numIn(algoPart, /archive_size\s*=\s*(\d+)/); if (arc !== undefined) f.archiveSize = arc
+  const iw = numIn(algoPart, /inertia_weight\s*=\s*([\d.]+)/); if (iw !== undefined) f.inertiaWeight = iw
+  const c1 = numIn(algoPart, /cognitive_coef\s*=\s*([\d.]+)/); if (c1 !== undefined) f.cognitiveCoef = c1
+  const c2 = numIn(algoPart, /social_coef\s*=\s*([\d.]+)/); if (c2 !== undefined) f.socialCoef = c2
   // 多目标（主要目标法 + 帕累托考量）：在 [objectives] 节内解析
   const objPart = (t.split(/\[objectives\]/)[1] || '').split(/\n\s*\[/)[0]
   const om = objPart.match(/mode\s*=\s*"(primary|weighted)"/)

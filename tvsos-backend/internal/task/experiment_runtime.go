@@ -679,6 +679,7 @@ func (rt *ExperimentRuntime) writeExperimentResult() {
 	}
 	primary["objective_mode"] = objView.Mode
 	primary["primary_objective"] = objPrimary
+	primary["solver"] = rt.Params.Algorithm.EffectiveSolver()
 	primary["tolerance"] = rt.Params.Objectives.Tolerance
 	switch objPrimary {
 	case sandboxpkg.ObjectivePrimaryU2:

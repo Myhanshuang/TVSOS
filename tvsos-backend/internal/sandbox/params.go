@@ -141,14 +141,72 @@ type OrderParams struct {
 	DailyVolume int `toml:"daily_volume"` // 0=沿用世界规则
 }
 
+// 求解器插件代号（[algorithm].solver，实验可选任意算法集内算法）。
+const (
+	SolverSA     = "sa"     // 模拟退火（多目标版：ε-约束标量化 + 帕累托接受准则）
+	SolverNSGA2  = "nsga2"  // NSGA-II：快速非支配排序 + 拥挤度
+	SolverNSGA3  = "nsga3"  // NSGA-III：参考点小生境保留（Das-Dennis）
+	SolverMOEAD  = "moead"  // MOEA/D：分解（Tchebycheff/加权和/PBI）+ 邻域进化
+	SolverSPEA2  = "spea2"  // SPEA2：强度适应度 + k-近邻密度 + 截断档案
+	SolverMOPSO  = "mopso"  // MOPSO：粒子群 + 外部非支配档案
+	SolverNF     = "nf"     // 贪心首可行基线（C1 同口径，非进化算法）
+)
+
+// SolverNames 全部可选求解器代号（注册表顺序敏感，前端下拉与文档同源）。
+var SolverNames = []string{SolverSA, SolverNSGA2, SolverNSGA3, SolverMOEAD, SolverSPEA2, SolverMOPSO, SolverNF}
+
+// IsKnownSolver 校验求解器代号。
+func IsKnownSolver(name string) bool {
+	for _, s := range SolverNames {
+		if s == name {
+			return true
+		}
+	}
+	return false
+}
+
 // AlgorithmParams 调度算法超参。
+// solver 为求解器插件选择（sa/nsga2/nsga3/moead/spea2/mopso/nf，缺省 sa）；
+// 不同算法有独有超参（零值回落各算法内置默认），mode 字段兼容保留：
+// mode=nf 且未指定 solver 时等价 solver=nf。
 type AlgorithmParams struct {
-	Mode            string  `toml:"mode"` // hybrid / nf
-	SAInitialTemp   float64 `toml:"sa_initial_temp"`
-	SACoolingRate   float64 `toml:"sa_cooling_rate"`
-	SAMinTemp       float64 `toml:"sa_min_temp"`
-	SAItersPerTemp  int     `toml:"sa_iters_per_temp"`
-	CandidateK      int     `toml:"candidate_k"`
+	Solver        string  `toml:"solver"`
+	Mode          string  `toml:"mode"` // hybrid / nf（兼容：nf 未指定 solver 时映射）
+	SAInitialTemp float64 `toml:"sa_initial_temp"`
+	SACoolingRate float64 `toml:"sa_cooling_rate"`
+	SAMinTemp     float64 `toml:"sa_min_temp"`
+	SAItersPerTemp int    `toml:"sa_iters_per_temp"`
+	CandidateK    int     `toml:"candidate_k"`
+
+	// ---- 种群算法通用（nsga2/nsga3/moead/spea2/mopso）----
+	Population    int     `toml:"population"`     // 种群规模（0=按算法规则自动：nsga3/moead=权重向量数，其余 40）
+	Generations   int     `toml:"generations"`    // 进化代数
+	CrossoverProb float64 `toml:"crossover_prob"` // 交叉概率
+	MutationProb  float64 `toml:"mutation_prob"`  // 变异概率
+
+	// ---- NSGA-III / MOEA/D 专有 ----
+	RefDivisions    int    `toml:"ref_divisions"`    // Das-Dennis 参考点划分数 H（4 目标下 H=4 → 35 点）
+	Neighborhood    int    `toml:"neighborhood"`     // MOEA/D 邻域大小（按权重欧氏距离取近邻）
+	Decomposition   string `toml:"decomposition"`    // MOEA/D 聚合函数：tchebycheff(默认)/weighted_sum/pbi
+
+	// ---- SPEA2 专有 ----
+	ArchiveSize int `toml:"archive_size"` // 外部档案容量
+
+	// ---- MOPSO 专有 ----
+	InertiaWeight float64 `toml:"inertia_weight"` // 惯性权重 w
+	CognitiveCoef float64 `toml:"cognitive_coef"` // 自我认知系数 c1
+	SocialCoef    float64 `toml:"social_coef"`    // 社会学习系数 c2
+}
+
+// EffectiveSolver 解析有效求解器：solver 优先；兼容 mode=nf；未知/空回落 sa。
+func (a AlgorithmParams) EffectiveSolver() string {
+	if IsKnownSolver(a.Solver) {
+		return a.Solver
+	}
+	if a.Mode == "nf" {
+		return SolverNF
+	}
+	return SolverSA
 }
 
 // ObjectiveParams 多目标优化配置（主要目标法 + 帕累托考量，指标体系文档 §2.3/§2.5）。
@@ -318,12 +376,25 @@ func DefaultExperimentParams() ExperimentParams {
 		Fleet:      FleetParams{VehicleCount: 0},
 		Orders:     OrderParams{DailyVolume: 0},
 		Algorithm: AlgorithmParams{
-			Mode:           "hybrid",
-			SAInitialTemp:  1000,
-			SACoolingRate:  0.95,
-			SAMinTemp:      0.1,
+			Solver:        "",
+			Mode:          "hybrid",
+			SAInitialTemp: 1000,
+			SACoolingRate: 0.95,
+			SAMinTemp:     0.1,
 			SAItersPerTemp: 50,
-			CandidateK:     5,
+			CandidateK:    5,
+			// 种群算法默认超参（零值时各算法回落内置默认，此处显式给出供表单初值）
+			Population:    40,
+			Generations:   60,
+			CrossoverProb: 0.9,
+			MutationProb:  0.25,
+			RefDivisions:  4,
+			Neighborhood:  10,
+			Decomposition: "tchebycheff",
+			ArchiveSize:   30,
+			InertiaWeight: 0.4,
+			CognitiveCoef: 1.5,
+			SocialCoef:    1.5,
 		},
 		Objectives: ObjectiveParams{
 			Mode:      ObjectiveModePrimary,

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kiritosuki/mover/internal/model"
+	sandboxpkg "github.com/kiritosuki/mover/internal/sandbox"
 )
 
 const (
@@ -16,32 +17,22 @@ const (
 	SAPenaltyInf          = 1e9
 )
 
-// assignBySimulatedAnnealing 核心调度算法：基于模拟退火(Simulated Annealing)完成运单到车辆的分配
-// 通过多次迭代以及目标温度衰减（Metropolis接受准则）跳出局部最优，寻找目标最优的派单策略。
-// 多目标模式（主要目标法+帕累托考量）：接受准则叠加帕累托支配判定，全程维护有界
-// 帕累托档案，终选按 ε-约束标量化分数取解（指标体系文档 §2.5）。
-// 随机源为实验种子 RNG（rt.Draw/DrawIntn，严格复现）；超参取实验参数（rt.Params.Algorithm）。
-// objCtx 为批次多目标上下文（nil 时按 rt.Params.Objectives + stats 现建；M/C1/A3 评估
-// 须传同一实例，保证参考答案与 SA 目标口径一致）。
-// 返回: 运单ID (Shipment ID) 到分配的车辆 (Vehicle) 的映射字典
-func assignBySimulatedAnnealing(
-	rt *ExperimentRuntime,
-	objCtx *objectiveContext,
-	shipments []*model.Shipment,
-	vehicles []*model.Vehicle,
-	stats *Statistics,
-	cargoCache map[uint]*model.Cargo,
-	projectedLoads map[uint]int,
-	pois map[uint]*model.Poi,
-) map[uint]*model.Vehicle {
-	if len(shipments) == 0 || len(vehicles) == 0 {
-		return make(map[uint]*model.Vehicle)
-	}
+// saSolver 模拟退火求解器插件（sa-v3.0-mo）：
+// 基于模拟退火完成运单→车辆分配，Metropolis 接受准则跳出局部最优。
+// 多目标模式（主要目标法+帕累托考量）：接受准则叠加帕累托支配判定（候选解在
+// 4 主目标上支配当前解时无条件接受），全程维护有界帕累托档案；终代档案与
+// 全程最优交派发器统一 ε-终选（指标体系文档 §2.5/§2.6）。
+type saSolver struct{}
 
-	// 多目标上下文：调用方未提供时按实验参数构建（单测/兼容路径）
-	if objCtx == nil {
-		objCtx = newObjectiveContext(rt.Params.Objectives, stats)
-	}
+func init() { RegisterSolver(saSolver{}) }
+
+func (saSolver) Name() string        { return sandboxpkg.SolverSA }
+func (saSolver) DisplayName() string { return "模拟退火 SA（多目标 ε-约束 + 帕累托）" }
+
+// Solve 执行 SA 搜索：从共享初始解出发按温度调度迭代邻域扰动。
+func (saSolver) Solve(sc *SolveContext) SolveOutput {
+	rt := sc.RT
+	objCtx := sc.ObjCtx
 
 	// SA 超参：实验参数优先，零值回落常量默认
 	saCfg := rt.Params.Algorithm
@@ -62,30 +53,11 @@ func assignBySimulatedAnnealing(
 		itersPerTemp = SAItersPerTemp
 	}
 
-	now := rt.Clock.Now()
+	currentAssigned := append([]int(nil), sc.Initial...)
+	currentEval := sc.InitialEval
 
-	// 初始解: 使用类似贪心的随机初始分配
-	currentAssigned := make([]int, len(shipments)) // shipment_index -> vehicle_index
-	for i, ship := range shipments {
-		cargo := getCargoByCache(cargoCache, ship.CargoId)
-		// 随机找一个可行车辆
-		for j := 0; j < 10; j++ {
-			vIdx := rt.DrawIntn(len(vehicles))
-			if isVehicleFeasible(vehicles[vIdx], ship, cargo, projectedLoads[vehicles[vIdx].Id]) {
-				currentAssigned[i] = vIdx
-				break
-			}
-			currentAssigned[i] = vIdx // 如果都不满足，先强行放进去，靠Cost惩罚剔除
-		}
-	}
-
-	currentEval := evaluateState(objCtx, currentAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
-	// 主目标归一化尺度标定（每批一次，后续 M/C1/A3 评估复用同一尺度）
-	objCtx.calibratePrimaryScale(currentEval.Vector)
-
-	bestAssigned := make([]int, len(shipments))
-	copy(bestAssigned, currentAssigned)
-	bestEval := currentEval
+	bestAssigned := append([]int(nil), sc.Initial...)
+	bestEval := sc.InitialEval
 
 	// 帕累托档案（primary 模式生效；weighted 模式不启用）
 	archive := newParetoArchive(objCtx.primary)
@@ -93,12 +65,11 @@ func assignBySimulatedAnnealing(
 		archive.offer(currentAssigned, currentEval)
 	}
 
-	batch := rt.Clock.Tick()
 	temp := initialTemp
 	for temp > minTemp {
 		for i := 0; i < itersPerTemp; i++ {
-			_, nextAssigned := generateSANeighbor(rt, currentAssigned, len(vehicles))
-			nextEval := evaluateState(objCtx, nextAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+			_, nextAssigned := generateSANeighbor(rt, currentAssigned, len(sc.Vehicles))
+			nextEval := sc.Evaluate(nextAssigned)
 
 			// 多目标接受准则（帕累托考量）：
 			//  1) 候选解在 4 主目标上支配当前解 → 无条件接受（前沿方向自由移动）；
@@ -120,39 +91,31 @@ func assignBySimulatedAnnealing(
 				}
 			}
 		}
-		// 收敛曲线采样（算法性能记录，对齐 PDF 结果数据层）；
-		// primary 模式下 BestCost=ε-约束标量化分数，另附主目标原始值/违反量/前沿规模
-		rt.RecordConvergence(ConvergencePoint{
-			Batch:         batch,
-			Temp:          temp,
-			BestCost:      bestEval.scoreOrRawCost(objCtx.weighted),
-			BestPrimary:   primaryRawValue(objCtx, bestEval.Vector),
-			BestViolation: bestEval.Violation,
-			ParetoSize:    archive.size(),
-		})
+		// 收敛曲线采样（温度步进；primary 模式下 BestCost=ε-约束标量化分数）
+		sc.RecordPoint(temp, bestEval, archive.size())
 		temp *= coolingRate
 	}
 
-	// ε-约束终选：档案中分数最优成员（≈可行优先+主目标最优）与历史最优比较取优。
-	// 帕累托考量：档案保留了探索中发现的非支配权衡解，终选在"可满足软约束"与
-	// "主目标最优"之间按标量化分数裁决，而非只认最后/最早的最优解。
-	finalAssigned := bestAssigned
-	finalEval := bestEval
-	if !objCtx.weighted {
-		if entry, ok := archive.bestByScore(); ok && entry.score < finalEval.scoreOrRawCost(false) {
-			finalAssigned = entry.assigned
-			finalEval = stateEvaluation{Score: entry.score, Vector: entry.vector, Violation: entry.violation}
-		}
+	return SolveOutput{
+		Candidates: solverCandidatesFromArchive(archive),
+		Best:       SolverCandidate{Assigned: bestAssigned, Eval: bestEval},
+		HasBest:    true,
 	}
+}
 
-	// 实验级多目标运行统计（实时看板/终态结果数据源）
-	recordObjectiveBatch(objCtx, finalEval, archive.size(), archive.frontVectors())
-
-	result := make(map[uint]*model.Vehicle)
-	for i, vIdx := range finalAssigned {
-		result[shipments[i].Id] = vehicles[vIdx]
+// solverCandidatesFromArchive 档案成员转求解器候选集（供派发器 ε-终选）。
+func solverCandidatesFromArchive(a *paretoArchive) []SolverCandidate {
+	if a == nil || len(a.entries) == 0 {
+		return nil
 	}
-	return result
+	out := make([]SolverCandidate, 0, len(a.entries))
+	for _, e := range a.entries {
+		out = append(out, SolverCandidate{
+			Assigned: e.assigned,
+			Eval:     stateEvaluation{Score: e.score, Vector: e.vector, Violation: e.violation},
+		})
+	}
+	return out
 }
 
 // primaryRawValue 取主目标原始值（weighted 模式或异常时返回 0）。

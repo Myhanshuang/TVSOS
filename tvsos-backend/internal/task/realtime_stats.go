@@ -68,6 +68,7 @@ type RealtimeSummary struct {
 	// ---- 多目标优化（主要目标法+帕累托考量）扩展字段 ----
 	ObjectiveMode        string  `json:"objective_mode"`         // primary(主要目标法) / weighted(旧标量化)
 	PrimaryObjective     string  `json:"primary_objective"`      // 主目标代号 C2/U2/U4/T2
+	Solver               string  `json:"solver"`                 // 求解器插件代号(sa/nsga2/nsga3/moead/spea2/mopso/nf)
 	ObjectiveTolerance   float64 `json:"objective_tolerance"`    // 软约束劣化容差(0-1)
 	ObjectiveFeasiblePct float64 `json:"objective_feasible_pct"` // 软约束可满足批次占比(百分比)
 	ParetoAvgFront       float64 `json:"pareto_avg_front"`       // 平均帕累托前沿规模
@@ -377,6 +378,7 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 			OptimizationGap:   GetLastOptimizationGap(),
 			ObjectiveMode:        rt.Params.Objectives.NormalizedMode(),
 			PrimaryObjective:     rt.Params.Objectives.NormalizedPrimary(),
+			Solver:               rt.Params.Algorithm.EffectiveSolver(),
 			ObjectiveTolerance:   rt.Params.Objectives.Tolerance,
 			ObjectiveFeasiblePct: objView.FeasiblePct,
 			ParetoAvgFront:       objView.FrontAvg,

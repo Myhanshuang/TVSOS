@@ -61,7 +61,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 
 ## 调度与随机事件机制
 
-- 派单：`order_task.go doCreateOrderTaskBatch` → 构建 `objectiveContext`（多目标上下文）→ `sa_scheduler.go assignBySimulatedAnnealing`（主要目标法 ε-约束标量化 + 帕累托支配接受/档案/ε-终选）→ `assignShipmentToVehicle`（写 OrderTask + MatchingLog + 预占载重）；`evaluateStateCost` 第一参为 objCtx（nil=旧 Cost F 口径），M/C1/A3 评估传同一实例
+- 派单：`order_task.go doCreateOrderTaskBatch` → 构建 `objectiveContext`（多目标上下文）→ `solver.go solveDispatch`（求解器插件派发）→ 各算法 Solve → `assignShipmentToVehicle`（写 OrderTask + MatchingLog + 预占载重）；求解器七选一（[algorithm].solver：sa/nsga2/nsga3/moead/spea2/mopso/nf，插件实现 Solver 接口 init 注册，`moea_*.go`）；ε-终选/收敛记录/运行统计统一在派发器；weighted 模式回落 SA；`evaluateStateCost` 第一参为 objCtx（nil=旧 Cost F 口径），M/C1/A3 评估传同一实例
 - 随机事件 `random_event.go`：车祸→车辆 Maintenance + pause_until + system_event(fault)；天气→暂停移动；拒单→运单重回池子再派；疲劳→司机休息（车辆停驶）
 - 车辆暂停机制已验证有效：pause_until 在未来时地图上车辆冻结、速度 0
 - 运单生成：数据生成器预生成订单脚本（experiment_order），按虚拟时刻释放

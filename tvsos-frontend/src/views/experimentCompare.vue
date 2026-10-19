@@ -127,6 +127,7 @@ const METRICS = [
   { key: 'G2_carbon_per_ton_km', label: 'G2 碳排', lower: true },
   { key: 'total_cost', label: '总成本', lower: true },
   { key: 'total_throughput', label: '总吞吐', lower: false },
+  { key: 'solver', label: '求解算法' },
   // 多目标（主要目标法+帕累托）对比行：同种子换 primary 对照即得多目标权衡数据
   { key: 'primary_objective', label: '主要目标' },
   { key: 'primary_objective_value', label: '主目标终值' },

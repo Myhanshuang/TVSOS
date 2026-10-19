@@ -47,7 +47,7 @@ const objectiveDesc = computed(() => {
   const s = summary.value || {}
   if (s.objective_mode === 'primary' && s.primary_objective) {
     const names = { C2: 'C2 单位成本↓', U2: 'U2 装载率↑', U4: 'U4 空驶率↓', T2: 'T2 响应P95↓' }
-    let desc = `主要目标法：${names[s.primary_objective] || s.primary_objective}`
+    let desc = `主要目标法(${s.solver || 'sa'})：${names[s.primary_objective] || s.primary_objective}`
     if (s.objective_feasible_pct > 0) desc += ` · 软约束满足率 ${fmt1(s.objective_feasible_pct)}%`
     return desc
   }

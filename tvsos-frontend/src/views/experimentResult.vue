@@ -256,6 +256,7 @@ const primaryCards = computed(() => {
     { label: '虚拟tick数', value: p.virtual_ticks },
     { label: 'SA均耗时(ms)', value: fmt(p.solve_time_avg_ms, 2) },
   ]
+  cards.push({ label: '求解算法', value: p.solver || '—' })
   if (isPrimaryMode) {
     cards.splice(6, 0,
       { label: '主要目标', value: po ? `${po} · 容差${Math.round((p.tolerance ?? 0) * 100)}%` : '—' },
