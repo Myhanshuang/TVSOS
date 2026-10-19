@@ -31,6 +31,8 @@ func main() {
 	task.LoadHandlingConfig()
 	// 兼容迁移：为沙箱模板车辆(experiment_id=0)补绑司机
 	task.EnsureDriversForVehicles()
+	// 供应链链条货类幂等补种（吨位/方量趋势核算依赖）
+	database.EnsureChainCargos()
 	// 记录服务启动事件（expID=0 服务级；实验级 startup 由实验启动时记录）
 	task.RecordSystemEvent(0, "startup", "info", "mover服务启动", "")
 

@@ -26,6 +26,26 @@ type Input struct {
 	VehicleLicenses []string           // 本实验实例化车队车牌（事件目标）
 	PoiIDs        []uint               // 可用 POI id 集合（白名单过滤后）
 	CargoIDs      []uint               // 货类 id 集合
+	Chains        []ChainInput         // 已解析的供应链需求链条（空=不生成链单）
+}
+
+// ChainInput 已解析的供应链（由调用方按世界规则解析：货类按名、POI 按类型+关键词）。
+type ChainInput struct {
+	Name  string          // 链条标识
+	Share float64         // 根订单占日均单量比例(0-1)
+	Steps []ChainStepInput // 有序运输段：步骤k = 节点k 的货物发往节点k+1
+}
+
+// ChainStepInput 一段链条运输：节点k 发货 → 节点k+1 收货并在其处加工（α/β/L）后发出下一段。
+type ChainStepInput struct {
+	CargoId     uint    // 本段货类
+	CargoWeight int     // 本段货类单件重量(kg)，吨位→件数折算
+	FromPoiIDs  []uint  // 发货点候选
+	ToPoiIDs    []uint  // 收货点候选
+	YieldWeight float64 // α：本段吨位 = 上段吨位 × α（首段=1）
+	TriggerProb float64 // β：上段订单触发本段补货的概率（首段=1）
+	DelaySec    int     // L：加工延迟(虚拟秒)，本段释放时刻 = 上段释放时刻 + L
+	NodeLabel   string  // 发货节点标签（chain_name/node_label 统计口径）
 }
 
 // Output 数据生成器输出
@@ -63,7 +83,10 @@ func generateDriverLevels(rng *rand.Rand, licenses []string) map[string]int {
 	return levels
 }
 
-// generateOrders 生成订单流：泊松(指数间隔)或均匀分布到达，起终点/货类/件数随机。
+// generateOrders 生成订单流：基础随机单（泊松/均匀到达）+ 供应链链条单（根订单+级联）。
+// RNG 消费序固定（复现关键）：先基础随机单循环（数量按 1-Σshare 缩放），
+// 再按链条配置顺序逐链生成：根订单泊松到达（起终点/件数摇号）→ 逐级级联
+// （β 摇号 → 释放时刻 = 上段时刻 + L → 件数 = 上段吨位 × α / 本段单件重量）。
 func generateOrders(rng *rand.Rand, in Input) []*model.ExperimentOrder {
 	if len(in.PoiIDs) < 2 || len(in.CargoIDs) == 0 {
 		return nil
@@ -73,9 +96,24 @@ func generateOrders(rng *rand.Rand, in Input) []*model.ExperimentOrder {
 	if daily <= 0 {
 		daily = 200
 	}
-	meanIntervalSec := 24 * 3600 / float64(daily) // 泊松平均间隔(虚拟秒)
 
-	orders := make([]*model.ExperimentOrder, 0, int(float64(daily)*in.DurationHours/24*1.2)+1)
+	// 链条根订单份额合计：基础随机单等量缩减（总单量口径保持稳定）
+	shareSum := 0.0
+	for _, chain := range in.Chains {
+		if chain.Share > 0 && len(chain.Steps) > 0 {
+			shareSum += chain.Share
+		}
+	}
+	if shareSum >= 1 {
+		shareSum = 0.99
+	}
+	baseDaily := int(math.Round(float64(daily) * (1 - shareSum)))
+	if baseDaily < 0 {
+		baseDaily = 0
+	}
+	meanIntervalSec := 24 * 3600 / float64(maxInt(1, baseDaily)) // 泊松平均间隔(虚拟秒)
+
+	orders := make([]*model.ExperimentOrder, 0, int(float64(daily)*in.DurationHours/24*1.4)+1)
 	cursor := 0.0
 	for {
 		// 下一单到达间隔
@@ -110,7 +148,109 @@ func generateOrders(rng *rand.Rand, in Input) []*model.ExperimentOrder {
 			Count:        count,
 		})
 	}
+
+	// 供应链链条单：根订单 + 加工级联
+	for _, chain := range in.Chains {
+		generateChainOrders(rng, in, chain, durationSec, daily, &orders)
+	}
 	return orders
+}
+
+// chainSpawned 级联中的一个在途触发源（某段订单的释放时刻与吨位）。
+type chainSpawned struct {
+	stepIdx  int
+	atSec    float64
+	weightKg float64
+}
+
+// generateChainOrders 生成单条链条的根订单与逐级级联订单（确定性 RNG 消费序）。
+func generateChainOrders(rng *rand.Rand, in Input, chain ChainInput, durationSec float64, daily int, orders *[]*model.ExperimentOrder) {
+	if chain.Share <= 0 || len(chain.Steps) == 0 {
+		return
+	}
+	rootCount := int(math.Round(float64(daily) * chain.Share * in.DurationHours / 24))
+	if rootCount <= 0 {
+		return
+	}
+	rootInterval := durationSec / float64(rootCount)
+
+	// 根订单：泊松到达（与基础单同一间隔模型），起终点/件数在链内候选摇号
+	cursor := 0.0
+	frontier := make([]chainSpawned, 0, rootCount)
+	for i := 0; i < rootCount; i++ {
+		var gap float64
+		if in.Orders.ArrivalModel == "uniform" {
+			gap = rootInterval
+		} else {
+			gap = -math.Log(1-rng.Float64()) * rootInterval
+		}
+		cursor += gap
+		if cursor >= durationSec {
+			break
+		}
+		step := chain.Steps[0]
+		count := pickCount(rng, in)
+		weight := float64(count * step.CargoWeight)
+		*orders = append(*orders, &model.ExperimentOrder{
+			ExperimentId: in.ExperimentID,
+			VirtualTime:  in.StartTime.Add(time.Duration(cursor) * time.Second),
+			StartPoiId:   step.FromPoiIDs[rng.Intn(len(step.FromPoiIDs))],
+			EndPoiId:     step.ToPoiIDs[rng.Intn(len(step.ToPoiIDs))],
+			CargoId:      step.CargoId,
+			Count:        count,
+			ChainName:    chain.Name,
+			NodeLabel:    step.NodeLabel,
+		})
+		frontier = append(frontier, chainSpawned{stepIdx: 0, atSec: cursor, weightKg: weight})
+	}
+
+	// 逐级级联：上段释放后经加工延迟 L，以概率 β 触发下段补货，吨位按 α 折算
+	for stepIdx := 1; stepIdx < len(chain.Steps); stepIdx++ {
+		step := chain.Steps[stepIdx]
+		next := make([]chainSpawned, 0, len(frontier))
+		for _, f := range frontier {
+			if step.TriggerProb <= 0 || step.TriggerProb < 1 && rng.Float64() >= step.TriggerProb {
+				continue
+			}
+			at := f.atSec + float64(step.DelaySec)
+			if at >= durationSec {
+				continue // 加工完成时仿真已结束
+			}
+			count := int(math.Round(f.weightKg * step.YieldWeight / float64(maxInt(1, step.CargoWeight))))
+			if count < 1 {
+				continue // 加工余量不足一单位，不触发补货运输
+			}
+			weight := float64(count * step.CargoWeight)
+			*orders = append(*orders, &model.ExperimentOrder{
+				ExperimentId: in.ExperimentID,
+				VirtualTime:  in.StartTime.Add(time.Duration(at) * time.Second),
+				StartPoiId:   step.FromPoiIDs[rng.Intn(len(step.FromPoiIDs))],
+				EndPoiId:     step.ToPoiIDs[rng.Intn(len(step.ToPoiIDs))],
+				CargoId:      step.CargoId,
+				Count:        count,
+				ChainName:    chain.Name,
+				NodeLabel:    step.NodeLabel,
+			})
+			next = append(next, chainSpawned{stepIdx: stepIdx, atSec: at, weightKg: weight})
+		}
+		frontier = next
+	}
+}
+
+// pickCount 按世界规则的件数区间摇号（与基础单同一口径）。
+func pickCount(rng *rand.Rand, in Input) int {
+	count := in.Orders.CountRange[0]
+	if in.Orders.CountRange[1] > in.Orders.CountRange[0] {
+		count += rng.Intn(in.Orders.CountRange[1] - in.Orders.CountRange[0] + 1)
+	}
+	return count
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // generateEvents 生成天气/车祸事件脚本：逐 tick 按概率摇号（预生成，运行期不再随机）。

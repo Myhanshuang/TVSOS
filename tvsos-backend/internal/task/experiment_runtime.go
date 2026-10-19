@@ -637,6 +637,15 @@ func (rt *ExperimentRuntime) writeExperimentResult() {
 	}
 	summaryJSON, _ := json.Marshal(dashboard.Summary)
 
+	// 供应链链条吨位/方量趋势（任务书 1.1：加工损耗的吨位、方量变化趋势）
+	if chainStats := buildSupplyChainTrend(rt.Exp.Id); len(chainStats) > 0 {
+		var summaryMap map[string]interface{}
+		if err := json.Unmarshal(summaryJSON, &summaryMap); err == nil {
+			summaryMap["supply_chains"] = chainStats
+			summaryJSON, _ = json.Marshal(summaryMap)
+		}
+	}
+
 	// 主目标映射（指标体系文档：C2 单位成本 / U2 载重利用率 / U4 空驶率 / T2 响应P95 / F1 基尼 / G2 吨公里碳排）
 	primary := map[string]interface{}{
 		"C2_unit_cost":          dashboard.Summary.UnitCost,
@@ -667,4 +676,93 @@ func (rt *ExperimentRuntime) writeExperimentResult() {
 		PrimaryMetrics: string(primaryJSON),
 		Convergence:    string(convergenceJSON),
 	})
+}
+
+// chainNodeStat 链条节点级汇总（吨位/方量趋势的最小口径）。
+type chainNodeStat struct {
+	Label    string  `json:"label"`
+	Cargo    string  `json:"cargo"`
+	Orders   int     `json:"orders"`
+	Tons     float64 `json:"tons"`
+	Volume   float64 `json:"volume"`
+	YieldTon float64 `json:"yield_ton"` // 相邻上游节点吨位的实际产出率（首节点=1）
+}
+
+// chainTrend 一条链的趋势汇总。
+type chainTrend struct {
+	Name  string          `json:"name"`
+	Nodes []chainNodeStat `json:"nodes"`
+}
+
+// buildSupplyChainTrend 汇总实验订单脚本中带链路标记的订单：
+// 按（链条 × 节点）聚合件数/吨位/方量，并计算相邻节点实际吨位产出率，
+// 呈现加工损耗沿链传导的吨位、方量变化趋势。
+func buildSupplyChainTrend(experimentID uint) []chainTrend {
+	orders, err := repository.ListExperimentOrdersByExperiment(experimentID)
+	if err != nil || len(orders) == 0 {
+		return nil
+	}
+	cargos, err := repository.ListCargos()
+	if err != nil {
+		return nil
+	}
+	cargoById := make(map[uint]*model.Cargo, len(cargos))
+	for _, cg := range cargos {
+		cargoById[cg.Id] = cg
+	}
+	type key struct{ chain, label string }
+	type acc struct {
+		cargo  string
+		orders int
+		tons   float64
+		volume float64
+	}
+	accs := make(map[key]*acc)
+	seq := make([]key, 0) // 保持链条配置顺序：按首次出现顺序输出
+	for _, o := range orders {
+		if o.ChainName == "" || o.NodeLabel == "" {
+			continue
+		}
+		k := key{o.ChainName, o.NodeLabel}
+		if _, ok := accs[k]; !ok {
+			accs[k] = &acc{}
+			seq = append(seq, k)
+		}
+		a := accs[k]
+		a.orders++
+		if cg := cargoById[o.CargoId]; cg != nil {
+			a.cargo = cg.Name
+			a.tons += float64(o.Count*cg.Weight) / 1000.0
+			a.volume += float64(o.Count) * cg.Volume
+		}
+	}
+	if len(seq) == 0 {
+		return nil
+	}
+	chainNames := make([]string, 0)
+	chainNodes := make(map[string][]chainNodeStat)
+	for _, k := range seq {
+		if _, seen := chainNodes[k.chain]; !seen {
+			chainNames = append(chainNames, k.chain)
+			chainNodes[k.chain] = make([]chainNodeStat, 0)
+		}
+		a := accs[k]
+		nodes := chainNodes[k.chain]
+		yield := 0.0
+		if len(nodes) > 0 && nodes[len(nodes)-1].Tons > 0 {
+			yield = a.tons / nodes[len(nodes)-1].Tons
+		} else {
+			yield = 1
+		}
+		chainNodes[k.chain] = append(nodes, chainNodeStat{
+			Label: k.label, Cargo: a.cargo, Orders: a.orders,
+			Tons: math.Round(a.tons*100) / 100, Volume: math.Round(a.volume*100) / 100,
+			YieldTon: math.Round(yield*1000) / 1000,
+		})
+	}
+	trends := make([]chainTrend, 0, len(chainNames))
+	for _, name := range chainNames {
+		trends = append(trends, chainTrend{Name: name, Nodes: chainNodes[name]})
+	}
+	return trends
 }

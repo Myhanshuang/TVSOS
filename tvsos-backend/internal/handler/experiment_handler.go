@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kiritosuki/mover/internal/Logger"
 	"github.com/kiritosuki/mover/internal/model"
 	"github.com/kiritosuki/mover/internal/repository"
 	"github.com/kiritosuki/mover/internal/result"
 	sandboxpkg "github.com/kiritosuki/mover/internal/sandbox"
 	"github.com/kiritosuki/mover/internal/sandbox/gen"
 	"github.com/kiritosuki/mover/internal/task"
+	"go.uber.org/zap"
 )
 
 // ============================================================================
@@ -231,6 +234,9 @@ func generateExperimentData(exp *model.Experiment) (int, int, error) {
 		cargoIDs = append(cargoIDs, cg.Id)
 	}
 
+	// 供应链链条解析：货类按名、POI 按类型+名称关键词；任一节点解析失败则整链跳过
+	chains := resolveSupplyChains(rules, pois, cargos)
+
 	startTime, err := time.ParseInLocation("2006-01-02 15:04:05", rules.Time.StartTime, time.Local)
 	if err != nil {
 		startTime = time.Now()
@@ -247,6 +253,7 @@ func generateExperimentData(exp *model.Experiment) (int, int, error) {
 		VehicleLicenses: licenses,
 		PoiIDs:          poiIDs,
 		CargoIDs:        cargoIDs,
+		Chains:          chains,
 	})
 
 	// 重入：清旧脚本后写入
@@ -262,6 +269,83 @@ func generateExperimentData(exp *model.Experiment) (int, int, error) {
 	levelsJSON, _ := json.Marshal(out.DriverLevels)
 	_ = repository.UpdateExperimentFields(exp.Id, map[string]interface{}{"driver_levels": string(levelsJSON)})
 	return len(out.Orders), len(out.Events), nil
+}
+
+// resolveSupplyChains 将世界规则中的供应链链条解析为生成器输入：
+// 节点 POI 按（类型 + 名称关键词，空关键词=仅按类型）在白名单过滤后的 POI 集内解析，
+// 货类按名称全局解析；任一节点无 POI 或货类缺失则整链跳过（世界规则与数据不匹配时降级，不报错）。
+func resolveSupplyChains(rules sandboxpkg.WorldRules, pois []*model.Poi, cargos []*model.Cargo) []gen.ChainInput {
+	if !rules.SupplyChains.Enabled || len(rules.SupplyChains.Chains) == 0 {
+		return nil
+	}
+	cargoByName := make(map[string]*model.Cargo, len(cargos))
+	for _, cg := range cargos {
+		cargoByName[cg.Name] = cg
+	}
+	resolved := make([]gen.ChainInput, 0, len(rules.SupplyChains.Chains))
+	for _, spec := range rules.SupplyChains.Chains {
+		if spec.Share <= 0 || len(spec.Nodes) < 2 {
+			continue
+		}
+		// 逐节点解析 POI 池（发货用自身节点 POI，收货用下一节点 POI）
+		nodePois := make([][]uint, len(spec.Nodes))
+		valid := true
+		for i, node := range spec.Nodes {
+			pool := make([]uint, 0)
+			for _, p := range pois {
+				if p.Tybe != node.PoiTybe {
+					continue
+				}
+				if node.PoiKeyword != "" && !strings.Contains(p.Name, node.PoiKeyword) {
+					continue
+				}
+				pool = append(pool, p.Id)
+			}
+			if len(pool) == 0 {
+				valid = false
+				break
+			}
+			nodePois[i] = pool
+		}
+		if !valid {
+			Logger.Logger.Warn("供应链链条节点无可用POI，整链跳过", zap.String("chain", spec.Name))
+			continue
+		}
+		// 逐段解析货类：步骤k = 节点k的货物发往节点k+1（末节点无货物，不产生运输段）
+		steps := make([]gen.ChainStepInput, 0, len(spec.Nodes)-1)
+		for k := 0; k < len(spec.Nodes)-1; k++ {
+			cargoSpec := spec.Nodes[k]
+			cg, ok := cargoByName[cargoSpec.CargoName]
+				if !ok || cargoSpec.CargoName == "" {
+					Logger.Logger.Warn("供应链链条货类缺失，整链跳过", zap.String("chain", spec.Name), zap.String("cargo", cargoSpec.CargoName))
+					valid = false
+					break
+				}
+			trigger := cargoSpec.TriggerProb
+			if trigger <= 0 {
+					trigger = 1
+			}
+			yield := cargoSpec.YieldWeight
+			if yield <= 0 {
+					yield = 1
+			}
+			steps = append(steps, gen.ChainStepInput{
+				CargoId:     cg.Id,
+				CargoWeight: cg.Weight,
+				FromPoiIDs:  nodePois[k],
+				ToPoiIDs:    nodePois[k+1],
+				YieldWeight: yield,
+				TriggerProb: trigger,
+				DelaySec:    int(cargoSpec.DelayMinutes * 60),
+				NodeLabel:   cargoSpec.Label,
+			})
+		}
+		if !valid || len(steps) == 0 {
+			continue
+		}
+		resolved = append(resolved, gen.ChainInput{Name: spec.Name, Share: spec.Share, Steps: steps})
+	}
+	return resolved
 }
 
 // ---------------- 生命周期 ----------------

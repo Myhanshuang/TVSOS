@@ -9,7 +9,8 @@ import (
 
 // DataGeneratorVersion 数据生成器版本号：生成逻辑发生不兼容变化时 +1。
 // 种子导入时校验该版本，不同版本生成的数据不保证可复现。
-const DataGeneratorVersion = 2
+// v3：新增供应链需求发生链条（原木-木材-家具等 5 条，α/β/L 传导）。
+const DataGeneratorVersion = 3
 
 // ---------------- 沙箱级：世界规则（World Rules） ----------------
 
@@ -22,6 +23,39 @@ type WorldRules struct {
 	Economy      EconomyRules      `toml:"economy"`
 	Orders       OrderWorldRules   `toml:"orders"`
 	RandomEvents RandomEventRules  `toml:"random_events"`
+	SupplyChains SupplyChainRules  `toml:"supply_chains"`
+}
+
+// ---------------- 沙箱级：供应链需求发生链条 ----------------
+
+// SupplyChainRules 供应链世界规则：需求链条拓扑与加工传导参数（任务书 1.1）。
+// 链条节点为有序序列：节点 k 的货物经运输到达节点 k+1，在节点 k+1 经加工
+// （产出率 α、触发概率 β、加工延迟 L）转化为下一级货物再发出，直至末端市场。
+// 根订单（首段运输）按 share 占日均单量比例替代等量随机订单；
+// 下游订单吨位 = 上游吨位 × α（体现加工损耗的吨位/方量变化趋势）。
+type SupplyChainRules struct {
+	Enabled bool       `toml:"enabled"`
+	Chains  []ChainSpec `toml:"chains"`
+}
+
+// ChainSpec 一条供应链：节点序列 + 根订单份额。
+type ChainSpec struct {
+	Name  string          `toml:"name"`
+	Share float64         `toml:"share"` // 根订单占日均单量比例(0-1)
+	Nodes []ChainNodeSpec `toml:"nodes"`
+}
+
+// ChainNodeSpec 链条节点：绑定 POI（类型+名称关键词）与货类（按名称），
+// 并携带“产出该节点货物”的加工边参数（首节点忽略）。
+// PoiKeyword 为空时不按名称过滤；节点解析失败（无 POI 或货类缺失）时整链跳过。
+type ChainNodeSpec struct {
+	Label        string  `toml:"label"`         // 节点标签（统计展示用）
+	CargoName    string  `toml:"cargo_name"`    // 该节点产出货类名称
+	PoiTybe      int     `toml:"poi_tybe"`      // POI 类型(1-11)
+	PoiKeyword   string  `toml:"poi_keyword"`   // POI 名称关键词(可选)
+	YieldWeight  float64 `toml:"yield_weight"`  // α：吨位产出率(首节点为1)
+	TriggerProb  float64 `toml:"trigger_prob"`  // β：上游成交后触发补货概率
+	DelayMinutes float64 `toml:"delay_minutes"` // L：加工延迟(虚拟分钟)
 }
 
 type MetaRules struct {
@@ -150,6 +184,63 @@ func DefaultWorldRules() WorldRules {
 			AccidentProbPerTick:  0.0002,
 			MaintenanceSeconds:   [2]float64{3600, 21600},
 			LevelFactor:          [5]float64{1.4, 1.2, 1.0, 0.85, 0.7},
+		},
+		SupplyChains: DefaultSupplyChains(),
+	}
+}
+
+// DefaultSupplyChains 默认供应链（5 条，节点均绑定成都真实 POI 数据可解析）。
+// α=吨位产出率、β=触发概率、L=加工延迟；根订单 share 合计 0.4（随机单等量缩减）。
+func DefaultSupplyChains() SupplyChainRules {
+	return SupplyChainRules{
+		Enabled: true,
+		Chains: []ChainSpec{
+			{
+				Name:  "wood-furniture",
+				Share: 0.10,
+				Nodes: []ChainNodeSpec{
+					{Label: "原木集散", CargoName: "原木", PoiTybe: 10, PoiKeyword: "建材", YieldWeight: 1, TriggerProb: 1, DelayMinutes: 0},
+					{Label: "木材加工", CargoName: "木材", PoiTybe: 10, PoiKeyword: "板材", YieldWeight: 0.75, TriggerProb: 0.85, DelayMinutes: 240},
+					{Label: "家具制造", CargoName: "家具成品", PoiTybe: 4, PoiKeyword: "家具", YieldWeight: 0.55, TriggerProb: 0.8, DelayMinutes: 480},
+					{Label: "家具市场", CargoName: "", PoiTybe: 10, PoiKeyword: "家具", YieldWeight: 0, TriggerProb: 0, DelayMinutes: 0},
+				},
+			},
+			{
+				Name:  "steel-hardware",
+				Share: 0.08,
+				Nodes: []ChainNodeSpec{
+					{Label: "钢材集散", CargoName: "钢材", PoiTybe: 10, PoiKeyword: "钢", YieldWeight: 1, TriggerProb: 1, DelayMinutes: 0},
+					{Label: "五金加工", CargoName: "五金件", PoiTybe: 10, PoiKeyword: "五金", YieldWeight: 0.70, TriggerProb: 0.85, DelayMinutes: 180},
+					{Label: "综合市场", CargoName: "", PoiTybe: 9, PoiKeyword: "综合", YieldWeight: 0, TriggerProb: 0, DelayMinutes: 0},
+				},
+			},
+			{
+				Name:  "agri-fresh",
+				Share: 0.12,
+				Nodes: []ChainNodeSpec{
+					{Label: "农产品加工", CargoName: "农产品原料", PoiTybe: 4, PoiKeyword: "农", YieldWeight: 1, TriggerProb: 1, DelayMinutes: 0},
+					{Label: "农产品市场", CargoName: "生鲜食品", PoiTybe: 11, PoiKeyword: "农", YieldWeight: 0.82, TriggerProb: 0.9, DelayMinutes: 90},
+					{Label: "综合市场", CargoName: "", PoiTybe: 9, PoiKeyword: "综合", YieldWeight: 0, TriggerProb: 0, DelayMinutes: 0},
+				},
+			},
+			{
+				Name:  "electronics",
+				Share: 0.05,
+				Nodes: []ChainNodeSpec{
+					{Label: "电子元器件供应", CargoName: "电子元器件", PoiTybe: 11, PoiKeyword: "电子", YieldWeight: 1, TriggerProb: 1, DelayMinutes: 0},
+					{Label: "机电市场", CargoName: "数码产品", PoiTybe: 10, PoiKeyword: "机电", YieldWeight: 0.60, TriggerProb: 0.8, DelayMinutes: 300},
+					{Label: "综合市场", CargoName: "", PoiTybe: 9, PoiKeyword: "综合", YieldWeight: 0, TriggerProb: 0, DelayMinutes: 0},
+				},
+			},
+			{
+				Name:  "aluminum-door",
+				Share: 0.05,
+				Nodes: []ChainNodeSpec{
+					{Label: "铝材供应", CargoName: "铝锭", PoiTybe: 10, PoiKeyword: "铝", YieldWeight: 1, TriggerProb: 1, DelayMinutes: 0},
+					{Label: "门窗加工", CargoName: "门窗型材", PoiTybe: 4, PoiKeyword: "门窗", YieldWeight: 0.72, TriggerProb: 0.85, DelayMinutes: 240},
+					{Label: "建材市场", CargoName: "", PoiTybe: 10, PoiKeyword: "建材", YieldWeight: 0, TriggerProb: 0, DelayMinutes: 0},
+				},
+			},
 		},
 	}
 }

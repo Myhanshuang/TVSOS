@@ -18,6 +18,8 @@ type ExperimentOrder struct {
 	CargoId      uint      `json:"cargoId" gorm:"column:cargo_id"`
 	Count        int       `json:"count" gorm:"column:count"`
 	Released     bool      `json:"released" gorm:"column:released"` // 是否已释放为 shipment
+	ChainName    string    `json:"chainName" gorm:"column:chain_name"`    // 供应链标识(空=独立随机单)
+	NodeLabel    string    `json:"nodeLabel" gorm:"column:node_label"`    // 链条节点标签(吨位/方量趋势统计用)
 }
 
 // TableName 指明关联的数据库表 experiment_event

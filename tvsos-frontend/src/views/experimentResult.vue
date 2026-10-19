@@ -111,6 +111,30 @@
           </el-col>
         </el-row>
 
+        <!-- 供应链链条趋势（吨位/方量变化） -->
+        <div class="chain-block" v-if="chains.length">
+          <div class="side-title">供应链需求链条（吨位/方量变化趋势 · 产出率 = 下级吨位/上级吨位）</div>
+          <div class="chain" v-for="c in chains" :key="c.name">
+            <div class="chain-name">{{ c.name }}</div>
+            <div class="chain-nodes">
+              <div class="chain-node" v-for="(n, i) in c.nodes" :key="n.label + i">
+                <div class="chain-node-label">{{ i + 1 }}. {{ n.label }}<span class="chain-cargo">{{ n.cargo }}</span></div>
+                <div class="pct-row">
+                  <span class="pct-label">吨位</span>
+                  <div class="pct-track"><div class="pct-fill" :style="{ width: n.tonWidth, background: '#409eff' }"></div></div>
+                  <span class="pct-val">{{ n.tons }} t</span>
+                </div>
+                <div class="pct-row">
+                  <span class="pct-label">方量</span>
+                  <div class="pct-track"><div class="pct-fill" :style="{ width: n.volWidth, background: '#67c23a' }"></div></div>
+                  <span class="pct-val">{{ n.volume }} m³</span>
+                </div>
+                <div class="chain-node-meta">{{ n.orders }} 单<span v-if="n.yieldTon < 1"> · 产出率 {{ n.yieldTon }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 随机事件时间线 -->
         <div class="evt-block" v-if="events.length">
           <div class="evt-head">
@@ -214,6 +238,26 @@ const barColor = (it) => {
   if (it.warn !== undefined && it.value > it.warn) return '#e6a23c'
   return '#409eff'
 }
+
+// 供应链链条趋势（后端 summary.supply_chains：吨位/方量沿节点变化 + 实际产出率）
+const chains = computed(() => {
+  const raw = summary.value?.supply_chains
+  if (!Array.isArray(raw)) return []
+  return raw.map((c) => {
+    const nodes = c.nodes || []
+    const maxT = Math.max(...nodes.map((n) => n.tons || 0), 1)
+    const maxV = Math.max(...nodes.map((n) => n.volume || 0), 1)
+    return {
+      name: c.name || '-',
+      nodes: nodes.map((n) => ({
+        label: n.label || '-', cargo: n.cargo || '', orders: n.orders ?? 0,
+        tons: f(n.tons), volume: f(n.volume), yieldTon: f(n.yield_ton, 3),
+        tonWidth: Math.max(2, Math.round(((n.tons || 0) / maxT) * 100)) + '%',
+        volWidth: Math.max(2, Math.round(((n.volume || 0) / maxV) * 100)) + '%',
+      })),
+    }
+  })
+})
 
 const groups = computed(() => {
   const s = summary.value || {}
@@ -385,6 +429,17 @@ const buildHtmlReport = () => {
     }
     out.push('</table>')
   }
+  if (chains.value.length) {
+    out.push('<h3>供应链需求链条（吨位/方量变化趋势）</h3>')
+    for (const c of chains.value) {
+      out.push('<div class="meta">' + esc(c.name) + '</div>')
+      out.push('<table><tr><th>节点</th><th>货类</th><th>订单数</th><th>吨位(t)</th><th>方量(m³)</th><th>吨位产出率</th></tr>')
+      for (const n of c.nodes) {
+        out.push('<tr><td>' + esc(n.label) + '</td><td>' + esc(n.cargo) + '</td><td class="num">' + esc(n.orders) + '</td><td class="num">' + esc(n.tons) + '</td><td class="num">' + esc(n.volume) + '</td><td class="num">' + esc(n.yieldTon) + '</td></tr>')
+      }
+      out.push('</table>')
+    }
+  }
 
   out.push('<h2>三、随机事件流（最近 ' + events.value.length + ' 条）</h2>')
   if (events.value.length) {
@@ -465,6 +520,18 @@ const buildMarkdownReport = () => {
     out.push('| 指标 | 值 | 口径说明 |')
     out.push('| --- | ---: | --- |')
     for (const it of g.items) out.push('| ' + mdCell(it.label) + ' | ' + mdCell(groupItemText(it)) + ' | ' + mdCell(it.note || '') + ' |')
+  }
+  if (chains.value.length) {
+    out.push('')
+    out.push('### 供应链需求链条（吨位/方量变化趋势）')
+    for (const c of chains.value) {
+      out.push('')
+      out.push('**' + mdCell(c.name) + '**')
+      out.push('')
+      out.push('| 节点 | 货类 | 订单数 | 吨位(t) | 方量(m³) | 吨位产出率 |')
+      out.push('| --- | --- | ---: | ---: | ---: | ---: |')
+      for (const n of c.nodes) out.push('| ' + mdCell(n.label) + ' | ' + mdCell(n.cargo) + ' | ' + mdCell(n.orders) + ' | ' + mdCell(n.tons) + ' | ' + mdCell(n.volume) + ' | ' + mdCell(n.yieldTon) + ' |')
+    }
   }
   out.push('')
   out.push('## 三、随机事件流（最近 ' + events.value.length + ' 条）')
@@ -625,6 +692,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 供应链链条趋势 */
+.chain-block { margin-top: 8px; }
+.chain { background: #f8f9fb; border: 1px solid #ebeef5; border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.chain-name { font-size: 13px; font-weight: 700; color: #2c3e50; margin-bottom: 8px; }
+.chain-nodes { display: flex; gap: 10px; flex-wrap: wrap; }
+.chain-node { flex: 1 1 200px; min-width: 200px; background: #fff; border: 1px solid #ebeef5; border-radius: 6px; padding: 8px 10px; }
+.chain-node-label { font-size: 13px; font-weight: 600; color: #303133; margin-bottom: 6px; }
+.chain-cargo { margin-left: 6px; font-size: 12px; color: #909399; font-weight: 400; }
+.chain-node-meta { margin-top: 4px; font-size: 12px; color: #909399; }
 .result-page { padding: 84px 32px 32px; min-height: 100vh; background: #f5f7fa; box-sizing: border-box; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .page-head h2 { margin: 4px 0; }

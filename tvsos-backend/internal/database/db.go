@@ -504,5 +504,86 @@ func InitDB() {
 		}
 	}
 
+	// 供应链需求链条：cargo 方量列 + experiment_order 链路标记列
+	chainColumnMigrations := []struct {
+		Table string
+		Name  string
+		DDL   string
+	}{
+		{Table: "cargo", Name: "volume", DDL: "ALTER TABLE cargo ADD COLUMN volume double NOT NULL DEFAULT 0 COMMENT '单件方量(m3)'"},
+		{Table: "experiment_order", Name: "chain_name", DDL: "ALTER TABLE experiment_order ADD COLUMN chain_name varchar(64) NOT NULL DEFAULT '' COMMENT '供应链标识(空=独立随机单)'"},
+		{Table: "experiment_order", Name: "node_label", DDL: "ALTER TABLE experiment_order ADD COLUMN node_label varchar(64) NOT NULL DEFAULT '' COMMENT '链条节点标签'"},
+	}
+	for _, migration := range chainColumnMigrations {
+		var columnCount int64
+		err = DB.Raw(`
+			SELECT COUNT(*)
+			FROM INFORMATION_SCHEMA.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+			  AND TABLE_NAME = ?
+			  AND COLUMN_NAME = ?
+		`, migration.Table, migration.Name).Scan(&columnCount).Error
+		if err != nil {
+			Logger.Logger.Error("数据库迁移失败：检查链路字段", zap.String("table", migration.Table), zap.String("column", migration.Name), zap.Error(err))
+			panic(err)
+		}
+		if columnCount > 0 {
+			continue
+		}
+		if err = DB.Exec(migration.DDL).Error; err != nil {
+			Logger.Logger.Error("数据库迁移失败：新增链路字段", zap.String("table", migration.Table), zap.String("column", migration.Name), zap.Error(err))
+			panic(err)
+		}
+	}
+
 	Logger.Logger.Info("数据库连接成功")
+}
+
+// chainCargoSeed 供应链货类种子（Tybe 对齐可承运车辆类型：1厢货/2冷藏/3平板/5高栏）。
+type chainCargoSeed struct {
+	Name   string
+	Tybe   int
+	Pack   int
+	Weight int
+	Volume float64
+}
+
+// EnsureChainCargos 幂等补种供应链货类（吨位/方量趋势核算依赖），
+// 并为存量货类回填方量（仅当 volume=0 时更新）。启动时调用，重复执行无副作用。
+func EnsureChainCargos() {
+	backfill := map[string]float64{
+		"普通包裹": 0.05, "生鲜食品": 0.5, "大型机械": 4.0, "建材石料": 2.0, "危险化学品": 1.0,
+		"农副产品": 1.5, "医药及疫苗": 0.02, "家用电器": 0.8, "汽车配件": 0.3, "生猪活禽": 1.2,
+	}
+	for name, vol := range backfill {
+		if err := DB.Exec("UPDATE cargo SET volume = ? WHERE name = ? AND volume <= 0", vol, name).Error; err != nil {
+			Logger.Logger.Warn("存量货类方量回填失败", zap.String("cargo", name), zap.Error(err))
+		}
+	}
+	seeds := []chainCargoSeed{
+		{Name: "原木", Tybe: 3, Pack: 3, Weight: 2200, Volume: 2.4},
+		{Name: "木材", Tybe: 3, Pack: 3, Weight: 750, Volume: 1.1},
+		{Name: "家具成品", Tybe: 1, Pack: 1, Weight: 120, Volume: 1.5},
+		{Name: "钢材", Tybe: 3, Pack: 3, Weight: 2000, Volume: 0.4},
+		{Name: "五金件", Tybe: 1, Pack: 1, Weight: 150, Volume: 0.2},
+		{Name: "农产品原料", Tybe: 5, Pack: 3, Weight: 500, Volume: 0.9},
+		{Name: "电子元器件", Tybe: 1, Pack: 1, Weight: 20, Volume: 0.03},
+		{Name: "数码产品", Tybe: 1, Pack: 1, Weight: 60, Volume: 0.15},
+		{Name: "铝锭", Tybe: 3, Pack: 3, Weight: 1400, Volume: 0.55},
+		{Name: "门窗型材", Tybe: 3, Pack: 3, Weight: 260, Volume: 1.6},
+	}
+	for _, seed := range seeds {
+		var cnt int64
+		if err := DB.Raw("SELECT COUNT(*) FROM cargo WHERE name = ?", seed.Name).Scan(&cnt).Error; err != nil {
+			Logger.Logger.Warn("链条货类检查失败", zap.String("cargo", seed.Name), zap.Error(err))
+			continue
+		}
+		if cnt > 0 {
+			continue
+		}
+		if err := DB.Exec("INSERT INTO cargo (name, tybe, pack, weight, volume) VALUES (?, ?, ?, ?, ?)",
+			seed.Name, seed.Tybe, seed.Pack, seed.Weight, seed.Volume).Error; err != nil {
+			Logger.Logger.Warn("链条货类补种失败", zap.String("cargo", seed.Name), zap.Error(err))
+		}
+	}
 }

@@ -17,6 +17,16 @@ func CreateExperimentOrders(orders []*model.ExperimentOrder) error {
 	return database.DB.Model(&model.ExperimentOrder{}).Create(&orders).Error
 }
 
+// ListExperimentOrdersByExperiment 查询某实验全部预生成订单（供应链趋势统计用）。
+func ListExperimentOrdersByExperiment(experimentID uint) ([]*model.ExperimentOrder, error) {
+	var orders []*model.ExperimentOrder
+	err := database.DB.Model(&model.ExperimentOrder{}).
+		Where("experiment_id = ?", experimentID).
+		Order("virtual_time ASC, id ASC").
+		Find(&orders).Error
+	return orders, err
+}
+
 // ListDueExperimentOrders 查询某实验到点（virtual_time <= now）且未释放的订单
 func ListDueExperimentOrders(experimentID uint, now time.Time) ([]*model.ExperimentOrder, error) {
 	var orders []*model.ExperimentOrder

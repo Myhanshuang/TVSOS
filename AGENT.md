@@ -95,12 +95,19 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 概念：`User(研究者) → Sandbox(世界设定) → ExperimentScheme(参数模板) → Experiment(批次:参数快照+种子+结果)`。
 默认主页是沙箱管理页（/admin/sandboxes），登录（admin/admin123）→ 沙箱 → 新建实验（参数面板/TOML/种子导入）→ 生成数据 → 开始实验 → 地图+任务管理两屏（地图页可“显示数据”拉入凹字形覆盖层） → 到达固定虚拟时长自动完成 → 结果页；对比页 /admin/sandbox/:id/compare。
 
+### 供应链需求链条（v3，任务书 1.1）
+- 世界规则 `[supply_chains]`（DefaultSupplyChains）配 5 条真实链条：原木→木材→家具成品→家具市场 / 钢材→五金件→综合市场 / 农产品原料→生鲜食品 / 电子元器件→数码产品 / 铝锭→门窗型材；节点按 POI 类型+名称关键词绑定成都真实 POI、货类按名解析（resolveSupplyChains），解析失败整链跳过不报错。
+- 根订单按 share 替代等量随机单（基础单缩放 1-Σshare）；级联传导：β 触发概率 → 释放时刻=上段+L 加工延迟 → 件数=上段吨位×α/本段单件重（吨位/方量沿链递减的加工损耗趋势，RNG 消费序固定保证复现）。
+- experiment_order 带 chain_name/node_label；cargo 增 volume 方量列；启动时 database.EnsureChainCargos 幂等补种 10 个链条货类（原木/木材/家具成品/钢材/五金件/农产品原料/电子元器件/数码产品/铝锭/门窗型材，Tybe 对齐可承运车型）并回填存量货类方量。
+- 实验终态 summary.supply_chains 输出逐节点订单数/吨位/方量/实际产出率（buildSupplyChainTrend）；结果页有链条趋势卡片，HTML/MD 报告导出含链表。
+- 生成器版本升 v3：旧种子导入校验失败属预期（需重新生成数据）。
+
 ### 后端要点
 - **单实验串行**：`internal/task/experiment_runtime.go` ExperimentRuntime，同一时刻仅一个活跃实验；POST /experiments/:id/start|stop 控制生命周期；服务重启=当前实验 abort（AbortStaleExperiments）。
 - **虚拟时钟（严格复现）**：`virtual_clock.go`，虚拟时间=起点+tick×步长；pause_until/阶段时间戳/事件时刻/快照时刻全是虚拟时间；倍速只改真实 tick 频率。
 - **单线程 tick**：masterLoop 每 tick 顺序执行 释放订单→SA派单→消费事件→恢复→移动→快照，RNG 消费序确定 ⇒ 同种子逐 tick 一致（已验证：总成本 35025.80213604554 两次一致）。
 - **种子 RNG**：rt.rng=rand.New(rand.NewSource(seed))；SA/司机等级/拒单全走它；天气/车祸由**预生成脚本**（experiment_event 表）到点消费。
-- **数据生成器** `internal/sandbox/gen`：Generate 纯函数（摇号序固定：司机等级→订单流泊松/均匀→天气/车祸逐 tick 摇号，车祸带 level_factor 等级修正；等级表存 experiment.driver_levels 供实例化同源使用），同种子逐字节一致（generator_test.go 单测）；`internal/sandbox/params.go` 是世界规则/实验参数 TOML 模式与默认值，DataGeneratorVersion（当前 v2）供种子导入校验。
+- **数据生成器** `internal/sandbox/gen`：Generate 纯函数（摇号序固定：司机等级→订单流泊松/均匀→天气/车祸逐 tick 摇号，车祸带 level_factor 等级修正；等级表存 experiment.driver_levels 供实例化同源使用），同种子逐字节一致（generator_test.go 单测）；`internal/sandbox/params.go` 是世界规则/实验参数 TOML 模式与默认值，DataGeneratorVersion（当前 v3）供种子导入校验。
 - **数据隔离**：9 张运行表带 experiment_id（0=沙箱模板/全局，>0=实验实例）；实验启动时从 sandbox.fleet_template 实例化本实验专属 vehicle/driver 行；scoped_repo.go 全是按实验过滤的查询变体。
 - **结果层**：experiment_result（summary_json 全量 + primary_metrics 主目标 C2/U2/U4/T2/F1/G2 + convergence SA 收敛曲线）；订单/事件脚本在 experiment_order/experiment_event。
 - **登录**：简单演示级——user 表+bcrypt+内存 token（24h，重启失效），/auth/login|register|profile|logout；middleware.AuthRequired 挂全部业务路由（WS 走 ?token=）；除 /auth/login|register 与 /swagger 外全保护。
