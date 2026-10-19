@@ -11,8 +11,8 @@ import (
 
 // ---- 报告 A3：优化质量 Gap 评估（小规模精确枚举）----
 // 当批次规模足够小时，通过穷举所有"货-车"指派方案，得到该问题在
-// 当前成本口径(evaluateStateCost)下的全局最优代价，再与调度算法(SA)实际输出的
-// 代价对比，得到优化 gap = (SA代价 - 最优代价) / 最优代价。
+// 当前优化目标口径(evaluateStateCost，与调度器共用 objCtx)下的全局最优分数，
+// 再与调度算法(SA)实际输出的分数对比，得到优化 gap = (SA分数 - 最优分数) / 最优分数。
 // 该指标是算法无关的（黑盒/结果层），SA 切换为全局最优算法后依然有效（报告 §3.7）。
 
 const (
@@ -35,9 +35,10 @@ func GetLastOptimizationGap() float64 {
 	return lastOptimizationGap
 }
 
-// evaluateBatchOptimizationGap 对小规模批次执行精确枚举评估，返回 (SA代价, 最优代价, gap百分比)。
+// evaluateBatchOptimizationGap 对小规模批次执行精确枚举评估，返回 (SA分数, 最优分数, gap百分比)。
 // 只有当批次规模与车队规模都小于阈值时才执行；否则返回 (0,0,0) 表示跳过。
 func evaluateBatchOptimizationGap(
+	objCtx *objectiveContext,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
 	stats *Statistics,
@@ -66,7 +67,7 @@ func evaluateBatchOptimizationGap(
 			return 0, 0, 0
 		}
 	}
-	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	saCost := evaluateStateCost(objCtx, saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 
 	// 穷举所有指派组合求全局最优(深度受限的迭代枚举)
 	bestCost := math.MaxFloat64
@@ -75,7 +76,7 @@ func evaluateBatchOptimizationGap(
 	var dfs func(idx int)
 	dfs = func(idx int) {
 		if idx == len(shipments) {
-			cost := evaluateStateCost(cur, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+			cost := evaluateStateCost(objCtx, cur, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 			if cost < bestCost {
 				bestCost = cost
 				found = true
@@ -89,10 +90,13 @@ func evaluateBatchOptimizationGap(
 	}
 	dfs(0)
 
-	if !found || bestCost <= 0 || math.IsInf(bestCost, 0) || math.IsInf(saCost, 0) {
+	// 分数口径兼容：主要目标模式下分数可为负，仅拒绝不可行/异常/零基准；
+	// 分母取 |最优分数| 保证 gap 符号语义（SA 劣于最优为正）。
+	if !found || bestCost == 0 || math.IsInf(bestCost, 0) || math.IsInf(saCost, 0) ||
+		math.IsNaN(bestCost) || math.IsNaN(saCost) || bestCost >= SAPenaltyInf {
 		return saCost, bestCost, 0
 	}
-	gap := (saCost - bestCost) / bestCost * 100.0
+	gap := (saCost - bestCost) / math.Abs(bestCost) * 100.0
 	if gap < 0 {
 		gap = 0
 	}
@@ -110,6 +114,7 @@ func vehicleIndexByID(vehicles []*model.Vehicle, id uint) int {
 
 // evaluateAndLogOptimizationGap 评估并记录批次优化 gap，供 A3 指标与日志使用。
 func evaluateAndLogOptimizationGap(
+	objCtx *objectiveContext,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
 	stats *Statistics,
@@ -122,8 +127,9 @@ func evaluateAndLogOptimizationGap(
 	if len(shipments) == 0 || len(shipments) > maxExactShipments || len(vehicles) > maxExactVehicles {
 		return
 	}
-	saCost, bestCost, gap := evaluateBatchOptimizationGap(shipments, vehicles, stats, cargoCache, projectedLoads, pois, saAssignment, now)
-	if gap > 0 || saCost > 0 {
+	saCost, bestCost, gap := evaluateBatchOptimizationGap(objCtx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, saAssignment, now)
+	// saCost==0 表示评估被跳过（存在未派单运单等），不覆盖既有 gap
+	if gap > 0 || saCost != 0 {
 		lastOptimizationGap = gap
 		Logger.Logger.Info("A3 优化质量评估", zap.Int("shipments", len(shipments)), zap.Int("vehicles", len(vehicles)),
 			zap.Float64("saCost", saCost), zap.Float64("optimalCost", bestCost), zap.Float64("gapPct", gap))

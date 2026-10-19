@@ -55,16 +55,16 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - M1-M4（P/R/F1/MRR）：参考答案为**条件最优**（固定其余指派、该单改派各车取整批成本最低者，`matching_quality.go`），逐单候选排名+ground truth 已回填 `matching_log`
 - C1：SA 相对贪心首可行基线的成本改善%；A2 求解耗时（`solver_timing.go`）；A3 gap（`gap_evaluator.go`，≤4 单 ≤6 车才枚举，20 车队实际跳过）
 - R1-R3（MTBF/MTTR/可用性）：观测窗口=最近一次 startup 事件；R4-R6 事故/维修/休息
-- 全局优化框架：**4 主目标 C2↓ / U2↑ / U4↓ / T2 P95↓ + 2 软约束 F1 基尼≤0.4 / G2 碳排**；Cost A-F 定义在 `internal/task/cost.go`
+- 全局优化框架：**多目标（主要目标法+帕累托考量）**——主目标四选一 C2↓/U2↑/U4↓/T2 P95↓（实验参数 `[objectives]` mode/primary/tolerance/budgets，支持选择与更换），其余指标转软约束（绝对预算或自适应劣化容差）；SA 接受准则叠加帕累托支配判定 + 有界帕累托档案（`multi_objective.go`）；M/C1/A3 与 SA 共用同一目标口径；Cost A-F 定义在 `internal/task/cost.go`
 - 已**移除**的指标（模拟环境无数据来源，勿加回）：S1-S3 周期生成、C3 ROI、A1 复杂度基准、F3 问卷满意度
 - 指标文档（单一事实来源）：`tvsos-backend/docs/统计指标总结与全局优化对象.md`（docsify `_sidebar.md` 挂载）
 
 ## 调度与随机事件机制
 
-- 派单：`order_task.go doCreateOrderTaskBatch` → `sa_scheduler.go assignBySimulatedAnnealing`（Cost F 唯一目标）→ `assignShipmentToVehicle`（写 OrderTask + MatchingLog + 预占载重）
+- 派单：`order_task.go doCreateOrderTaskBatch` → 构建 `objectiveContext`（多目标上下文）→ `sa_scheduler.go assignBySimulatedAnnealing`（主要目标法 ε-约束标量化 + 帕累托支配接受/档案/ε-终选）→ `assignShipmentToVehicle`（写 OrderTask + MatchingLog + 预占载重）；`evaluateStateCost` 第一参为 objCtx（nil=旧 Cost F 口径），M/C1/A3 评估传同一实例
 - 随机事件 `random_event.go`：车祸→车辆 Maintenance + pause_until + system_event(fault)；天气→暂停移动；拒单→运单重回池子再派；疲劳→司机休息（车辆停驶）
 - 车辆暂停机制已验证有效：pause_until 在未来时地图上车辆冻结、速度 0
-- 运单生成：接口 `MockShipments`（随机起终点+货类）手动注入，**无周期生成器**
+- 运单生成：数据生成器预生成订单脚本（experiment_order），按虚拟时刻释放
 
 ## 前端交互约定（用户明确要求，勿回退）
 
@@ -109,7 +109,7 @@ go run scripts/gen_mock_data.go # 20 辆川A车 + 10 货类 + 50 运单
 - **种子 RNG**：rt.rng=rand.New(rand.NewSource(seed))；SA/司机等级/拒单全走它；天气/车祸由**预生成脚本**（experiment_event 表）到点消费。
 - **数据生成器** `internal/sandbox/gen`：Generate 纯函数（摇号序固定：司机等级→订单流泊松/均匀→天气/车祸逐 tick 摇号，车祸带 level_factor 等级修正；等级表存 experiment.driver_levels 供实例化同源使用），同种子逐字节一致（generator_test.go 单测）；`internal/sandbox/params.go` 是世界规则/实验参数 TOML 模式与默认值，DataGeneratorVersion（当前 v3）供种子导入校验。
 - **数据隔离**：9 张运行表带 experiment_id（0=沙箱模板/全局，>0=实验实例）；实验启动时从 sandbox.fleet_template 实例化本实验专属 vehicle/driver 行；scoped_repo.go 全是按实验过滤的查询变体。
-- **结果层**：experiment_result（summary_json 全量 + primary_metrics 主目标 C2/U2/U4/T2/F1/G2 + convergence SA 收敛曲线）；订单/事件脚本在 experiment_order/experiment_event。
+- **结果层**：experiment_result（summary_json 全量 + primary_metrics 主目标 C2/U2/U4/T2/F1/G2 + 多目标信息 objective_mode/primary_objective/feasible_pct/pareto 前沿 + convergence SA 收敛曲线含 bestPrimary/bestViolation/paretoSize）；订单/事件脚本在 experiment_order/experiment_event。
 - **登录**：简单演示级——user 表+bcrypt+内存 token（24h，重启失效），/auth/login|register|profile|logout；middleware.AuthRequired 挂全部业务路由（WS 走 ?token=）；除 /auth/login|register 与 /swagger 外全保护。
 - **经济/交通环境**：cost.go SetEconomyRules（实验启动注入，A 项追加货币化里程成本=油价+过路费+人力）；rt.SpeedKmhAt 分时段速度系数（rush_hours × rush_speed_factor，同时决定每 tick 推进点数与时长/疲劳累计）。
 - R1-R3 可靠性/T1 吞吐观测窗口改为**实验生命周期**（虚拟时钟起点至今），不再用最近一次 startup 事件。

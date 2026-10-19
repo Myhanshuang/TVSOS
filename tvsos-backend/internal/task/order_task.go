@@ -85,16 +85,20 @@ func doCreateOrderTaskBatch(rt *ExperimentRuntime, shipments []*model.Shipment) 
 		poiMap[p.Id] = p
 	}
 
+	// 多目标上下文：从实验参数 + 统计快照解析（主要目标法 ε 预算自适应锚定）。
+	// 同一实例传入 SA 与 M/C1/A3 评估器，保证算法层指标与调度器目标口径一致。
+	objCtx := newObjectiveContext(rt.Params.Objectives, statsSnapshot)
+
 	// A2 单批求解耗时打点：记录 SA 求解器本批耗时(毫秒)，供实时看板展示均值/峰值
 	solveStart := time.Now()
-	bestAssignment := assignBySimulatedAnnealing(rt, shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
+	bestAssignment := assignBySimulatedAnnealing(rt, objCtx, shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap)
 	RecordSolverTiming(float64(time.Since(solveStart).Microseconds()) / 1000.0)
 
 	// A3 优化质量评估：小规模批次通过精确枚举计算 SA 与全局最优的 gap(黑盒/算法无关)
-	evaluateAndLogOptimizationGap(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
+	evaluateAndLogOptimizationGap(objCtx, shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
 
-	// M1-M4/C1 匹配质量后验评估：逐单条件成本排名 + 贪心基线对比，结果回填 matching_log
-	quality := evaluateMatchingQuality(shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
+	// M1-M4/C1 匹配质量后验评估：逐单条件目标分数排名 + 贪心基线对比，结果回填 matching_log
+	quality := evaluateMatchingQuality(objCtx, shipments, vehicles, statsSnapshot, cargoCache, projectedLoads, poiMap, bestAssignment, rt.Clock.Now())
 
 	for _, shipment := range shipments {
 		cargo := getCargoByCache(cargoCache, shipment.CargoId)

@@ -151,10 +151,75 @@ type AlgorithmParams struct {
 	CandidateK      int     `toml:"candidate_k"`
 }
 
-// ObjectiveParams 全局优化目标指标权重（需求1：可改变全局优化目标）。
+// ObjectiveParams 多目标优化配置（主要目标法 + 帕累托考量，指标体系文档 §2.3/§2.5）。
+//
+// mode = "primary"（默认，主要目标法/ε约束）：primary 四选一(C2/U2/U4/T2)作为唯一
+//   硬性优化对象；其余三个主目标 + F1 基尼 + G2 碳排转为软约束（绝对预算 budgets 或
+//   相对当前值的自适应劣化容差 tolerance），求解时按"主目标归一项 + 软约束相对违反量
+//   ×惩罚系数"标量化，SA 接受准则叠加帕累托支配判定。
+// mode = "weighted"（兼容旧口径）：沿用 Cost F 单一标量化（等价旧行为）。
+//
+// budgets 键：C2_max / U2_min / U4_max / T2_p95_max / F1_gini_max / G2_max。
+//   值 > 0 → 绝对预算生效；值 ≤ 0 → 显式关闭；缺省 → F1_gini_max=0.4、
+//   非主目标三指标走 tolerance 自适应、主目标自身与 G2 不约束。
 type ObjectiveParams struct {
-	Weights         map[string]float64 `toml:"weights"`          // 如 C2/U2/U4/T2
-	SoftConstraints map[string]float64 `toml:"soft_constraints"` // 如 F1_gini_max/G2_carbon_max
+	Mode           string             `toml:"mode"`
+	Primary        string             `toml:"primary"`
+	Tolerance      float64            `toml:"tolerance"`
+	Budgets        map[string]float64 `toml:"budgets"`
+	Weights        map[string]float64 `toml:"weights,omitempty"`          // 兼容旧字段（weighted 模式仅记录，不参与求解）
+	SoftConstraints map[string]float64 `toml:"soft_constraints,omitempty"` // 兼容旧字段，解析时并入 budgets
+}
+
+// 常量：多目标模式与主目标代号
+const (
+	ObjectiveModePrimary  = "primary"  // 主要目标法（ε约束 + 帕累托）
+	ObjectiveModeWeighted = "weighted" // 旧标量化（Cost F 唯一目标）
+
+	ObjectivePrimaryC2 = "C2" // 单位成本 ↓
+	ObjectivePrimaryU2 = "U2" // 装载率均值 ↑
+	ObjectivePrimaryU4 = "U4" // 空驶率 ↓
+	ObjectivePrimaryT2 = "T2" // 匹配响应 P95 ↓
+)
+
+// NormalizedPrimary 校正主目标代号：非法值回落 C2。
+func (o ObjectiveParams) NormalizedPrimary() string {
+	switch o.Primary {
+	case ObjectivePrimaryC2, ObjectivePrimaryU2, ObjectivePrimaryU4, ObjectivePrimaryT2:
+		return o.Primary
+	default:
+		return ObjectivePrimaryC2
+	}
+}
+
+// NormalizedMode 校正模式：非法值回落 primary（主要目标法）。
+func (o ObjectiveParams) NormalizedMode() string {
+	if o.Mode == ObjectiveModeWeighted {
+		return ObjectiveModeWeighted
+	}
+	return ObjectiveModePrimary
+}
+
+// EffectiveBudgets 合并兼容字段：soft_constraints 并入 budgets（budgets 优先），
+// 仅保留值 > 0 的激活项；返回 nil 表示无绝对预算。
+func (o ObjectiveParams) EffectiveBudgets() map[string]float64 {
+	merged := make(map[string]float64, len(o.Budgets)+len(o.SoftConstraints))
+	for k, v := range o.SoftConstraints {
+		if v > 0 {
+			merged[k] = v
+		}
+	}
+	for k, v := range o.Budgets {
+		if v > 0 {
+			merged[k] = v
+		} else if v <= 0 {
+			delete(merged, k) // budgets 显式关闭优先于 soft_constraints
+		}
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return merged
 }
 
 // ConstraintParams 约束条件。
@@ -168,7 +233,7 @@ type ConstraintParams struct {
 // DefaultWorldRules 默认世界规则（对齐当前 config-dev.yml 的随机事件口径与硬编码常数）。
 func DefaultWorldRules() WorldRules {
 	return WorldRules{
-		Meta:      MetaRules{Name: "新沙箱", AlgoVersion: "sa-v2.1"},
+		Meta:      MetaRules{Name: "新沙箱", AlgoVersion: "sa-v3.0-mo"},
 		Geography: GeographyRules{PoiWhitelist: []uint{}, AvgSpeedKmh: 35},
 		Traffic:   TrafficRules{RushHours: []int{8, 9, 17, 18}, RushSpeedFactor: 0.6},
 		Time:      TimeRules{StartTime: "2026-01-01 08:00:00", TickSeconds: 10},
@@ -261,8 +326,10 @@ func DefaultExperimentParams() ExperimentParams {
 			CandidateK:     5,
 		},
 		Objectives: ObjectiveParams{
-			Weights:         map[string]float64{"C2": 1.0, "U2": 0.5, "U4": 0.3, "T2": 0.3},
-			SoftConstraints: map[string]float64{"F1_gini_max": 0.4, "G2_carbon_max": 99999},
+			Mode:      ObjectiveModePrimary,
+			Primary:   ObjectivePrimaryC2,
+			Tolerance: 0.15,
+			Budgets:   map[string]float64{"F1_gini_max": 0.4},
 		},
 		RandomEvents: nil, // 默认沿用世界规则
 		Constraints:  ConstraintParams{DriverMaxHours: 0, VehicleMaxMileageKm: 0},

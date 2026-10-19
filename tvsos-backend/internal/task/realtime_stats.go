@@ -65,6 +65,13 @@ type RealtimeSummary struct {
 	CarbonPerTonKm     float64 `json:"carbon_per_ton_km"`   // G2 单位吨公里碳排放
 	OptimizationGap    float64 `json:"optimization_gap"`    // A3 优化 gap(最近批次，百分比)
 
+	// ---- 多目标优化（主要目标法+帕累托考量）扩展字段 ----
+	ObjectiveMode        string  `json:"objective_mode"`         // primary(主要目标法) / weighted(旧标量化)
+	PrimaryObjective     string  `json:"primary_objective"`      // 主目标代号 C2/U2/U4/T2
+	ObjectiveTolerance   float64 `json:"objective_tolerance"`    // 软约束劣化容差(0-1)
+	ObjectiveFeasiblePct float64 `json:"objective_feasible_pct"` // 软约束可满足批次占比(百分比)
+	ParetoAvgFront       float64 `json:"pareto_avg_front"`       // 平均帕累托前沿规模
+
 	// ---- 可靠性/匹配吞吐/算法耗时扩展字段 ----
 	MtbfHours           float64 `json:"mtbf_hours"`           // R1 平均无故障时间(小时, 自最近启动)
 	MttrHours           float64 `json:"mttr_hours"`           // R2 平均修复时长(小时)
@@ -225,6 +232,7 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 	}
 	solveBatches, solveAvgMs, solveMaxMs := GetSolverTimingStats()
 	matchP, matchR, matchF1, matchMrr, matchEval := GetMatchingQualityStats()
+	objView := GetObjectiveRunStats()
 
 	var recentEvents []EventView
 	if events, err := repository.ListRandomEventsByExp(rt.Exp.Id, 10); err == nil {
@@ -367,6 +375,11 @@ func BuildRealtimeDashboard(rt *ExperimentRuntime) (*RealtimeDashboard, error) {
 			CarbonTotal:       stats.CarbonStats.TotalCarbon,
 			CarbonPerTonKm:    stats.CarbonStats.CarbonPerTonKm,
 			OptimizationGap:   GetLastOptimizationGap(),
+			ObjectiveMode:        rt.Params.Objectives.NormalizedMode(),
+			PrimaryObjective:     rt.Params.Objectives.NormalizedPrimary(),
+			ObjectiveTolerance:   rt.Params.Objectives.Tolerance,
+			ObjectiveFeasiblePct: objView.FeasiblePct,
+			ParetoAvgFront:       objView.FrontAvg,
 			MtbfHours:           reliability.MtbfHours,
 			MttrHours:           reliability.MttrHours,
 			ServiceAvailability: reliability.Availability,

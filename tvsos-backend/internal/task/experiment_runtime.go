@@ -55,11 +55,16 @@ type ExperimentRuntime struct {
 	convergence   []ConvergencePoint // SA 收敛曲线（算法性能记录，对齐 PDF 结果层）
 }
 
-// ConvergencePoint SA 收敛曲线采样点（批次号 + 温度 + 该温度最优 cost）
+// ConvergencePoint SA 收敛曲线采样点。
+// BestCost：weighted 模式=原始综合成本；primary 模式=ε-约束标量化分数。
+// BestPrimary/BestViolation/ParetoSize 为多目标模式扩展字段（omitempty 兼容旧数据）。
 type ConvergencePoint struct {
-	Batch    int64   `json:"batch"`
-	Temp     float64 `json:"temp"`
-	BestCost float64 `json:"bestCost"`
+	Batch         int64   `json:"batch"`
+	Temp          float64 `json:"temp"`
+	BestCost      float64 `json:"bestCost"`
+	BestPrimary   float64 `json:"bestPrimary,omitempty"`
+	BestViolation float64 `json:"bestViolation,omitempty"`
+	ParetoSize    int     `json:"paretoSize,omitempty"`
 }
 
 // ExpID 实验 id（便捷方法）
@@ -209,6 +214,7 @@ func StartExperiment(experimentID uint) error {
 	ResetSolverTiming()
 	ResetMatchingQuality()
 	ResetOptimizationGap()
+	ResetObjectiveRunStats()
 	resetDashboardTrends()
 
 	now := time.Now()
@@ -663,6 +669,35 @@ func (rt *ExperimentRuntime) writeExperimentResult() {
 		"accident_count":        dashboard.Summary.AccidentCount,
 		"refuse_count":          dashboard.Summary.RefuseCount,
 		"virtual_ticks":         rt.Clock.Tick(),
+	}
+
+	// 多目标优化信息（主要目标法 + 帕累托考量）：主目标代号/终值/软约束满足率/前沿规模
+	objView := GetObjectiveRunStats()
+	objPrimary := objView.Primary
+	if objPrimary == "" {
+		objPrimary = rt.Params.Objectives.NormalizedPrimary() // weighted 模式回落参数口径
+	}
+	primary["objective_mode"] = objView.Mode
+	primary["primary_objective"] = objPrimary
+	primary["tolerance"] = rt.Params.Objectives.Tolerance
+	switch objPrimary {
+	case sandboxpkg.ObjectivePrimaryU2:
+		primary["primary_objective_value"] = dashboard.Summary.LoadingRateAvg
+	case sandboxpkg.ObjectivePrimaryU4:
+		primary["primary_objective_value"] = dashboard.Summary.EmptyRate
+	case sandboxpkg.ObjectivePrimaryT2:
+		primary["primary_objective_value"] = dashboard.Summary.MatchResponseP95
+	default:
+		primary["primary_objective_value"] = dashboard.Summary.UnitCost
+	}
+	if objView.Batches > 0 && objView.Mode == sandboxpkg.ObjectiveModePrimary {
+		primary["objective_batches"] = objView.Batches
+		primary["objective_feasible_batches"] = objView.FeasibleBatches
+		primary["objective_feasible_pct"] = math.Round(objView.FeasiblePct*100) / 100
+		primary["objective_violation_avg"] = math.Round(objView.ViolationAvg*1e6) / 1e6
+		primary["pareto_avg_front"] = math.Round(objView.FrontAvg*100) / 100
+		primary["pareto_max_front"] = objView.FrontMax
+		primary["pareto_last_front"] = objView.LastFront
 	}
 	primaryJSON, _ := json.Marshal(primary)
 

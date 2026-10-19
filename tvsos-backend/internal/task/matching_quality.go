@@ -12,9 +12,10 @@ import (
 
 // ---- 报告 M1-M4 / C1：匹配精准度与基线对比 ----
 // 参考答案(ground truth)口径：**条件最优** —— 固定 SA 其余指派不变，将该运单
-// 改派给任一车辆后的整批成本最低者，即该运单在当前批次语境下的单条件最优车。
+// 改派给任一车辆后的整批目标分数最低者，即该运单在当前批次语境下的单条件最优车。
+// 目标分数与调度器共用同一 objCtx：weighted 模式=Cost F；primary 模式=ε-约束标量化。
 // 全局精确枚举在 20 辆车队下组合爆炸(见 gap_evaluator 的规模限制)，
-// 而条件枚举为 O(单数×车数) 次成本评估，任意批次规模均可实时计算。
+// 而条件枚举为 O(单数×车数) 次分数评估，任意批次规模均可实时计算。
 // 基线(C1)：贪心首可行策略(按车辆列表顺序取第一辆可行车，不可行强指派首车由成本惩罚体现)。
 
 const (
@@ -93,11 +94,13 @@ type qualityCand struct {
 }
 
 // evaluateMatchingQuality 对一个 SA 批次做后验匹配质量评估：
-// 1) 逐运单条件枚举所有车辆的整批成本，得到成本升序候选排名与条件最优车(ground truth)；
+// 1) 逐运单条件枚举所有车辆的整批目标分数，得到升序候选排名与条件最优车(ground truth)；
 // 2) 累计 M1 精确率(选中=条件最优)/M2 召回率(未派单计未命中)/M4 MRR(选中车排名倒数)；
 // 3) 完整指派的批次额外与贪心首可行基线对比，更新 C1 改善百分比。
+// objCtx 与 SA 共用同一多目标上下文：主要目标模式下排名/基线均按 ε-约束分数口径。
 // 返回逐运单结果供 matching_log 回填；规模超限或统计快照缺失时返回 nil(跳过评估)。
 func evaluateMatchingQuality(
+	objCtx *objectiveContext,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
 	stats *Statistics,
@@ -140,7 +143,7 @@ func evaluateMatchingQuality(
 		cands := make([]qualityCand, 0, len(vehicles))
 		for vi := range vehicles {
 			variant[i] = vi
-			cands = append(cands, qualityCand{vi, evaluateStateCost(variant, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)})
+			cands = append(cands, qualityCand{vi, evaluateStateCost(objCtx, variant, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)})
 		}
 		sort.Slice(cands, func(a, b int) bool { return cands[a].cost < cands[b].cost })
 
@@ -181,7 +184,7 @@ func evaluateMatchingQuality(
 	// C1：完整指派批次与贪心首可行基线对比
 	blImprove, blOK := 0.0, false
 	if complete {
-		blImprove, blOK = evaluateBaselineImprovement(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+		blImprove, blOK = evaluateBaselineImprovement(objCtx, saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 	}
 
 	qualityMu.Lock()
@@ -198,10 +201,11 @@ func evaluateMatchingQuality(
 	return &matchingQualityResult{ByShipment: byShipment}
 }
 
-// evaluateBaselineImprovement 计算贪心首可行基线相对 SA 的成本改善百分比。
+// evaluateBaselineImprovement 计算贪心首可行基线相对 SA 的目标分数改善百分比。
 // 基线：按运单顺序取车辆列表中第一辆可行车(不可行强指派首车，由 SAPenaltyInf 体现)；
-// 任一方成本含不可行惩罚或非正时跳过(返回 ok=false)。
+// 任一方分数含不可行惩罚或非正时跳过(返回 ok=false)。
 func evaluateBaselineImprovement(
+	objCtx *objectiveContext,
 	saIdx []int,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
@@ -231,10 +235,13 @@ func evaluateBaselineImprovement(
 		}
 	}
 
-	saCost := evaluateStateCost(saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
-	blCost := evaluateStateCost(blIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
-	if saCost <= 0 || blCost <= 0 || saCost >= SAPenaltyInf || blCost >= SAPenaltyInf {
+	saCost := evaluateStateCost(objCtx, saIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	blCost := evaluateStateCost(objCtx, blIdx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	// 分数口径兼容：主要目标模式下分数可为负（如 U2 主项超基准），仅拒绝不可行/异常；
+	// 分母取 |基线分数| 保证符号语义（SA 更优为正改善）。
+	if math.IsNaN(saCost) || math.IsInf(saCost, 0) || math.IsNaN(blCost) || math.IsInf(blCost, 0) ||
+		saCost >= SAPenaltyInf || blCost >= SAPenaltyInf || blCost == 0 {
 		return 0, false
 	}
-	return (blCost - saCost) / blCost * 100.0, true
+	return (blCost - saCost) / math.Abs(blCost) * 100.0, true
 }

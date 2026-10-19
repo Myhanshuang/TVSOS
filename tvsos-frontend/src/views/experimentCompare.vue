@@ -127,6 +127,11 @@ const METRICS = [
   { key: 'G2_carbon_per_ton_km', label: 'G2 碳排', lower: true },
   { key: 'total_cost', label: '总成本', lower: true },
   { key: 'total_throughput', label: '总吞吐', lower: false },
+  // 多目标（主要目标法+帕累托）对比行：同种子换 primary 对照即得多目标权衡数据
+  { key: 'primary_objective', label: '主要目标' },
+  { key: 'primary_objective_value', label: '主目标终值' },
+  { key: 'objective_feasible_pct', label: '软约束满足率%', lower: false },
+  { key: 'pareto_avg_front', label: '帕累托前沿均值' },
 ]
 
 // ---- git 风格行级 diff（LCS）----
@@ -230,12 +235,12 @@ const load = async () => {
   }
   comparedResults.value = resultMap
 
-  // 明细表
+  // 明细表（非数值直接展示，如主要目标代号）
   rows.value = METRICS.map(m => {
     const row = { metric: m.label }
     for (const e of comparedExps.value) {
       const v = resultMap[e.id]?.[m.key]
-      row['exp' + e.id] = typeof v === 'number' ? Number(v.toFixed(4)) : '-'
+      row['exp' + e.id] = typeof v === 'number' ? Number(v.toFixed(4)) : (v ?? '-')
     }
     return row
   })

@@ -17,11 +17,16 @@ const (
 )
 
 // assignBySimulatedAnnealing 核心调度算法：基于模拟退火(Simulated Annealing)完成运单到车辆的分配
-// 通过多次迭代以及目标温度衰减（Metropolis接受准则）跳出局部最优，寻找综合代价(Cost)最小的派单策略。
+// 通过多次迭代以及目标温度衰减（Metropolis接受准则）跳出局部最优，寻找目标最优的派单策略。
+// 多目标模式（主要目标法+帕累托考量）：接受准则叠加帕累托支配判定，全程维护有界
+// 帕累托档案，终选按 ε-约束标量化分数取解（指标体系文档 §2.5）。
 // 随机源为实验种子 RNG（rt.Draw/DrawIntn，严格复现）；超参取实验参数（rt.Params.Algorithm）。
+// objCtx 为批次多目标上下文（nil 时按 rt.Params.Objectives + stats 现建；M/C1/A3 评估
+// 须传同一实例，保证参考答案与 SA 目标口径一致）。
 // 返回: 运单ID (Shipment ID) 到分配的车辆 (Vehicle) 的映射字典
 func assignBySimulatedAnnealing(
 	rt *ExperimentRuntime,
+	objCtx *objectiveContext,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
 	stats *Statistics,
@@ -31,6 +36,11 @@ func assignBySimulatedAnnealing(
 ) map[uint]*model.Vehicle {
 	if len(shipments) == 0 || len(vehicles) == 0 {
 		return make(map[uint]*model.Vehicle)
+	}
+
+	// 多目标上下文：调用方未提供时按实验参数构建（单测/兼容路径）
+	if objCtx == nil {
+		objCtx = newObjectiveContext(rt.Params.Objectives, stats)
 	}
 
 	// SA 超参：实验参数优先，零值回落常量默认
@@ -69,38 +79,92 @@ func assignBySimulatedAnnealing(
 		}
 	}
 
-	currentCost := evaluateStateCost(currentAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	currentEval := evaluateState(objCtx, currentAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+	// 主目标归一化尺度标定（每批一次，后续 M/C1/A3 评估复用同一尺度）
+	objCtx.calibratePrimaryScale(currentEval.Vector)
+
 	bestAssigned := make([]int, len(shipments))
 	copy(bestAssigned, currentAssigned)
-	bestCost := currentCost
+	bestEval := currentEval
+
+	// 帕累托档案（primary 模式生效；weighted 模式不启用）
+	archive := newParetoArchive(objCtx.primary)
+	if !objCtx.weighted {
+		archive.offer(currentAssigned, currentEval)
+	}
 
 	batch := rt.Clock.Tick()
 	temp := initialTemp
 	for temp > minTemp {
 		for i := 0; i < itersPerTemp; i++ {
-			neighborDesc, nextAssigned := generateSANeighbor(rt, currentAssigned, len(vehicles))
-			nextCost := evaluateStateCost(nextAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
+			_, nextAssigned := generateSANeighbor(rt, currentAssigned, len(vehicles))
+			nextEval := evaluateState(objCtx, nextAssigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now)
 
-			if nextCost < currentCost || math.Exp((currentCost-nextCost)/temp) > rt.Draw() {
+			// 多目标接受准则（帕累托考量）：
+			//  1) 候选解在 4 主目标上支配当前解 → 无条件接受（前沿方向自由移动）；
+			//  2) 否则按 ε-约束标量化分数走经典 Metropolis（劣解按温度概率探索）。
+			dom := 0
+			if !objCtx.weighted {
+				dom = paretoDominance(nextEval.Vector, currentEval.Vector)
+			}
+			if dom > 0 || nextEval.scoreOrRawCost(objCtx.weighted) < currentEval.scoreOrRawCost(objCtx.weighted) ||
+				math.Exp((currentEval.scoreOrRawCost(objCtx.weighted)-nextEval.scoreOrRawCost(objCtx.weighted))/temp) > rt.Draw() {
 				currentAssigned = nextAssigned
-				currentCost = nextCost
-				if currentCost < bestCost {
+				currentEval = nextEval
+				if !objCtx.weighted {
+					archive.offer(currentAssigned, currentEval)
+				}
+				if currentEval.scoreOrRawCost(objCtx.weighted) < bestEval.scoreOrRawCost(objCtx.weighted) {
 					copy(bestAssigned, currentAssigned)
-					bestCost = currentCost
+					bestEval = currentEval
 				}
 			}
-			_ = neighborDesc // hold
 		}
-		// 收敛曲线采样（算法性能记录，对齐 PDF 结果数据层）
-		rt.RecordConvergence(ConvergencePoint{Batch: batch, Temp: temp, BestCost: bestCost})
+		// 收敛曲线采样（算法性能记录，对齐 PDF 结果数据层）；
+		// primary 模式下 BestCost=ε-约束标量化分数，另附主目标原始值/违反量/前沿规模
+		rt.RecordConvergence(ConvergencePoint{
+			Batch:         batch,
+			Temp:          temp,
+			BestCost:      bestEval.scoreOrRawCost(objCtx.weighted),
+			BestPrimary:   primaryRawValue(objCtx, bestEval.Vector),
+			BestViolation: bestEval.Violation,
+			ParetoSize:    archive.size(),
+		})
 		temp *= coolingRate
 	}
 
+	// ε-约束终选：档案中分数最优成员（≈可行优先+主目标最优）与历史最优比较取优。
+	// 帕累托考量：档案保留了探索中发现的非支配权衡解，终选在"可满足软约束"与
+	// "主目标最优"之间按标量化分数裁决，而非只认最后/最早的最优解。
+	finalAssigned := bestAssigned
+	finalEval := bestEval
+	if !objCtx.weighted {
+		if entry, ok := archive.bestByScore(); ok && entry.score < finalEval.scoreOrRawCost(false) {
+			finalAssigned = entry.assigned
+			finalEval = stateEvaluation{Score: entry.score, Vector: entry.vector, Violation: entry.violation}
+		}
+	}
+
+	// 实验级多目标运行统计（实时看板/终态结果数据源）
+	recordObjectiveBatch(objCtx, finalEval, archive.size(), archive.frontVectors())
+
 	result := make(map[uint]*model.Vehicle)
-	for i, vIdx := range bestAssigned {
+	for i, vIdx := range finalAssigned {
 		result[shipments[i].Id] = vehicles[vIdx]
 	}
 	return result
+}
+
+// primaryRawValue 取主目标原始值（weighted 模式或异常时返回 0）。
+func primaryRawValue(ctx *objectiveContext, v ObjectiveVector) float64 {
+	if ctx == nil || ctx.weighted {
+		return 0
+	}
+	raw, _ := v.metricValue(ctx.primary)
+	if math.IsNaN(raw) || math.IsInf(raw, 0) || raw < 0 {
+		return 0
+	}
+	return raw
 }
 
 // generateSANeighbor 邻域动作生成函数：生成模拟退火算法的下一个状态(邻居解)
@@ -125,9 +189,12 @@ func generateSANeighbor(rt *ExperimentRuntime, current []int, numVehicles int) (
 	return "move", next
 }
 
-// evaluateStateCost 代价评估函数：计算当前全局状态的综合代价值
-// 在派车场景中，系统Cost包含了超载惩罚、绕跑惩罚、空闲惩罚、未完成运单积压惩罚等多维指标的加权总和。
+// evaluateStateCost 代价评估函数：计算当前全局状态在当前优化目标口径下的标量分数。
+// weighted 模式（objCtx 为 nil 或模式为 weighted）= 原始综合成本（含超载/绕路/积压惩罚）；
+// primary 模式 = 主要目标法 ε-约束标量化分数（主目标归一项 + 软约束惩罚 + 硬可行性惩罚）。
+// M1-M4/C1/A3 评估与本函数共用同一 objCtx，保证参考答案与调度器目标口径一致。
 func evaluateStateCost(
+	objCtx *objectiveContext,
 	assigned []int,
 	shipments []*model.Shipment,
 	vehicles []*model.Vehicle,
@@ -137,7 +204,24 @@ func evaluateStateCost(
 	pois map[uint]*model.Poi,
 	now time.Time,
 ) float64 {
-	totalCost := 0.0
+	return evaluateState(objCtx, assigned, shipments, vehicles, stats, cargoCache, projectedLoads, pois, now).scoreOrRawCost(objCtx == nil || objCtx.weighted)
+}
+
+// evaluateState 完整评估：一次遍历同时产出原始成本口径、多目标标量化分数与目标向量。
+// 在派车场景中，系统Cost包含了超载惩罚、绕跑惩罚、空闲惩罚、未完成运单积压惩罚等多维指标的加权总和。
+func evaluateState(
+	objCtx *objectiveContext,
+	assigned []int,
+	shipments []*model.Shipment,
+	vehicles []*model.Vehicle,
+	stats *Statistics,
+	cargoCache map[uint]*model.Cargo,
+	projectedLoads map[uint]int,
+	pois map[uint]*model.Poi,
+	now time.Time,
+) stateEvaluation {
+	weightedMode := objCtx == nil || objCtx.weighted
+	stats = normalizeStats(stats)
 
 	// 按车辆汇总其分配的任务
 	vTasks := make([][]*model.Shipment, len(vehicles))
@@ -145,19 +229,60 @@ func evaluateStateCost(
 		vTasks[vIdx] = append(vTasks[vIdx], shipments[i])
 	}
 
+	totalRawCost := 0.0
+	totalCleanCost := 0.0
+	infeasible := 0
+	detourHits := 0
+	projections := make(map[int]*vehicleObjectiveProjection, len(vehicles))
+
 	for vIdx, tasks := range vTasks {
 		if len(tasks) == 0 {
 			continue
 		}
 		v := vehicles[vIdx]
-		vCost, feasible := evaluateVehicleTasks(v, tasks, stats, cargoCache, projectedLoads[v.Id], pois, now)
+		vCost, feasible, hits, proj := evaluateVehicleTasks(v, tasks, stats, cargoCache, projectedLoads[v.Id], pois, now)
 		if !feasible {
-			totalCost += SAPenaltyInf
+			infeasible++
+			totalRawCost += SAPenaltyInf
 		}
-		totalCost += vCost
+		totalRawCost += vCost
+		totalCleanCost += vCost - float64(hits)*(SAPenaltyInf/100.0)
+		detourHits += hits
+		projections[vIdx] = &proj
 	}
 
-	return totalCost
+	eval := stateEvaluation{
+		RawCost:     totalRawCost,
+		CleanCost:   totalCleanCost,
+		Vector:      ObjectiveVector{},
+		Violation:   0,
+		Infeasible:  infeasible,
+		DetourHits:  detourHits,
+	}
+	if weightedMode {
+		// 旧口径：仅综合成本（跳过 O(车队) 的向量构建，行为与旧版完全一致）
+		eval.Score = totalRawCost
+		return eval
+	}
+
+	// 指派后全车队单车装载率（容量>0 车辆，与全局 U2/F1 同口径）
+	loadingRates := make([]float64, 0, len(vehicles))
+	for vIdx, v := range vehicles {
+		if v == nil || v.Capacity <= 0 {
+			continue
+		}
+		load := float64(v.Size + v.ReservedSize)
+		if p, ok := projections[vIdx]; ok {
+			load = float64(p.LoadKg)
+		}
+		loadingRates = append(loadingRates, load/float64(v.Capacity))
+	}
+
+	vector := buildObjectiveVector(vehicles, projections, loadingRates, totalCleanCost)
+	eval.Vector = vector
+	eval.Violation = objCtx.violationOf(vector)
+	eval.Score = objCtx.score(totalCleanCost, vector, infeasible, detourHits)
+	return eval
 }
 
 func evaluateVehicleTasks(
@@ -168,14 +293,21 @@ func evaluateVehicleTasks(
 	initialProjectedLoad int,
 	pois map[uint]*model.Poi,
 	now time.Time,
-) (float64, bool) {
+) (float64, bool, int, vehicleObjectiveProjection) {
 	vCost := 0.0
 	currentProjected := initialProjectedLoad
+	proj := vehicleObjectiveProjection{}
+	detourHits := 0
+
+	speed := 10.0
+	if v != nil && v.Speed > 0 {
+		speed = v.Speed
+	}
 
 	for _, task := range tasks {
 		cargo := getCargoByCache(cargoCache, task.CargoId)
 		if !isVehicleFeasible(v, task, cargo, currentProjected) {
-			return 0, false
+			return 0, false, 0, proj
 		}
 		currentProjected += (cargo.Weight * task.Count)
 
@@ -184,13 +316,32 @@ func evaluateVehicleTasks(
 		endPoi := pois[task.EndPoiId]
 		cost := CalculateCost(v, task, stats, cargo, startPoi, endPoi, now)
 		vCost += cost
+
+		// 多目标投影：响应时间（现有等待+接驾）与载重段/吨公里
+		if startPoi != nil && endPoi != nil {
+			loadedLeg := haversine(startPoi.Lon, startPoi.Lat, endPoi.Lon, endPoi.Lat)
+			proj.LoadedDist += loadedLeg
+			proj.TonDistance += float64(cargo.Weight*task.Count) / 1000.0 * loadedLeg
+		}
+		waitSecs := stats.cargoWaitByShipment[task.Id]
+		if waitSecs == 0 && task != nil {
+			waitSecs = secondsSince(task.CreateTime, now)
+		}
+		if v != nil && startPoi != nil {
+			timeToStart := haversine(v.Lon, v.Lat, startPoi.Lon, startPoi.Lat) / speed
+			proj.ResponseSecs = append(proj.ResponseSecs, waitSecs+timeToStart)
+		} else {
+			proj.ResponseSecs = append(proj.ResponseSecs, waitSecs)
+		}
 	}
+	proj.LoadKg = currentProjected
 
 	// 计算 LIFO 最优拼载路线距离
 	minDist, valid := findMinLIFORouteDistance(v.Lon, v.Lat, tasks, pois)
 	if !valid {
-		return 0, false // 没有任何合法的LIFO序列组合
+		return 0, false, 0, proj // 没有任何合法的LIFO序列组合
 	}
+	proj.RouteDist = minDist
 
 	// 增量绕路代价分析 (Detour check)
 	for i, task := range tasks {
@@ -216,13 +367,14 @@ func evaluateVehicleTasks(
 		if detourDistance > 0 && (detourDistance/ton) > SADetourKmPerTonLimit {
 			// 惩罚Cost极大增加，代表防止为了这个小单绕远路
 			vCost += SAPenaltyInf / 100.0
+			detourHits++
 		}
 	}
 
 	// 把 LIFO 实际找出的最短作业总距离的影响加进去
 	vCost += (minDist / 1000.0) * 10.0 // 将真实合并距离作为影响因子
 
-	return vCost, true
+	return vCost, true, detourHits, proj
 }
 
 func findMinLIFORouteDistance(startLon float64, startLat float64, tasks []*model.Shipment, pois map[uint]*model.Poi) (float64, bool) {

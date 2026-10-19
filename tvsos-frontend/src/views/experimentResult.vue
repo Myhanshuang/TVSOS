@@ -27,12 +27,15 @@
     </div>
 
     <template v-if="primary">
-      <!-- 主目标卡片（对齐结果数据层） -->
+      <!-- 主目标卡片（对齐结果数据层）：多目标模式下高亮主目标并附软约束/帕累托概况 -->
       <el-row :gutter="16" class="metric-cards">
         <el-col :span="4" v-for="m in primaryCards" :key="m.label">
-          <el-card shadow="hover" class="metric-card">
+          <el-card shadow="hover" class="metric-card" :class="{ 'metric-card-primary': m.isPrimary }">
             <div class="metric-value">{{ m.value }}</div>
-            <div class="metric-label">{{ m.label }}</div>
+            <div class="metric-label">
+              {{ m.label }}
+              <el-tag v-if="m.isPrimary" size="small" type="success" effect="dark" class="primary-tag">主目标</el-tag>
+            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -51,6 +54,36 @@
           </el-card>
         </el-col>
       </el-row>
+
+      <!-- 帕累托前沿（多目标权衡解，主要目标法模式下展示） -->
+      <el-card v-if="paretoFront.length" style="margin-top:16px">
+        <template #header>
+          <div class="pan-head">
+            <span>最近批次帕累托前沿（{{ paretoFront.length }} 个非支配解 · 按主目标 {{ primary.primary_objective }} 排序）</span>
+            <span class="pan-sub">主要目标法 ε-终选在前列解中裁决 · 前沿展示 U2↔T2 / U4↔T2 等权衡结构</span>
+          </div>
+        </template>
+        <el-table :data="paretoFront" border size="small">
+          <el-table-column label="C2 单位成本↓" prop="c2_unit_cost" min-width="120">
+            <template #default="{ row }">{{ f(row.c2_unit_cost, 4) }}</template>
+          </el-table-column>
+          <el-table-column label="U2 装载率↑" prop="u2_loading_rate" min-width="110">
+            <template #default="{ row }">{{ f(row.u2_loading_rate, 4) }}</template>
+          </el-table-column>
+          <el-table-column label="U4 空驶率↓" prop="u4_empty_rate" min-width="110">
+            <template #default="{ row }">{{ f(row.u4_empty_rate, 4) }}</template>
+          </el-table-column>
+          <el-table-column label="T2 响应P95↓(s)" prop="t2_response_p95" min-width="120">
+            <template #default="{ row }">{{ f(row.t2_response_p95, 1) }}</template>
+          </el-table-column>
+          <el-table-column label="F1 基尼↓" prop="f1_gini" min-width="90">
+            <template #default="{ row }">{{ f(row.f1_gini, 4) }}</template>
+          </el-table-column>
+          <el-table-column label="G2 碳排↓" prop="g2_carbon_rate" min-width="100">
+            <template #default="{ row }">{{ f(row.g2_carbon_rate, 5) }}</template>
+          </el-table-column>
+        </el-table>
+      </el-card>
 
       <!-- 终态指标全景：按指标体系维度分组可视化 + 构成图 + 事件时间线 + 原始字段折叠 -->
       <el-card style="margin-top:16px">
@@ -207,11 +240,13 @@ const primaryCards = computed(() => {
   if (!primary.value) return []
   const p = primary.value
   const fmt = (v, d = 3) => (typeof v === 'number' ? Number(v.toFixed(d)) : v)
-  return [
-    { label: 'C2 单位成本', value: fmt(p.C2_unit_cost) },
-    { label: 'U2 装载率', value: fmt(p.U2_loading_rate) },
-    { label: 'U4 空驶率', value: fmt(p.U4_empty_rate) },
-    { label: 'T2 响应P95(s)', value: fmt(p.T2_match_response_p95) },
+  const isPrimaryMode = p.objective_mode === 'primary'
+  const po = p.primary_objective || ''
+  const cards = [
+    { label: 'C2 单位成本', value: fmt(p.C2_unit_cost), isPrimary: isPrimaryMode && po === 'C2' },
+    { label: 'U2 装载率', value: fmt(p.U2_loading_rate), isPrimary: isPrimaryMode && po === 'U2' },
+    { label: 'U4 空驶率', value: fmt(p.U4_empty_rate), isPrimary: isPrimaryMode && po === 'U4' },
+    { label: 'T2 响应P95(s)', value: fmt(p.T2_match_response_p95), isPrimary: isPrimaryMode && po === 'T2' },
     { label: 'F1 基尼系数', value: fmt(p.F1_gini) },
     { label: 'G2 吨公里碳排', value: fmt(p.G2_carbon_per_ton_km) },
     { label: '总成本', value: fmt(p.total_cost, 2) },
@@ -221,6 +256,21 @@ const primaryCards = computed(() => {
     { label: '虚拟tick数', value: p.virtual_ticks },
     { label: 'SA均耗时(ms)', value: fmt(p.solve_time_avg_ms, 2) },
   ]
+  if (isPrimaryMode) {
+    cards.splice(6, 0,
+      { label: '主要目标', value: po ? `${po} · 容差${Math.round((p.tolerance ?? 0) * 100)}%` : '—' },
+      { label: '主目标终值', value: fmt(p.primary_objective_value, 4) },
+      { label: '软约束满足率', value: p.objective_feasible_pct !== undefined ? `${fmt(p.objective_feasible_pct, 1)}%` : '—' },
+      { label: '帕累托前沿均值', value: p.pareto_avg_front !== undefined ? fmt(p.pareto_avg_front, 1) : '—' },
+    )
+  }
+  return cards
+})
+
+// 最近批次帕累托前沿（多目标模式）
+const paretoFront = computed(() => {
+  const raw = primary.value?.pareto_last_front
+  return Array.isArray(raw) ? raw : []
 })
 
 // ---- summary 全景可视化 ----
@@ -288,9 +338,9 @@ const groups = computed(() => {
     {
       title: '成本效益（C）',
       items: [
-        { label: '总成本 F', value: s.cost_value, unit: '¥', note: 'A–E 加权和，调度唯一优化目标' },
-        { label: '单位成本 C2', value: s.unit_cost, unit: '¥/吨·km', note: '总成本/总吨公里，主目标↓' },
-        { label: '基线改善 C1', value: s.baseline_improvement, unit: '%', note: 'SA相对贪心基线的成本改善' },
+        { label: '总成本 F', value: s.cost_value, unit: '¥', note: 'A–E 加权和（weighted 模式为唯一优化目标）' },
+        { label: '单位成本 C2', value: s.unit_cost, unit: '¥/吨·km', note: '总成本/总吨公里，主目标候选↓' },
+        { label: '基线改善 C1', value: s.baseline_improvement, unit: '%', note: 'SA相对贪心基线的目标分数改善' },
         { label: '待处理损耗', value: s.total_loss_th, unit: '吨·h', note: '货物积压时间加权损耗' },
       ],
     },
@@ -306,7 +356,7 @@ const groups = computed(() => {
     {
       title: '匹配质量（M）',
       items: [
-        { label: '精确率 M1', value: s.match_precision, ...ratio('up'), note: '选中车=条件成本最优车' },
+        { label: '精确率 M1', value: s.match_precision, ...ratio('up'), note: '选中车=条件最优车（按当前优化目标口径）' },
         { label: '召回率 M2', value: s.match_recall, ...ratio('up'), note: '未派单计为未命中' },
         { label: 'F1 M3', value: s.match_f1, ...ratio('up') },
         { label: 'MRR M4', value: s.match_mrr, note: '候选排名平均倒数' },
@@ -417,8 +467,20 @@ const buildHtmlReport = () => {
 
   out.push('<h2>一、主目标指标</h2>')
   out.push('<table><tr><th>指标</th><th>值</th></tr>')
-  for (const m of primaryCards.value) out.push('<tr><td>' + esc(m.label) + '</td><td class="num">' + esc(m.value) + '</td></tr>')
+  for (const m of primaryCards.value) {
+    const tag = m.isPrimary ? ' <span class="tag rest">主目标</span>' : ''
+    out.push('<tr><td>' + esc(m.label) + tag + '</td><td class="num">' + esc(m.value) + '</td></tr>')
+  }
   out.push('</table>')
+
+  if (paretoFront.value.length) {
+    out.push('<h3>最近批次帕累托前沿（主要目标法 ε-终选的候选解集）</h3>')
+    out.push('<table><tr><th>C2 单位成本↓</th><th>U2 装载率↑</th><th>U4 空驶率↓</th><th>T2 响应P95↓(s)</th><th>F1 基尼↓</th><th>G2 碳排↓</th></tr>')
+    for (const r of paretoFront.value) {
+      out.push('<tr><td class="num">' + f(r.c2_unit_cost, 4) + '</td><td class="num">' + f(r.u2_loading_rate, 4) + '</td><td class="num">' + f(r.u4_empty_rate, 4) + '</td><td class="num">' + f(r.t2_response_p95, 1) + '</td><td class="num">' + f(r.f1_gini, 4) + '</td><td class="num">' + f(r.g2_carbon_rate, 5) + '</td></tr>')
+    }
+    out.push('</table>')
+  }
 
   out.push('<h2>二、终态指标全景（按维度分组）</h2>')
   for (const g of groups.value) {
@@ -510,7 +572,17 @@ const buildMarkdownReport = () => {
   out.push('')
   out.push('| 指标 | 值 |')
   out.push('| --- | ---: |')
-  for (const m of primaryCards.value) out.push('| ' + mdCell(m.label) + ' | ' + mdCell(m.value) + ' |')
+  for (const m of primaryCards.value) out.push('| ' + mdCell(m.label) + (m.isPrimary ? '（主目标）' : '') + ' | ' + mdCell(m.value) + ' |')
+  if (paretoFront.value.length) {
+    out.push('')
+    out.push('### 最近批次帕累托前沿（主要目标法 ε-终选的候选解集）')
+    out.push('')
+    out.push('| C2 单位成本↓ | U2 装载率↑ | U4 空驶率↓ | T2 响应P95↓(s) | F1 基尼↓ | G2 碳排↓ |')
+    out.push('| ---: | ---: | ---: | ---: | ---: | ---: |')
+    for (const r of paretoFront.value) {
+      out.push('| ' + f(r.c2_unit_cost, 4) + ' | ' + f(r.u2_loading_rate, 4) + ' | ' + f(r.u4_empty_rate, 4) + ' | ' + f(r.t2_response_p95, 1) + ' | ' + f(r.f1_gini, 4) + ' | ' + f(r.g2_carbon_rate, 5) + ' |')
+    }
+  }
   out.push('')
   out.push('## 二、终态指标全景（按维度分组）')
   for (const g of groups.value) {
@@ -629,13 +701,26 @@ const renderCharts = () => {
     })
   }
   if (convergence.value.length > 0 && convRef.value) {
+    const hasPrimarySeries = convergence.value.some((c) => typeof c.bestPrimary === 'number' && c.bestPrimary > 0)
     convChart = echarts.init(convRef.value)
+    const series = [{
+      name: hasPrimarySeries ? 'ε-约束分数' : 'SA最优cost',
+      type: 'line',
+      data: convergence.value.map(c => c.bestCost),
+      smooth: true,
+    }]
+    const yAxis = [{ type: 'log', name: hasPrimarySeries ? 'ε-约束分数' : 'bestCost' }]
+    if (hasPrimarySeries) {
+      series.push({ name: '主目标原始值', type: 'line', yAxisIndex: 1, data: convergence.value.map(c => c.bestPrimary), smooth: true, lineStyle: { type: 'dashed' } })
+      yAxis.push({ type: 'value', name: '主目标值', scale: true })
+    }
     convChart.setOption({
       tooltip: { trigger: 'axis' },
-      grid: { left: 60, right: 20, top: 30, bottom: 30 },
+      legend: { data: series.map(s => s.name) },
+      grid: { left: 60, right: hasPrimarySeries ? 56 : 20, top: 40, bottom: 30 },
       xAxis: { type: 'category', name: '批次/温度序', data: convergence.value.map((_, i) => i + 1) },
-      yAxis: { type: 'log', name: 'bestCost' },
-      series: [{ name: 'SA最优cost', type: 'line', data: convergence.value.map(c => c.bestCost), smooth: true }],
+      yAxis,
+      series,
     })
   }
   const s = summary.value
@@ -708,6 +793,9 @@ onUnmounted(() => {
 .head-actions { display: flex; gap: 8px; align-items: flex-start; }
 .metric-cards { margin-bottom: 16px; }
 .metric-card { text-align: center; margin-bottom: 12px; }
+.metric-card-primary { border: 1px solid #67c23a; }
+.metric-card-primary .metric-value { color: #67c23a; }
+.primary-tag { margin-left: 4px; vertical-align: 1px; }
 .metric-value { font-size: 22px; font-weight: 700; color: #409eff; }
 .metric-label { color: #909399; font-size: 12px; margin-top: 4px; }
 .chart { height: 300px; }

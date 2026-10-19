@@ -37,14 +37,15 @@ func TestEvaluateBatchOptimizationGap(t *testing.T) {
 	cargoCache := map[uint]*model.Cargo{1: cargos[1]}
 	projectedLoads := map[uint]int{1: 0, 2: 0}
 
-	// SA 分配结果（桩运行时：固定种子，确定性）
+	// SA 分配结果（桩运行时：固定种子，确定性）。默认参数为主要目标法(C2)模式。
 	rt := newStubRuntime()
-	sa := assignBySimulatedAnnealing(rt, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
+	objCtx := newObjectiveContext(rt.Params.Objectives, stats)
+	sa := assignBySimulatedAnnealing(rt, objCtx, shipments, vehicles, stats, cargoCache, projectedLoads, pois)
 	if len(sa) != 2 {
 		t.Fatalf("SA should assign all 2 shipments, got %d", len(sa))
 	}
 
-	saCost, bestCost, gap := evaluateBatchOptimizationGap(shipments, vehicles, stats, cargoCache, projectedLoads, pois, sa, now)
+	saCost, bestCost, gap := evaluateBatchOptimizationGap(objCtx, shipments, vehicles, stats, cargoCache, projectedLoads, pois, sa, now)
 	if saCost <= 0 || bestCost <= 0 {
 		t.Fatalf("expected positive costs, got saCost=%v bestCost=%v", saCost, bestCost)
 	}
@@ -57,7 +58,7 @@ func TestEvaluateBatchOptimizationGap(t *testing.T) {
 	for i := range bigShipments {
 		bigShipments[i] = shipments[0]
 	}
-	if c, b, g := evaluateBatchOptimizationGap(bigShipments, vehicles, stats, cargoCache, projectedLoads, pois, sa, now); c != 0 || b != 0 || g != 0 {
+	if c, b, g := evaluateBatchOptimizationGap(objCtx, bigShipments, vehicles, stats, cargoCache, projectedLoads, pois, sa, now); c != 0 || b != 0 || g != 0 {
 		t.Fatalf("expected skip for oversized batch, got %v %v %v", c, b, g)
 	}
 }

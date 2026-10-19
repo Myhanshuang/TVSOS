@@ -29,8 +29,9 @@ func BenchmarkSchedulerVehicleScale(b *testing.B) {
 
 		b.Run(fmt.Sprintf("SA/vehicles_%d", vehicleCount), func(b *testing.B) {
 			rt := newStubRuntime() // 沙箱化后 SA 需实验运行时（桩：固定种子，纯内存）
+			objCtx := newObjectiveContext(rt.Params.Objectives, nil)
 			for n := 0; n < b.N; n++ {
-				_ = assignBySimulatedAnnealing(rt, shipments, vehicles, nil, cargos, cloneProjectedLoads(loads), pois)
+				_ = assignBySimulatedAnnealing(rt, objCtx, shipments, vehicles, nil, cargos, cloneProjectedLoads(loads), pois)
 			}
 		})
 	}

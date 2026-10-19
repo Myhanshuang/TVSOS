@@ -42,6 +42,19 @@ const healthHead = computed(() => {
   return `吞吐 ${fmtNum(s.total_throughput)}t · 积压 ${fmtNum(s.cargo_pending)}t · P95 ${fmt1(s.match_response_p95)}s`
 })
 
+// 多目标优化口径描述（主要目标法模式显示主目标 + 软约束满足率）
+const objectiveDesc = computed(() => {
+  const s = summary.value || {}
+  if (s.objective_mode === 'primary' && s.primary_objective) {
+    const names = { C2: 'C2 单位成本↓', U2: 'U2 装载率↑', U4: 'U4 空驶率↓', T2: 'T2 响应P95↓' }
+    let desc = `主要目标法：${names[s.primary_objective] || s.primary_objective}`
+    if (s.objective_feasible_pct > 0) desc += ` · 软约束满足率 ${fmt1(s.objective_feasible_pct)}%`
+    return desc
+  }
+  if (s.objective_mode === 'weighted') return '优化目标：综合成本 F（旧标量化）'
+  return '优化目标：综合成本 F'
+})
+
 // ---- 图表实例 ----
 const healthRef = ref(null)
 const effRef = ref(null)
@@ -392,7 +405,7 @@ const openTopDialog = async (metric) => {
       <div class="opt-half">
         <div class="sec-head">
           <span class="sec-title">最终优化指标值</span>
-          <span class="sec-sub">优化目标：综合成本 F</span>
+          <span class="sec-sub">{{ objectiveDesc }}</span>
         </div>
         <div class="opt-grid">
           <div class="opt-item">
